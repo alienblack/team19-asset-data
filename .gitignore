@@ -3,6 +3,13 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Team 19 data and generated outputs
+# Never commit SAPN or other confidential/authorised data to this repository.
+data/private/
+data/raw/
+data/authorised/
+outputs/
+
 # C extensions
 *.so
 
