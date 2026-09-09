@@ -1,0 +1,18 @@
+item,value,basis,status
+snapshot_year,2014,SAPN AMP publication/network snapshot,SAPN grounded
+installation_year_profile,"Strong 1955-1977 expansion; extra peaks 1955, 1956, 1958, 1966",SAPN AMP age profile and text,SAPN grounded shape; exact probabilities synthetic
+asset_age,2014 - installation_year,Deterministic derivation,Derived
+voltage_categories,"66 kV, 33 kV, 19 kV SWER, 11/7.6 kV, LV",SAPN AMP Table 1,SAPN grounded
+voltage_by_era,Older pre-1950 biased to 33kV; 1955-1977 biased to SWER/11kV,SAPN AMP text,SAPN grounded direction; exact probabilities synthetic
+corrosion_marginal,"Low ~53%, Severe ~35%, Very Severe ~11%",SAPN AMP corrosion-zone section,SAPN grounded
+material_target,"Steel, Copper, Aluminium only",Sprint 2 matrix + SAPN conductor groups,Project scope
+material_marginal_reference,"Steel ~74.0%, Copper ~15.9%, Aluminium ~10.1%",Normalized known non-ACSR route lengths from SAPN Table 2,"SAPN-derived reference, not a direct material-field distribution"
+ACSR,Excluded from current 3-class target,Composite conductor group; cannot cleanly map to one material class,Project modelling decision
+conductor_type,"AAC, AAAC, Aluminium, Copper, SC/AC, SC/GZ",SAPN AMP Table 2,SAPN grounded
+conductor_type_as_predictor,Do not use directly for material prediction,Would reveal target and create leakage,Modelling safeguard
+covering,Bare / Covered; low overall covered share,SAPN AMP says covered conductor ~2.2% of overhead network,SAPN grounded marginal; exact age relationship synthetic
+location_group,Urban / Regional / Rural,AMP uses rural/urban but does not publish population proportions,Synthetic assumption
+distance_to_sea_km,Conditional on corrosion/location,AMP supports saline/coastal corrosion relationship but no km thresholds,Synthetic enrichment assumption
+segment_length,"Lognormal, context dependent",AMP gives total route length but no segment-length distribution,Synthetic assumption / needs external calibration
+route_length_calibration,"Iterative calibration to voltage, corrosion and 3-class material route-length marginals","SAPN percentages are route-length shares, not row shares",Synthetic calibration step using SAPN aggregate targets
+missing_values,None in complete reference dataset,Masking is a separate validation step,Project design

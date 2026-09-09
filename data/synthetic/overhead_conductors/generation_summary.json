@@ -1,0 +1,48 @@
+{
+  "seed": 219,
+  "rows": 10000,
+  "snapshot_year": 2014,
+  "missing_cells": 0,
+  "mean_age": 50.62,
+  "share_age_over_50": 0.5861,
+  "share_age_under_20": 0.0203,
+  "voltage_row_share": {
+    "11/7.6 kV": 0.2651,
+    "19 kV SWER": 0.4008,
+    "33 kV": 0.0943,
+    "66 kV": 0.0219,
+    "LV": 0.2179
+  },
+  "voltage_route_length_share": {
+    "11/7.6 kV": 0.249,
+    "19 kV SWER": 0.409,
+    "33 kV": 0.056,
+    "66 kV": 0.02,
+    "LV": 0.266
+  },
+  "corrosion_row_share": {
+    "Low": 0.5674,
+    "Severe": 0.3312,
+    "Very Severe": 0.1014
+  },
+  "corrosion_route_length_share": {
+    "Low": 0.5354,
+    "Severe": 0.3535,
+    "Very Severe": 0.1111
+  },
+  "material_row_share": {
+    "Aluminium": 0.118,
+    "Copper": 0.1521,
+    "Steel": 0.7299
+  },
+  "material_route_length_share": {
+    "Aluminium": 0.101,
+    "Copper": 0.159,
+    "Steel": 0.74
+  },
+  "covering_row_share": {
+    "Bare": 0.9887,
+    "Covered": 0.0113
+  },
+  "total_route_length_km_in_synthetic_sample": 5734.46
+}
