@@ -1,0 +1,27 @@
+{
+  "input_file": "team19-asset-data/data/synthetic/overhead_conductors/material_model_ready_data.csv",
+  "config_file": "team19-asset-data/config/overhead_conductor_masking_rules.yaml",
+  "rules_applied": [
+    "Y03"
+  ],
+  "masked_output_file": "team19-asset-data/data/synthetic/overhead_conductors/masked/Y03/masked_Y03.csv",
+  "truth_output_file": "team19-asset-data/data/synthetic/overhead_conductors/masked/Y03/truth_Y03.csv",
+  "rule_metadata": [
+    {
+      "rule_id": "Y03",
+      "name": "Installation Year Random 30 Percent",
+      "description": "Randomly mask 30% of installation years; linked asset_age is masked on the same rows.",
+      "strategy": "target_random",
+      "seed": 242,
+      "rows_in_dataset": 10000,
+      "target": "installation_year",
+      "requested_rate": 0.3,
+      "masked_counts": {
+        "installation_year": 3000
+      },
+      "linked_masked_counts": {
+        "asset_age": 3000
+      }
+    }
+  ]
+}
