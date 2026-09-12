@@ -1,4 +1,4 @@
-segment_id,feeder_id,installation_year,asset_age_2014,voltage_category,location_group,corrosion_zone,distance_to_sea_km,material,conductor_type,covering,length_km,data_status,record_version
+segment_id,feeder_id,installation_year,asset_age,voltage_category,location_group,corrosion_zone,distance_to_sea_km,material,conductor_type,covering,length_km,data_status,record_version
 SEG_000001,G_FDR_021,1973,41,LV,Regional,Severe,9.4,Steel,SC/AC,Bare,1.584,Synthetic,Complete reference
 SEG_000002,R_FDR_034,1955,59,33 kV,Rural,Low,233.85,Steel,SC/AC,Bare,1.0092,Synthetic,Complete reference
 SEG_000003,U_FDR_020,1962,52,LV,Urban,Severe,10.62,Steel,SC/GZ,Bare,0.1148,Synthetic,Complete reference

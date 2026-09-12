@@ -1,0 +1,186 @@
+settings:
+  default_seed: 220
+
+maskable_attributes:
+  - material
+  - installation_year
+  - voltage_category
+  - corrosion_zone
+  - covering
+  - length_km
+  - location_group
+  - distance_to_sea_km
+
+protected_attributes:
+  - segment_id
+  - feeder_id
+  - conductor_type
+  - data_status
+  - record_version
+
+linked_columns:
+  installation_year:
+    - asset_age
+
+rules:
+
+  # -------------------------------------------------
+  # GENERIC RANDOM-ATTRIBUTE RULES
+  # -------------------------------------------------
+
+  R01:
+    name: "One Random Attribute - 10 Percent"
+    description: "Randomly select one eligible attribute and mask 10% of its known values."
+    strategy: "random_attribute"
+    rate: 0.10
+    number_of_attributes: 1
+    selection_mode: "independent"
+    seed: 220
+
+  R02:
+    name: "One Random Attribute - 20 Percent"
+    description: "Randomly select one eligible attribute and mask 20% of its known values."
+    strategy: "random_attribute"
+    rate: 0.20
+    number_of_attributes: 1
+    selection_mode: "independent"
+    seed: 221
+
+  R03:
+    name: "One Random Attribute - 30 Percent"
+    description: "Randomly select one eligible attribute and mask 30% of its known values."
+    strategy: "random_attribute"
+    rate: 0.30
+    number_of_attributes: 1
+    selection_mode: "independent"
+    seed: 222
+
+  R04:
+    name: "Three Random Attributes - 20 Percent Independent"
+    description: "Randomly select three eligible attributes and mask 20% of each using different random rows."
+    strategy: "random_attribute"
+    rate: 0.20
+    number_of_attributes: 3
+    selection_mode: "independent"
+    seed: 223
+
+  R05:
+    name: "Three Random Attributes - 20 Percent Shared Rows"
+    description: "Randomly select three eligible attributes and mask the same 20% of rows across all three."
+    strategy: "random_attribute"
+    rate: 0.20
+    number_of_attributes: 3
+    selection_mode: "shared_rows"
+    seed: 224
+
+  # -------------------------------------------------
+  # MATERIAL-SPECIFIC RANDOM RULES
+  # -------------------------------------------------
+
+  M01:
+    name: "Material Random 10 Percent"
+    description: "Randomly mask 10% of known material values."
+    strategy: "target_random"
+    target: "material"
+    rate: 0.10
+    seed: 230
+
+  M02:
+    name: "Material Random 20 Percent"
+    description: "Randomly mask 20% of known material values."
+    strategy: "target_random"
+    target: "material"
+    rate: 0.20
+    seed: 231
+
+  M03:
+    name: "Material Random 30 Percent"
+    description: "Randomly mask 30% of known material values."
+    strategy: "target_random"
+    target: "material"
+    rate: 0.30
+    seed: 232
+
+  # -------------------------------------------------
+  # INSTALLATION-YEAR-SPECIFIC RANDOM RULES
+  # -------------------------------------------------
+
+  Y01:
+    name: "Installation Year Random 10 Percent"
+    description: "Randomly mask 10% of installation years; linked asset_age is masked on the same rows."
+    strategy: "target_random"
+    target: "installation_year"
+    rate: 0.10
+    seed: 240
+
+  Y02:
+    name: "Installation Year Random 20 Percent"
+    description: "Randomly mask 20% of installation years; linked asset_age is masked on the same rows."
+    strategy: "target_random"
+    target: "installation_year"
+    rate: 0.20
+    seed: 241
+
+  Y03:
+    name: "Installation Year Random 30 Percent"
+    description: "Randomly mask 30% of installation years; linked asset_age is masked on the same rows."
+    strategy: "target_random"
+    target: "installation_year"
+    rate: 0.30
+    seed: 242
+
+  # -------------------------------------------------
+  # STRUCTURED MATERIAL RULES
+  # -------------------------------------------------
+
+  M04:
+    name: "Material - Installation Era Dependent"
+    description: "Synthetic MAR-style stress test: older installation eras have higher material-missingness rates."
+    strategy: "conditional"
+    target: "material"
+    condition_column: "installation_year"
+    seed: 250
+    conditions:
+      - min: 1930
+        max: 1964
+        rate: 0.30
+      - min: 1965
+        max: 1979
+        rate: 0.20
+      - min: 1980
+        max: 1994
+        rate: 0.12
+      - min: 1995
+        max: 2014
+        rate: 0.05
+
+  M05:
+    name: "Material - Feeder Dependent"
+    description: "Synthetic clustered-missingness stress test: selected feeders have poorer material completeness."
+    strategy: "group"
+    target: "material"
+    group_column: "feeder_id"
+    default_rate: 0.10
+    selected_group_rate: 0.40
+    selected_groups:
+      - "R_FDR_005"
+      - "R_FDR_012"
+      - "G_FDR_004"
+    seed: 251
+
+  # -------------------------------------------------
+  # CORRELATED-FEATURE STRESS TEST
+  # -------------------------------------------------
+
+  M06:
+    name: "Material - Correlated Feature Stress Test"
+    description: "Mask material, then remove selected supporting predictors for subsets of those same rows."
+    strategy: "multi_column"
+    target: "material"
+    rate: 0.20
+    additional_mask_scope: "target_rows"
+    additional_masks:
+      installation_year: 0.30
+      corrosion_zone: 0.20
+      voltage_category: 0.10
+    seed: 260
