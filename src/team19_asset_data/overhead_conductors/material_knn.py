@@ -18,10 +18,11 @@ import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score, normalized_mutual_info_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import KBinsDiscretizer, OneHotEncoder, StandardScaler
 
 from .material_baseline import (
     DEFAULT_INPUT,
@@ -38,7 +39,6 @@ from .material_baseline import (
 DEFAULT_OUTPUT = Path("outputs/PGS219-128")
 DEFAULT_FEATURES = (
     "installation_year",
-    "asset_age",
     "voltage_category",
     "location_group",
     "corrosion_zone",
@@ -47,7 +47,9 @@ DEFAULT_FEATURES = (
     "length_km",
 )
 DEFAULT_NEIGHBORS = 7
+DEFAULT_CANDIDATE_NEIGHBORS = (3, 5, 7, 9)
 DEFAULT_MIN_CONFIDENCE = 0.50
+DEFAULT_MIN_CATEGORY_SUPPORT = 25
 
 
 @dataclass
@@ -164,7 +166,14 @@ def _weighted_vote(labels: np.ndarray, distances: np.ndarray) -> tuple[str, floa
     """Return a deterministic weighted vote and its agreement score."""
     if len(labels) == 0:
         raise ValueError("Cannot vote without neighbours.")
-    weights = 1.0 / np.maximum(distances, 1e-12)
+    exact_matches = distances <= 1e-12
+    # Treat exact matches explicitly instead of creating an unstable 1/e-12
+    # weight. Multiple exact matches share the vote equally.
+    weights = (
+        exact_matches.astype(float)
+        if exact_matches.any()
+        else 1.0 / distances
+    )
     scores = {label: 0.0 for label in LABELS}
     for label, weight in zip(labels, weights):
         scores[str(label)] = scores.get(str(label), 0.0) + float(weight)
@@ -180,8 +189,9 @@ def predict_with_evidence(
 ) -> pd.DataFrame:
     """Predict material and return neighbour, distance and quality evidence.
 
-    ``material_prediction`` is the candidate value for every row.  When the
-    weighted neighbour agreement is below ``min_confidence``,
+    ``material_prediction`` is the candidate value for every row.  The
+    confidence score combines weighted neighbour agreement with a bounded
+    distance score. When the combined score is below ``min_confidence``,
     ``material_imputed`` is left blank and ``abstained`` is set to true.  This
     preserves a useful suggestion without silently treating weak evidence as a
     verified replacement.
@@ -194,6 +204,7 @@ def predict_with_evidence(
                 "material_prediction",
                 "material_imputed",
                 "weighted_neighbor_agreement",
+                "confidence_score",
                 "mean_neighbor_distance",
                 "max_neighbor_distance",
                 "distance_evidence_score",
@@ -212,21 +223,30 @@ def predict_with_evidence(
         prediction, agreement = _weighted_vote(neighbour_labels, row_distances)
         mean_distance = float(np.mean(row_distances))
         max_distance = float(np.max(row_distances))
-        distance_score = float(1.0 / (1.0 + mean_distance))
-        if agreement >= 0.80:
+        # An exact feature match is stronger evidence than a large-distance
+        # neighbour, so do not penalise a unanimous exact match by its other
+        # distant neighbours.
+        distance_score = (
+            1.0
+            if (row_distances <= 1e-12).any()
+            else float(1.0 / (1.0 + mean_distance))
+        )
+        confidence_score = float(agreement * distance_score)
+        if confidence_score >= 0.65:
             quality = "High"
-        elif agreement >= 0.60:
+        elif confidence_score >= 0.50:
             quality = "Medium"
-        elif agreement >= min_confidence:
+        elif confidence_score >= min_confidence:
             quality = "Low"
         else:
             quality = "Insufficient evidence"
-        abstained = agreement < min_confidence
+        abstained = confidence_score < min_confidence
         evidence.append(
             {
                 "material_prediction": prediction,
                 "material_imputed": prediction if not abstained else pd.NA,
                 "weighted_neighbor_agreement": agreement,
+                "confidence_score": confidence_score,
                 "mean_neighbor_distance": mean_distance,
                 "max_neighbor_distance": max_distance,
                 "distance_evidence_score": distance_score,
@@ -234,7 +254,7 @@ def predict_with_evidence(
                 "quality_flag": quality,
                 "abstained": abstained,
                 "fallback_reason": (
-                    "weighted_neighbor_agreement_below_threshold" if abstained else ""
+                    "confidence_score_below_threshold" if abstained else ""
                 ),
             }
         )
@@ -244,21 +264,46 @@ def predict_with_evidence(
 def feature_association_report(
     frame: pd.DataFrame,
     feature_columns: Sequence[str] = DEFAULT_FEATURES,
+    min_category_support: int = DEFAULT_MIN_CATEGORY_SUPPORT,
 ) -> pd.DataFrame:
-    """Create lightweight numeric/categorical leakage diagnostics."""
+    """Create multiclass association and support-aware leakage diagnostics."""
+    if min_category_support < 1:
+        raise ValueError("min_category_support must be at least 1.")
+    target_codes = pd.factorize(frame["material"].astype("string"), sort=True)[0]
     rows: list[dict[str, object]] = []
     for column in feature_columns:
         series = frame[column]
         if pd.api.types.is_numeric_dtype(series):
-            value = float(abs(series.corr(frame["material"].map({label: i for i, label in enumerate(LABELS)}))))
-            association_type = "absolute_pearson_correlation"
+            unique_count = int(series.nunique(dropna=True))
+            if unique_count <= 1:
+                value = 0.0
+            else:
+                filled = series.fillna(float(series.median())).to_numpy().reshape(-1, 1)
+                n_bins = min(10, unique_count)
+                binned = KBinsDiscretizer(
+                    n_bins=n_bins,
+                    encode="ordinal",
+                    strategy="quantile",
+                    subsample=None,
+                ).fit_transform(filled).ravel()
+                value = float(normalized_mutual_info_score(target_codes, binned))
+            association_type = "normalized_mutual_information"
             warning = value >= 0.95
         else:
-            table = pd.crosstab(series, frame["material"])
-            purity = table.div(table.sum(axis=1), axis=0).max(axis=1)
-            value = float(purity.max()) if not purity.empty else float("nan")
-            association_type = "maximum_category_material_purity"
-            warning = bool(value >= 0.98 and table.shape[0] > 1)
+            codes, _ = pd.factorize(series.astype("string").fillna("<MISSING>"), sort=True)
+            value = float(normalized_mutual_info_score(target_codes, codes))
+            association_type = "normalized_mutual_information"
+            table = pd.crosstab(series.astype("string").fillna("<MISSING>"), frame["material"])
+            category_support = table.sum(axis=1)
+            supported_table = table.loc[category_support >= min_category_support]
+            purity = supported_table.div(supported_table.sum(axis=1), axis=0).max(axis=1)
+            supported_max_purity = float(purity.max()) if not purity.empty else float("nan")
+            warning = bool(value >= 0.95 or supported_max_purity >= 0.98)
+        if pd.api.types.is_numeric_dtype(series):
+            supported_max_purity = float("nan")
+            supported_category_count = 0
+        else:
+            supported_category_count = int((table.sum(axis=1) >= min_category_support).sum())
         rows.append(
             {
                 "feature": column,
@@ -267,9 +312,76 @@ def feature_association_report(
                 "association_type": association_type,
                 "association_value": value,
                 "leakage_warning": warning,
+                "min_category_support": int(min_category_support),
+                "supported_category_count": supported_category_count,
+                "supported_max_category_purity": supported_max_purity,
             }
         )
     return pd.DataFrame(rows)
+
+
+def select_n_neighbors(
+    development: pd.DataFrame,
+    feature_columns: Sequence[str] = DEFAULT_FEATURES,
+    candidate_neighbors: Sequence[int] = DEFAULT_CANDIDATE_NEIGHBORS,
+    seed: int = 0,
+) -> tuple[int, pd.DataFrame]:
+    """Select ``k`` using stratified validation inside development data only."""
+    candidates = sorted({int(value) for value in candidate_neighbors})
+    if not candidates or any(value < 1 for value in candidates):
+        raise ValueError("candidate_neighbors must contain positive integers.")
+    validate_knn_input(development, feature_columns)
+    class_counts = development["material"].value_counts()
+    n_splits = min(3, int(class_counts.min()))
+    if n_splits < 2:
+        raise ValueError("At least two examples per material class are required for k selection.")
+    splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=int(seed))
+    rows: list[dict[str, object]] = []
+    labels = development["material"].astype(str).to_numpy()
+    for candidate in candidates:
+        fold_scores: list[float] = []
+        effective_k = 0
+        for train_positions, validation_positions in splitter.split(development, labels):
+            effective_k = min(candidate, len(train_positions))
+            model = fit_knn(development.iloc[train_positions], feature_columns, effective_k)
+            predictions = predict_with_evidence(
+                development.iloc[validation_positions], model, min_confidence=0.0
+            )
+            fold_scores.append(
+                float(
+                    f1_score(
+                        labels[validation_positions],
+                        predictions["material_prediction"].astype(str),
+                        labels=list(LABELS),
+                        average="macro",
+                        zero_division=0,
+                    )
+                )
+            )
+        rows.append(
+            {
+                "candidate_k": int(candidate),
+                "effective_k": int(effective_k),
+                "mean_development_macro_f1": float(np.mean(fold_scores)),
+                "std_development_macro_f1": float(np.std(fold_scores)),
+                "n_folds": int(n_splits),
+            }
+        )
+    selection = pd.DataFrame(rows)
+    selected = int(
+        selection.sort_values(
+            ["mean_development_macro_f1", "candidate_k"], ascending=[False, True]
+        ).iloc[0]["effective_k"]
+    )
+    return selected, selection
+
+
+def _rate_token(rate: float) -> str:
+    """Format a mask rate for an evidence filename without hard-coding 30%."""
+    percentage = rate * 100
+    if percentage.is_integer():
+        return f"{int(percentage)}pct"
+    return f"{percentage:.2f}".rstrip("0").rstrip(".").replace(".", "p") + "pct"
 
 
 def _metric_row(
@@ -336,13 +448,17 @@ def run_experiment(
     mask_rates: Sequence[float] = DEFAULT_MASK_RATES,
     seeds: Sequence[int] = DEFAULT_SEEDS,
     feature_columns: Sequence[str] = DEFAULT_FEATURES,
-    n_neighbors: int = DEFAULT_NEIGHBORS,
+    candidate_neighbors: Sequence[int] = DEFAULT_CANDIDATE_NEIGHBORS,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
     test_fraction: float = 0.20,
 ) -> pd.DataFrame:
     """Run KNN on the same controlled masks as the material baseline."""
     input_path = Path(input_path)
     output_dir = Path(output_dir)
+    if not seeds:
+        raise ValueError("seeds must contain at least one value.")
+    if not mask_rates:
+        raise ValueError("mask_rates must contain at least one value.")
     frame = pd.read_csv(input_path)
     validate_knn_input(frame, feature_columns)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -353,13 +469,22 @@ def run_experiment(
     confusion_rows: list[dict[str, object]] = []
     prediction_frames: list[pd.DataFrame] = []
     manifest_rows: list[dict[str, object]] = []
+    tuning_frames: list[pd.DataFrame] = []
 
     for seed in seeds:
         development_positions, evaluation_positions = split_indices(
             len(frame), int(seed), test_fraction
         )
         development = frame.iloc[development_positions]
-        model = fit_knn(development, feature_columns, n_neighbors)
+        selected_k, tuning = select_n_neighbors(
+            development,
+            feature_columns=feature_columns,
+            candidate_neighbors=candidate_neighbors,
+            seed=int(seed),
+        )
+        tuning.insert(0, "seed", int(seed))
+        tuning_frames.append(tuning)
+        model = fit_knn(development, feature_columns, selected_k)
         for rate in mask_rates:
             mask_seed = int(seed) + int(round(float(rate) * 10_000))
             masked_positions = select_mask_positions(evaluation_positions, float(rate), mask_seed)
@@ -414,14 +539,30 @@ def run_experiment(
     metrics = pd.DataFrame(metric_rows)
     metrics.to_csv(output_dir / "knn_metrics.csv", index=False)
     metrics.groupby("mask_rate", as_index=False)[
-        ["candidate_accuracy", "candidate_balanced_accuracy", "candidate_macro_f1", "coverage"]
+        [
+            "candidate_accuracy",
+            "candidate_balanced_accuracy",
+            "candidate_macro_f1",
+            "accepted_accuracy",
+            "accepted_balanced_accuracy",
+            "accepted_macro_f1",
+            "coverage",
+        ]
     ].mean().to_csv(output_dir / "knn_metrics_summary.csv", index=False)
     pd.DataFrame(confusion_rows).to_csv(output_dir / "knn_confusion_matrix.csv", index=False)
     pd.DataFrame(manifest_rows).to_csv(output_dir / "mask_manifest.csv", index=False)
     predictions = pd.concat(prediction_frames, ignore_index=True)
     predictions.to_csv(output_dir / "knn_predictions.csv", index=False)
-    sample = predictions[(predictions["seed"] == int(seeds[0])) & (predictions["mask_rate"] == 0.30)]
-    sample.to_csv(output_dir / "knn_imputed_material_seed101_rate30.csv", index=False)
+    tuning_results = pd.concat(tuning_frames, ignore_index=True)
+    tuning_results.to_csv(output_dir / "knn_k_selection.csv", index=False)
+    sample_seed = int(seeds[0])
+    sample_rate = float(mask_rates[0])
+    sample = predictions[
+        (predictions["seed"] == sample_seed)
+        & (predictions["mask_rate"] == sample_rate)
+    ]
+    sample_name = f"knn_imputed_material_seed{sample_seed}_rate{_rate_token(sample_rate)}.csv"
+    sample.to_csv(output_dir / sample_name, index=False)
 
     metadata = {
         "input_file": str(input_path),
@@ -430,15 +571,17 @@ def run_experiment(
         "feature_columns": list(feature_columns),
         "excluded_leakage_column": "conductor_type",
         "excluded_identifier_columns": ["segment_id", "data_status", "record_version"],
-        "n_neighbors": int(n_neighbors),
+        "candidate_neighbors": [int(value) for value in candidate_neighbors],
+        "k_selection": "three-fold stratified development-only macro-F1 selection per outer seed",
         "min_confidence": float(min_confidence),
         "mask_rates": [float(rate) for rate in mask_rates],
         "seeds": [int(seed) for seed in seeds],
         "test_fraction": float(test_fraction),
         "split_and_mask_compatibility": "Reuses material_baseline.split_indices and select_mask_positions with the same seed/rate formula.",
-        "confidence_definition": "weighted neighbour agreement; distance evidence is reported separately and is not a calibrated probability",
-        "abstention_definition": "material_imputed is blank when weighted neighbour agreement is below min_confidence",
+        "confidence_definition": "weighted neighbour agreement multiplied by 1/(1+mean transformed neighbour distance); not a calibrated probability",
+        "abstention_definition": "material_imputed is blank when combined confidence_score is below min_confidence",
         "truth_handling": "material_true is evaluation evidence only and is never used in preprocessing or neighbour fitting",
+        "sample_output": sample_name,
     }
     with (output_dir / "run_metadata.json").open("w", encoding="utf-8") as file:
         json.dump(metadata, file, indent=2)
@@ -452,7 +595,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask-rates", nargs="+", type=float, default=list(DEFAULT_MASK_RATES))
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument("--features", nargs="+", default=list(DEFAULT_FEATURES))
-    parser.add_argument("--n-neighbors", type=int, default=DEFAULT_NEIGHBORS)
+    parser.add_argument(
+        "--candidate-neighbors",
+        nargs="+",
+        type=int,
+        default=list(DEFAULT_CANDIDATE_NEIGHBORS),
+    )
     parser.add_argument("--min-confidence", type=float, default=DEFAULT_MIN_CONFIDENCE)
     parser.add_argument("--test-fraction", type=float, default=0.20)
     return parser.parse_args()
@@ -466,7 +614,7 @@ def main() -> None:
         mask_rates=args.mask_rates,
         seeds=args.seeds,
         feature_columns=args.features,
-        n_neighbors=args.n_neighbors,
+        candidate_neighbors=args.candidate_neighbors,
         min_confidence=args.min_confidence,
         test_fraction=args.test_fraction,
     )

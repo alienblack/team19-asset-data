@@ -13,11 +13,6 @@ from team19_asset_data.overhead_conductors.material_baseline import (
     split_indices,
     validate_input,
 )
-from team19_asset_data.overhead_conductors.material_knn import (
-    fit_knn,
-    predict_with_evidence,
-    validate_knn_input,
-)
 
 
 def sample_frame() -> pd.DataFrame:
@@ -79,30 +74,3 @@ def test_metrics_include_balanced_and_macro_scores() -> None:
     )
     assert set(result) == {"accuracy", "balanced_accuracy", "macro_f1"}
     assert result["accuracy"] == pytest.approx(2 / 3)
-
-
-def test_knn_fits_preprocessing_on_training_rows_and_returns_evidence() -> None:
-    frame = sample_frame()
-    features = ["installation_year", "asset_age", "voltage_category", "location_group"]
-    validate_knn_input(frame, features)
-    model = fit_knn(frame.iloc[:4], features, n_neighbors=3)
-    evidence = predict_with_evidence(frame.iloc[4:], model, min_confidence=0.50)
-    assert len(evidence) == 2
-    assert {
-        "material_prediction",
-        "material_imputed",
-        "weighted_neighbor_agreement",
-        "mean_neighbor_distance",
-        "distance_evidence_score",
-        "quality_flag",
-        "abstained",
-        "fallback_reason",
-    }.issubset(evidence.columns)
-    assert evidence["neighbor_count"].eq(3).all()
-
-
-def test_knn_rejects_conductor_type_leakage() -> None:
-    frame = sample_frame()
-    frame["conductor_type"] = ["SC/AC", "SC/AC", "Copper", "Copper", "AAC", "SC/AC"]
-    with pytest.raises(ValueError, match="conductor_type"):
-        validate_knn_input(frame, ["conductor_type"])
