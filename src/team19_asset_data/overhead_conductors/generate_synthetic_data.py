@@ -1,4 +1,3 @@
-
 """
 Synthetic Overhead Conductor Dataset Generator
 ==============================================
@@ -6,112 +5,479 @@ Synthetic Overhead Conductor Dataset Generator
 Purpose
 -------
 Generate a controlled, SAPN-inspired synthetic overhead-conductor dataset for
-Sprint 2 material-imputation experiments.
+material-imputation experiments.
 
 Important
 ---------
-This script DOES NOT claim to reproduce SAPN's real asset register.
+This script DOES NOT claim to reproduce SA Power Networks' real asset register.
+It combines published aggregate evidence with explicit synthetic assumptions.
 
-It uses:
-1. Public SAPN aggregate evidence from the 2014 Overhead Conductor AMP.
-2. Explicit synthetic conditional rules where the AMP does not provide exact
-   record-level joint probabilities.
-3. A complete reference dataset with no missing values.
-4. A three-class material target for the current pilot:
-      Aluminium, Copper, Steel
-   ACSR is intentionally excluded from this pilot target because it is a
-   composite conductor group and cannot be cleanly mapped to one of those
-   three material labels.
+Configuration
+-------------
+Generation settings are loaded from:
+
+    config/overhead_conductors/generation.yaml
+
+A custom configuration can also be supplied with:
+
+    python generate_synthetic_overhead_conductors.py --config path/to/generation.yaml
+
+The configuration is loaded and validated before any synthetic data is created.
 
 Snapshot year
 -------------
-The AMP's age statistics describe the network in 2014, so age is calculated as:
-
-    asset_age = 2014 - installation_year
-
-This lets validation compare generated age statistics with the published 2014
-profile without mixing time periods.
-
-Dependencies
-------------
-installation_year -> asset_age
-installation_year -> voltage_category
-voltage_category -> corrosion_zone
-installation_year + voltage_category + corrosion_zone -> material
-material -> conductor_type
-location_group -> feeder_group
-location_group + voltage_category -> length_km
-location_group -> distance_to_sea_km
-covering is generated weakly and independently enough to avoid making it an
-unrealistically strong material predictor.
+The current generation logic is calibrated to the 2014 overhead-conductor AMP.
+Therefore ``snapshot_year`` must currently remain 2014.
 
 Target leakage warning
 ----------------------
-conductor_type is kept in the complete synthetic asset register because it is
-realistic, but it should usually be EXCLUDED from a material-imputation model
-because codes such as AAC, AAAC, SC/AC and SC/GZ reveal material directly.
+``conductor_type`` is retained in the complete synthetic asset register because
+it is realistic, but it is excluded from the material-model-ready output because
+codes such as AAC, AAAC, SC/AC and SC/GZ reveal material directly.
 """
 
+from __future__ import annotations
+
+import argparse
+import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Tuple
-import json
-from pathlib import Path
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
+import yaml
 
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-OUTPUT_DIR = ROOT_DIR / "data" / "synthetic" / "overhead_conductors"
+LOGGER = logging.getLogger(__name__)
+
+CONFIG_RELATIVE_DIR = Path("config") / "overhead_conductors"
+CONFIG_FILENAMES = ("generation.yaml", "generation.yml")
+
+EXPECTED_VOLTAGE_CATEGORIES = {
+    "66 kV",
+    "33 kV",
+    "19 kV SWER",
+    "11/7.6 kV",
+    "LV",
+}
+EXPECTED_MATERIAL_CLASSES = {"Steel", "Copper", "Aluminium"}
+EXPECTED_CORROSION_ZONES = {"Low", "Severe", "Very Severe"}
+EXPECTED_ERA_KEYS = {
+    "pre_1950",
+    "1950_1977",
+    "1978_1994",
+    "from_1995",
+}
+
+ERA_KEY_ALIASES = {
+    "pre_1950": "pre_1950",
+    "1950_1977": "1950_1977",
+    "19501977": "1950_1977",  # PyYAML may parse an unquoted 1950_1977 key as an int
+    "1978_1994": "1978_1994",
+    "19781994": "1978_1994",  # PyYAML may parse an unquoted 1978_1994 key as an int
+    "from_1995": "from_1995",
+}
+
+REQUIRED_OUTPUT_COLUMNS = [
+    "segment_id",
+    "feeder_id",
+    "installation_year",
+    "asset_age",
+    "voltage_category",
+    "location_group",
+    "corrosion_zone",
+    "distance_to_sea_km",
+    "material",
+    "conductor_type",
+    "covering",
+    "length_km",
+    "data_status",
+    "record_version",
+]
+
 
 # ---------------------------------------------------------------------------
-# 1. Configuration
+# 1. Configuration discovery and validation
 # ---------------------------------------------------------------------------
+
+
+def find_default_config_path() -> Path:
+    """Locate generation.yaml/yml by searching upward from CWD and this file."""
+    starts = [Path.cwd().resolve(), Path(__file__).resolve().parent]
+    visited: set[Path] = set()
+
+    for start in starts:
+        for root in (start, *start.parents):
+            if root in visited:
+                continue
+            visited.add(root)
+
+            for filename in CONFIG_FILENAMES:
+                candidate = root / CONFIG_RELATIVE_DIR / filename
+                if candidate.is_file():
+                    return candidate.resolve()
+
+    expected = CONFIG_RELATIVE_DIR / CONFIG_FILENAMES[0]
+    raise FileNotFoundError(
+        "Could not locate the generation configuration. "
+        f"Expected something like '{expected}'. "
+        "Run from inside the project repository or pass --config explicitly."
+    )
+
+
+def infer_project_root(config_path: Path) -> Path:
+    """Infer project root from the standard config/.../generation.yaml layout."""
+    config_path = config_path.resolve()
+
+    # Standard repository layout:
+    # <project>/config/overhead_conductors/generation.yaml
+    if (
+        config_path.parent.name == "overhead_conductors"
+        and config_path.parent.parent.name == "config"
+    ):
+        return config_path.parent.parent.parent
+
+    # Fall back to a conventional repository marker if a custom config path is
+    # supplied.
+    for candidate in (config_path.parent, *config_path.parents):
+        if (candidate / ".git").exists() or (candidate / "pyproject.toml").exists():
+            return candidate
+
+    # Last resort: resolve relative output paths from the config's directory.
+    return config_path.parent
+
+
+def require_mapping(parent: Mapping[str, Any], key: str, context: str) -> dict[str, Any]:
+    """Return a required mapping section with a clear validation error."""
+    if key not in parent:
+        raise ValueError(f"Missing required configuration section: {context}.{key}")
+
+    value = parent[key]
+    if not isinstance(value, dict):
+        raise ValueError(f"'{context}.{key}' must be a YAML mapping/object.")
+
+    return value
+
+
+def require_key(parent: Mapping[str, Any], key: str, context: str) -> Any:
+    """Return a required configuration value with a clear validation error."""
+    if key not in parent:
+        raise ValueError(f"Missing required configuration value: {context}.{key}")
+    return parent[key]
+
+
+def normalize_distribution(
+    distribution: Mapping[str, Any],
+    name: str,
+) -> dict[str, float]:
+    """Validate and normalize a probability/share distribution."""
+    if not isinstance(distribution, Mapping) or not distribution:
+        raise ValueError(f"'{name}' must be a non-empty mapping.")
+
+    converted: dict[str, float] = {}
+    for label, raw_value in distribution.items():
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"'{name}.{label}' must be numeric; received {raw_value!r}."
+            ) from exc
+
+        if not np.isfinite(value):
+            raise ValueError(f"'{name}.{label}' must be finite.")
+        if value < 0:
+            raise ValueError(f"'{name}.{label}' cannot be negative.")
+
+        converted[str(label)] = value
+
+    total = sum(converted.values())
+    if total <= 0:
+        raise ValueError(f"'{name}' must have a positive total probability/share.")
+
+    return {label: value / total for label, value in converted.items()}
+
+
+
+
+def normalize_era_mapping_keys(raw_mapping: Mapping[Any, Any]) -> dict[str, Any]:
+    """Normalize YAML era keys, including numeric keys produced by PyYAML."""
+    normalized: dict[str, Any] = {}
+
+    for raw_key, value in raw_mapping.items():
+        text_key = str(raw_key)
+        normalized_key = ERA_KEY_ALIASES.get(text_key, text_key)
+
+        if normalized_key in normalized:
+            raise ValueError(
+                "Duplicate voltage installation-era configuration after key "
+                f"normalization: {normalized_key!r}"
+            )
+
+        normalized[normalized_key] = value
+
+    return normalized
+
+
+def validate_effects(
+    effects: Any,
+    allowed_materials: set[str],
+    name: str,
+) -> None:
+    """Validate optional material-effect mappings used by the generator."""
+    if effects is None:
+        return
+    if not isinstance(effects, Mapping):
+        raise ValueError(f"'{name}' must be a mapping.")
+
+    for group, adjustments in effects.items():
+        if not isinstance(adjustments, Mapping):
+            raise ValueError(f"'{name}.{group}' must be a mapping.")
+
+        unknown = set(adjustments) - allowed_materials
+        if unknown:
+            raise ValueError(
+                f"'{name}.{group}' contains unknown material class(es): "
+                f"{sorted(unknown)}"
+            )
+
+        for material, raw_value in adjustments.items():
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"'{name}.{group}.{material}' must be numeric."
+                ) from exc
+
+            if not np.isfinite(value):
+                raise ValueError(
+                    f"'{name}.{group}.{material}' must be finite."
+                )
+
 
 @dataclass(frozen=True)
 class Config:
-    n_rows: int = 10_000
-    seed: int = 219
-    snapshot_year: int = 2014
-    output_dir: str = OUTPUT_DIR
+    """Validated generation configuration."""
 
-    # Published SAPN route-length constraints used as validation targets.
-    voltage_target: Dict[str, float] = None
-    corrosion_target: Dict[str, float] = None
+    n_rows: int
+    seed: int
+    snapshot_year: int
+    output_dir: Path
+    voltage: dict[str, Any]
+    material: dict[str, Any]
+    corrosion: dict[str, Any]
+    config_path: Path
 
-    def __post_init__(self):
-        object.__setattr__(
-            self,
-            "voltage_target",
-            {
-                "66 kV": 0.020,
-                "33 kV": 0.056,
-                "19 kV SWER": 0.409,
-                "11/7.6 kV": 0.249,
-                "LV": 0.266,
-            },
+    @classmethod
+    def from_yaml(cls, config_path: str | Path) -> "Config":
+        """Load, resolve and validate generator settings from YAML."""
+        path = Path(config_path).expanduser().resolve()
+
+        if not path.is_file():
+            raise FileNotFoundError(f"Generation config file not found: {path}")
+
+        try:
+            with path.open("r", encoding="utf-8") as file:
+                raw_config = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Invalid YAML syntax in {path}: {exc}") from exc
+
+        if not isinstance(raw_config, dict):
+            raise ValueError(
+                f"The generation configuration must be a YAML mapping/object: {path}"
+            )
+
+        dataset = require_mapping(raw_config, "dataset", "root")
+        paths = require_mapping(raw_config, "paths", "root")
+        voltage = require_mapping(raw_config, "voltage", "root")
+        material = require_mapping(raw_config, "material", "root")
+        corrosion = require_mapping(raw_config, "corrosion", "root")
+
+        try:
+            n_rows = int(require_key(dataset, "n_rows", "dataset"))
+            seed = int(require_key(dataset, "seed", "dataset"))
+            snapshot_year = int(
+                require_key(dataset, "snapshot_year", "dataset")
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "dataset.n_rows, dataset.seed and dataset.snapshot_year "
+                "must be integers."
+            ) from exc
+
+        raw_output_dir = require_key(paths, "output_dir", "paths")
+        if not isinstance(raw_output_dir, str) or not raw_output_dir.strip():
+            raise ValueError("'paths.output_dir' must be a non-empty path string.")
+
+        project_root = infer_project_root(path)
+        output_dir = Path(raw_output_dir).expanduser()
+        if not output_dir.is_absolute():
+            output_dir = project_root / output_dir
+        output_dir = output_dir.resolve()
+
+        voltage_config = dict(voltage)
+        raw_by_era = voltage_config.get("by_installation_era")
+        if isinstance(raw_by_era, Mapping):
+            voltage_config["by_installation_era"] = normalize_era_mapping_keys(
+                raw_by_era
+            )
+
+        config = cls(
+            n_rows=n_rows,
+            seed=seed,
+            snapshot_year=snapshot_year,
+            output_dir=output_dir,
+            voltage=voltage_config,
+            material=dict(material),
+            corrosion=dict(corrosion),
+            config_path=path,
         )
-        object.__setattr__(
-            self,
-            "corrosion_target",
-            {
-                "Low": 0.53,
-                "Severe": 0.35,
-                "Very Severe": 0.11,
-            },
+        config.validate()
+        return config
+
+    @property
+    def voltage_target(self) -> dict[str, float]:
+        return normalize_distribution(
+            self.voltage["neutral_distribution"],
+            "voltage.neutral_distribution",
         )
+
+    @property
+    def corrosion_target(self) -> dict[str, float]:
+        return normalize_distribution(
+            self.corrosion["neutral_distribution"],
+            "corrosion.neutral_distribution",
+        )
+
+    @property
+    def material_target(self) -> dict[str, float]:
+        return normalize_distribution(
+            self.material["base_distribution"],
+            "material.base_distribution",
+        )
+
+    def voltage_distribution_for_era(self, era: str) -> dict[str, float]:
+        by_era = self.voltage["by_installation_era"]
+        return normalize_distribution(
+            by_era[era],
+            f"voltage.by_installation_era.{era}",
+        )
+
+    def validate(self) -> None:
+        """Validate all settings needed by the current generation logic."""
+        if self.n_rows <= 0:
+            raise ValueError("'dataset.n_rows' must be greater than 0.")
+
+        if self.seed < 0:
+            raise ValueError("'dataset.seed' must be zero or greater.")
+
+        # The age profile and published validation targets in this generator are
+        # explicitly calibrated to the 2014 AMP snapshot.
+        if self.snapshot_year != 2014:
+            raise ValueError(
+                "'dataset.snapshot_year' must currently be 2014 because the "
+                "installation-year and age-profile logic is calibrated to the "
+                "2014 SAPN Overhead Conductor AMP."
+            )
+
+        if "neutral_distribution" not in self.voltage:
+            raise ValueError("Missing 'voltage.neutral_distribution'.")
+        if "by_installation_era" not in self.voltage:
+            raise ValueError("Missing 'voltage.by_installation_era'.")
+        if not isinstance(self.voltage["by_installation_era"], Mapping):
+            raise ValueError("'voltage.by_installation_era' must be a mapping.")
+
+        voltage_target = self.voltage_target
+        if set(voltage_target) != EXPECTED_VOLTAGE_CATEGORIES:
+            raise ValueError(
+                "voltage.neutral_distribution must contain exactly these "
+                f"categories: {sorted(EXPECTED_VOLTAGE_CATEGORIES)}"
+            )
+
+        by_era = self.voltage["by_installation_era"]
+        missing_eras = EXPECTED_ERA_KEYS - set(by_era)
+        if missing_eras:
+            raise ValueError(
+                "voltage.by_installation_era is missing required era(s): "
+                f"{sorted(missing_eras)}"
+            )
+
+        for era in EXPECTED_ERA_KEYS:
+            era_distribution = self.voltage_distribution_for_era(era)
+            if set(era_distribution) != EXPECTED_VOLTAGE_CATEGORIES:
+                raise ValueError(
+                    f"voltage.by_installation_era.{era} must contain exactly "
+                    f"these categories: {sorted(EXPECTED_VOLTAGE_CATEGORIES)}"
+                )
+
+        if "base_distribution" not in self.material:
+            raise ValueError("Missing 'material.base_distribution'.")
+
+        material_target = self.material_target
+        if set(material_target) != EXPECTED_MATERIAL_CLASSES:
+            raise ValueError(
+                "material.base_distribution must contain exactly these classes: "
+                f"{sorted(EXPECTED_MATERIAL_CLASSES)}"
+            )
+
+        validate_effects(
+            self.material.get("voltage_effects", {}),
+            EXPECTED_MATERIAL_CLASSES,
+            "material.voltage_effects",
+        )
+        validate_effects(
+            self.material.get("era_effects", {}),
+            EXPECTED_MATERIAL_CLASSES,
+            "material.era_effects",
+        )
+        validate_effects(
+            self.material.get("corrosion_effects", {}),
+            EXPECTED_MATERIAL_CLASSES,
+            "material.corrosion_effects",
+        )
+
+        if "neutral_distribution" not in self.corrosion:
+            raise ValueError("Missing 'corrosion.neutral_distribution'.")
+
+        corrosion_target = self.corrosion_target
+        if set(corrosion_target) != EXPECTED_CORROSION_ZONES:
+            raise ValueError(
+                "corrosion.neutral_distribution must contain exactly these "
+                f"zones: {sorted(EXPECTED_CORROSION_ZONES)}"
+            )
 
 
 # ---------------------------------------------------------------------------
-# 2. Small reusable helpers
+# 2. Reusable helpers
 # ---------------------------------------------------------------------------
 
-def weighted_choice(rng: np.random.Generator, labels, probs, size=None):
-    """Choose values using explicit probabilities."""
-    probs = np.asarray(probs, dtype=float)
-    probs = probs / probs.sum()
-    return rng.choice(labels, size=size, p=probs)
+
+def weighted_choice(
+    rng: np.random.Generator,
+    labels: Sequence[Any],
+    probs: Sequence[float],
+    size: int | None = None,
+):
+    """Choose values using validated, normalized probabilities."""
+    labels = list(labels)
+    probabilities = np.asarray(probs, dtype=float)
+
+    if not labels:
+        raise ValueError("weighted_choice requires at least one label.")
+    if len(labels) != len(probabilities):
+        raise ValueError("weighted_choice labels/probabilities length mismatch.")
+    if not np.all(np.isfinite(probabilities)):
+        raise ValueError("weighted_choice probabilities must be finite.")
+    if np.any(probabilities < 0):
+        raise ValueError("weighted_choice probabilities cannot be negative.")
+
+    total = probabilities.sum()
+    if total <= 0:
+        raise ValueError("weighted_choice probabilities must sum to > 0.")
+
+    probabilities = probabilities / total
+    return rng.choice(labels, size=size, p=probabilities)
 
 
 def clipped_lognormal(
@@ -121,7 +487,7 @@ def clipped_lognormal(
     low: float,
     high: float,
 ) -> float:
-    """Generate a positive right-skewed value and keep it in a sensible range."""
+    """Generate a positive right-skewed value inside a defined range."""
     value = rng.lognormal(mean=np.log(median), sigma=sigma)
     return float(np.clip(value, low, high))
 
@@ -129,6 +495,7 @@ def clipped_lognormal(
 # ---------------------------------------------------------------------------
 # 3. Installation year / age
 # ---------------------------------------------------------------------------
+
 
 def sample_installation_year(rng: np.random.Generator) -> int:
     """
@@ -139,12 +506,8 @@ def sample_installation_year(rng: np.random.Generator) -> int:
     - about 2% were younger than 20 years
     - strong historical installation peaks in 1955, 1956, 1958 and 1966
 
-    The remaining 39% are placed in the 20-50 year band.
-
-    Within each band, exact year-level probabilities are synthetic choices used
-    to preserve the published shape while still generating varied records.
+    Exact year-level probabilities within those broad constraints are synthetic.
     """
-
     age_band = weighted_choice(
         rng,
         labels=["older_than_50", "age_20_to_50", "younger_than_20"],
@@ -152,8 +515,6 @@ def sample_installation_year(rng: np.random.Generator) -> int:
     )
 
     if age_band == "older_than_50":
-        # Years before 1964 => age > 50 in 2014.
-        # Put extra weight on the published peaks 1955, 1956 and 1958.
         if rng.random() < 0.48:
             return int(
                 weighted_choice(
@@ -163,19 +524,15 @@ def sample_installation_year(rng: np.random.Generator) -> int:
                 )
             )
 
-        # Most remaining older assets are placed in the post-war build-out era,
-        # with a smaller tail of earlier installations.
         if rng.random() < 0.78:
             return int(rng.integers(1948, 1964))
         return int(rng.integers(1930, 1948))
 
     if age_band == "age_20_to_50":
-        # 1964-1994 inclusive. Give 1966 a visible historical peak.
         if rng.random() < 0.28:
             return 1966
         return int(rng.integers(1964, 1995))
 
-    # Younger than 20 in the 2014 snapshot.
     return int(rng.integers(1995, 2015))
 
 
@@ -183,88 +540,87 @@ def sample_installation_year(rng: np.random.Generator) -> int:
 # 4. Voltage
 # ---------------------------------------------------------------------------
 
+
 def sample_voltage(
     rng: np.random.Generator,
     installation_year: int,
+    config: Config,
 ) -> str:
-    """
-    Generate voltage conditionally on installation era.
-
-    Evidence-backed direction:
-    - 1930-1949 installations were predominantly 33 kV.
-    - 1955/56/58/66 installations were predominantly SWER and 11 kV.
-    - LV, 33 kV and 66 kV also occurred during 1950-1979.
-
-    Exact probabilities are transparent synthetic assumptions.
-    """
-
-    labels = ["66 kV", "33 kV", "19 kV SWER", "11/7.6 kV", "LV"]
-
+    """Generate voltage conditionally on installation era."""
     if installation_year <= 1949:
-        probs = [0.05, 0.50, 0.12, 0.15, 0.18]
+        era = "pre_1950"
     elif installation_year <= 1977:
-        probs = [0.02, 0.05, 0.46, 0.29, 0.18]
+        era = "1950_1977"
     elif installation_year <= 1994:
-        probs = [0.02, 0.05, 0.30, 0.25, 0.38]
+        era = "1978_1994"
     else:
-        probs = [0.01, 0.04, 0.16, 0.25, 0.54]
+        era = "from_1995"
 
-    return str(weighted_choice(rng, labels, probs))
+    distribution = config.voltage_distribution_for_era(era)
+    return str(
+        weighted_choice(
+            rng,
+            labels=list(distribution),
+            probs=list(distribution.values()),
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # 5. Location, corrosion and feeder
 # ---------------------------------------------------------------------------
 
+
 def sample_location_group(
     rng: np.random.Generator,
     voltage: str,
 ) -> str:
-    """
-    Generate a simple operational location group.
-
-    The AMP explicitly uses rural/urban in its multi-variable defect model,
-    but does not publish a complete population split. These probabilities are
-    therefore synthetic assumptions.
-
-    SWER is made strongly rural because it is a rural distribution technology.
-    """
-
+    """Generate a simple synthetic operational location grouping."""
     if voltage == "19 kV SWER":
-        return str(weighted_choice(rng, ["Rural", "Regional", "Urban"], [0.80, 0.18, 0.02]))
+        return str(
+            weighted_choice(
+                rng,
+                ["Rural", "Regional", "Urban"],
+                [0.80, 0.18, 0.02],
+            )
+        )
 
     if voltage in {"33 kV", "66 kV"}:
-        return str(weighted_choice(rng, ["Rural", "Regional", "Urban"], [0.35, 0.35, 0.30]))
+        return str(
+            weighted_choice(
+                rng,
+                ["Rural", "Regional", "Urban"],
+                [0.35, 0.35, 0.30],
+            )
+        )
 
     if voltage == "LV":
-        return str(weighted_choice(rng, ["Rural", "Regional", "Urban"], [0.18, 0.27, 0.55]))
+        return str(
+            weighted_choice(
+                rng,
+                ["Rural", "Regional", "Urban"],
+                [0.18, 0.27, 0.55],
+            )
+        )
 
-    return str(weighted_choice(rng, ["Rural", "Regional", "Urban"], [0.45, 0.30, 0.25]))
+    return str(
+        weighted_choice(
+            rng,
+            ["Rural", "Regional", "Urban"],
+            [0.45, 0.30, 0.25],
+        )
+    )
 
 
 def sample_corrosion_zone(
     rng: np.random.Generator,
     voltage: str,
     location_group: str,
+    config: Config,
 ) -> str:
-    """
-    Generate corrosion zone using voltage/location context.
+    """Generate corrosion zone from the configured marginal plus context shifts."""
+    base = dict(config.corrosion_target)
 
-    Published overall route-length target:
-        Low ~53%, Severe ~35%, Very Severe ~11%
-
-    The exact conditional probabilities below are synthetic choices designed
-    to create realistic overlap rather than deterministic rules.
-    """
-
-    # Start from the published marginal mix.
-    base = {
-        "Low": 0.535,
-        "Severe": 0.355,
-        "Very Severe": 0.110,
-    }
-
-    # Small context shifts.
     if location_group == "Urban":
         base["Low"] -= 0.08
         base["Severe"] += 0.05
@@ -279,15 +635,16 @@ def sample_corrosion_zone(
         base["Severe"] -= 0.03
         base["Very Severe"] -= 0.01
 
-    probs = np.array([base["Low"], base["Severe"], base["Very Severe"]], dtype=float)
+    labels = ["Low", "Severe", "Very Severe"]
+    probs = np.array([base[label] for label in labels], dtype=float)
     probs = np.clip(probs, 0.01, None)
     probs = probs / probs.sum()
 
-    return str(weighted_choice(rng, ["Low", "Severe", "Very Severe"], probs))
+    return str(weighted_choice(rng, labels, probs))
 
 
-def make_feeder_map(rng: np.random.Generator) -> Dict[str, list]:
-    """Create synthetic feeder groups by location."""
+def make_feeder_map() -> dict[str, list[str]]:
+    """Create synthetic feeder IDs grouped by location."""
     return {
         "Urban": [f"U_FDR_{i:03d}" for i in range(1, 31)],
         "Regional": [f"G_FDR_{i:03d}" for i in range(1, 26)],
@@ -298,7 +655,7 @@ def make_feeder_map(rng: np.random.Generator) -> Dict[str, list]:
 def sample_feeder(
     rng: np.random.Generator,
     location_group: str,
-    feeder_map: Dict[str, list],
+    feeder_map: Mapping[str, Sequence[str]],
 ) -> str:
     return str(rng.choice(feeder_map[location_group]))
 
@@ -313,15 +670,12 @@ def sample_distance_to_sea(
     corrosion_zone: str,
 ) -> float:
     """
-    Generate a plausible enrichment variable.
+    Generate a plausible synthetic enrichment variable.
 
-    IMPORTANT:
-    The AMP supports the concept that coastal saline exposure affects corrosion,
-    but does NOT provide exact distance thresholds. Therefore these values are
-    synthetic assumptions and must not be described as SAPN thresholds.
+    The AMP supports a coastal/saline corrosion relationship but does not
+    provide exact distance thresholds; these ranges are therefore assumptions.
     """
-
-    zone_ranges: Dict[str, Tuple[float, float]] = {
+    zone_ranges: dict[str, tuple[float, float]] = {
         "Very Severe": (0.2, 15.0),
         "Severe": (2.0, 70.0),
         "Low": (20.0, 300.0),
@@ -329,13 +683,11 @@ def sample_distance_to_sea(
 
     low, high = zone_ranges[corrosion_zone]
 
-    # Slight location adjustment while preserving overlap.
     if location_group == "Urban":
         high = min(high, 100.0)
     elif location_group == "Rural" and corrosion_zone == "Low":
         high = 350.0
 
-    # Beta gives more density near the lower end without using a hard rule.
     x = rng.beta(1.6, 2.8)
     return round(low + x * (high - low), 2)
 
@@ -344,76 +696,43 @@ def sample_distance_to_sea(
 # 7. Material
 # ---------------------------------------------------------------------------
 
+
 def sample_material(
     rng: np.random.Generator,
     installation_year: int,
     voltage: str,
     corrosion_zone: str,
+    config: Config,
 ) -> str:
-    """
-    Generate the three-class material target.
+    """Generate the three-class material target using configured assumptions."""
+    probabilities = dict(config.material_target)
 
-    Pilot classes:
-        Steel, Copper, Aluminium
+    for material, effect in (
+        config.material.get("voltage_effects", {}).get(voltage, {}).items()
+    ):
+        probabilities[material] += float(effect)
 
-    Overall known non-ACSR SAPN route-length mix, after excluding ACSR and
-    Unknown, is approximately:
-        Steel      74.0%
-        Copper     15.9%
-        Aluminium  10.1%
-
-    This function does NOT simply sample those marginals. It modifies them using
-    year, voltage and corrosion context so the imputation problem contains
-    learnable but non-deterministic structure.
-
-    Exact conditional probabilities are synthetic modelling assumptions.
-    """
-
-    p = {
-        "Steel": 0.74,
-        "Copper": 0.159,
-        "Aluminium": 0.101,
-    }
-
-    # Voltage effect: SWER strongly associated with steel in the AMP.
-    if voltage == "19 kV SWER":
-        p["Steel"] += 0.16
-        p["Copper"] -= 0.09
-        p["Aluminium"] -= 0.07
-
-    elif voltage in {"33 kV", "66 kV"}:
-        p["Steel"] -= 0.12
-        p["Copper"] += 0.07
-        p["Aluminium"] += 0.05
-
-    elif voltage == "LV":
-        p["Steel"] -= 0.10
-        p["Copper"] += 0.04
-        p["Aluminium"] += 0.06
-
-    # Historical-era effect.
+    era: str | None = None
     if installation_year <= 1949:
-        p["Steel"] -= 0.16
-        p["Copper"] += 0.12
-        p["Aluminium"] += 0.04
-
+        era = "pre_1950"
     elif installation_year >= 1980:
-        p["Steel"] -= 0.18
-        p["Copper"] -= 0.02
-        p["Aluminium"] += 0.20
+        era = "from_1980"
 
-    # Corrosion-context effect kept intentionally mild.
-    if corrosion_zone == "Very Severe":
-        p["Steel"] -= 0.05
-        p["Copper"] += 0.02
-        p["Aluminium"] += 0.03
-    elif corrosion_zone == "Low":
-        p["Steel"] += 0.03
-        p["Copper"] += 0.01
-        p["Aluminium"] -= 0.04
+    if era is not None:
+        for material, effect in (
+            config.material.get("era_effects", {}).get(era, {}).items()
+        ):
+            probabilities[material] += float(effect)
 
-    labels = ["Steel", "Copper", "Aluminium"]
-    probs = np.array([p[x] for x in labels], dtype=float)
+    for material, effect in (
+        config.material.get("corrosion_effects", {})
+        .get(corrosion_zone, {})
+        .items()
+    ):
+        probabilities[material] += float(effect)
+
+    labels = list(config.material_target)
+    probs = np.array([probabilities[label] for label in labels], dtype=float)
     probs = np.clip(probs, 0.02, None)
     probs = probs / probs.sum()
 
@@ -428,24 +747,7 @@ def sample_conductor_type(
     rng: np.random.Generator,
     material: str,
 ) -> str:
-    """
-    Generate realistic type labels from published SAPN management groups.
-
-    Published route-length breakdown:
-    Aluminium group:
-        AAC       1,409 km
-        AAAC        367 km
-        Aluminium 3,069 km
-    Steel group:
-        SC/AC     7,587 km
-        SC/GZ    27,769 km
-
-    Copper maps to Copper.
-
-    WARNING: this field directly reveals material and should normally be removed
-    from the feature matrix when predicting material.
-    """
-
+    """Generate conductor type conditional on the synthetic material class."""
     if material == "Aluminium":
         return str(
             weighted_choice(
@@ -464,7 +766,10 @@ def sample_conductor_type(
             )
         )
 
-    return "Copper"
+    if material == "Copper":
+        return "Copper"
+
+    raise ValueError(f"Unexpected material class: {material!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -475,14 +780,7 @@ def sample_covering(
     rng: np.random.Generator,
     installation_year: int,
 ) -> str:
-    """
-    Published SAPN evidence says covered conductor was only about 2.2% of the
-    overhead network.
-
-    We keep the relationship weak. Newer assets are slightly more likely to be
-    covered, but the overall rate remains small.
-    """
-
+    """Generate Bare/Covered with a deliberately weak age relationship."""
     if installation_year >= 1995:
         p_covered = 0.08
     elif installation_year >= 1980:
@@ -502,16 +800,7 @@ def sample_length_km(
     location_group: str,
     voltage: str,
 ) -> float:
-    """
-    Generate segment length.
-
-    The SAPN AMP provides total route length, not individual segment-length
-    distributions. Therefore this is an explicit synthetic assumption.
-
-    Rural/SWER segments are allowed to be longer on average than urban/LV
-    segments, with substantial overlap.
-    """
-
+    """Generate a positive, right-skewed synthetic segment length."""
     if location_group == "Urban":
         median = 0.18
     elif location_group == "Regional":
@@ -537,22 +826,21 @@ def sample_length_km(
 
 
 # ---------------------------------------------------------------------------
-# 11. Generate one complete dataset
+# 11. Generate complete reference dataset
 # ---------------------------------------------------------------------------
 
 def generate_dataset(config: Config) -> pd.DataFrame:
     rng = np.random.default_rng(config.seed)
-    feeder_map = make_feeder_map(rng)
-
-    rows = []
+    feeder_map = make_feeder_map()
+    rows: list[dict[str, Any]] = []
 
     for i in range(1, config.n_rows + 1):
         installation_year = sample_installation_year(rng)
         asset_age = config.snapshot_year - installation_year
 
-        voltage = sample_voltage(rng, installation_year)
+        voltage = sample_voltage(rng, installation_year, config)
         location = sample_location_group(rng, voltage)
-        corrosion = sample_corrosion_zone(rng, voltage, location)
+        corrosion = sample_corrosion_zone(rng, voltage, location, config)
         feeder = sample_feeder(rng, location, feeder_map)
 
         distance_to_sea = sample_distance_to_sea(
@@ -566,6 +854,7 @@ def generate_dataset(config: Config) -> pd.DataFrame:
             installation_year=installation_year,
             voltage=voltage,
             corrosion_zone=corrosion,
+            config=config,
         )
 
         conductor_type = sample_conductor_type(rng, material)
@@ -591,13 +880,13 @@ def generate_dataset(config: Config) -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(rows)
-
+    return pd.DataFrame(rows, columns=REQUIRED_OUTPUT_COLUMNS)
 
 
 # ---------------------------------------------------------------------------
 # 12. Route-length calibration
 # ---------------------------------------------------------------------------
+
 
 def calibrate_route_length_marginals(
     df: pd.DataFrame,
@@ -605,67 +894,63 @@ def calibrate_route_length_marginals(
     iterations: int = 12,
 ) -> pd.DataFrame:
     """
-    Calibrate synthetic segment lengths so aggregate route-length shares align
-    with the published SAPN marginals.
+    Iteratively calibrate segment lengths to configured route-length marginals.
 
-    Why this is needed:
-    SAPN's published percentages are mostly percentages of ROUTE LENGTH, not
-    percentages of database rows. Because synthetic segment length varies by
-    location and voltage, matching row counts alone is not sufficient.
-
-    We iteratively rescale lengths within:
-      1. voltage categories
-      2. corrosion zones
-      3. the three-class pilot material groups
-
-    This is a synthetic calibration step. It preserves category membership and
-    only adjusts generated segment lengths.
-
-    The material target is the normalized non-ACSR, known-conductor route-length
-    mix derived from SAPN Table 2:
-        Steel ~74.0%, Copper ~15.9%, Aluminium ~10.1%.
+    Category membership is not changed; only generated segment lengths are
+    rescaled. The aggregate total route length is preserved.
     """
+    if iterations <= 0:
+        raise ValueError("Calibration iterations must be greater than 0.")
 
     out = df.copy()
-
-    material_target = {
-        "Steel": 0.740,
-        "Copper": 0.159,
-        "Aluminium": 0.101,
-    }
 
     targets = [
         ("voltage_category", config.voltage_target),
         ("corrosion_zone", config.corrosion_target),
-        ("material", material_target),
+        ("material", config.material_target),
     ]
 
-    for _ in range(iterations):
-        total_length = out["length_km"].sum()
+    for column, target in targets:
+        observed_categories = set(out[column].dropna().astype(str).unique())
+        missing_categories = set(target) - observed_categories
+        if missing_categories:
+            raise ValueError(
+                f"Cannot calibrate '{column}': generated data does not contain "
+                f"target categories {sorted(missing_categories)}. "
+                "Increase n_rows or review generation probabilities."
+            )
 
+    for _ in range(iterations):
         for column, target in targets:
+            total_length = float(out["length_km"].sum())
+            if total_length <= 0:
+                raise ValueError("Total route length must be positive.")
+
             current = (
                 out.groupby(column, observed=False)["length_km"].sum()
                 / total_length
             )
 
-            factors = {}
+            factors: dict[str, float] = {}
             for category, desired_share in target.items():
                 current_share = float(current.get(category, 0.0))
-                if current_share > 0:
-                    factors[category] = desired_share / current_share
-                else:
-                    factors[category] = 1.0
+                if current_share <= 0:
+                    raise ValueError(
+                        f"Cannot calibrate '{column}.{category}': current route "
+                        "length share is zero."
+                    )
+                factors[category] = desired_share / current_share
 
             out["length_km"] = (
                 out["length_km"]
                 * out[column].map(factors).fillna(1.0)
             )
 
-            # Keep the overall total stable after each marginal adjustment.
-            new_total = out["length_km"].sum()
-            if new_total > 0:
-                out["length_km"] *= total_length / new_total
+            # Preserve the total synthetic route length after each adjustment.
+            new_total = float(out["length_km"].sum())
+            if new_total <= 0:
+                raise ValueError("Calibration produced a non-positive route length.")
+            out["length_km"] *= total_length / new_total
 
     out["length_km"] = out["length_km"].clip(lower=0.01).round(4)
     return out
@@ -675,7 +960,8 @@ def calibrate_route_length_marginals(
 # 13. Validation helpers
 # ---------------------------------------------------------------------------
 
-def row_share(df: pd.DataFrame, column: str) -> Dict[str, float]:
+
+def row_share(df: pd.DataFrame, column: str) -> dict[str, float]:
     return (
         df[column]
         .value_counts(normalize=True)
@@ -685,51 +971,174 @@ def row_share(df: pd.DataFrame, column: str) -> Dict[str, float]:
     )
 
 
-def route_length_share(df: pd.DataFrame, column: str) -> Dict[str, float]:
+def route_length_share(df: pd.DataFrame, column: str) -> dict[str, float]:
     grouped = df.groupby(column, observed=False)["length_km"].sum()
     shares = grouped / grouped.sum()
-    return shares.sort_index().round(4).to_dict()
+    return shares.sort_index().round(6).to_dict()
 
 
-def validate_dataset(df: pd.DataFrame, config: Config) -> Dict:
-    """
-    Produce transparent validation statistics.
+def distribution_deviation(
+    observed: Mapping[str, float],
+    target: Mapping[str, float],
+) -> dict[str, float]:
+    """Absolute share difference by category."""
+    return {
+        category: round(abs(float(observed.get(category, 0.0)) - expected), 6)
+        for category, expected in target.items()
+    }
 
-    NOTE:
-    Published SAPN percentages are mostly ROUTE-LENGTH shares, not record shares.
-    Therefore both are reported.
-    """
 
-    summary = {
+def validate_generated_dataset(
+    df: pd.DataFrame,
+    config: Config,
+    route_share_tolerance: float = 0.01,
+) -> None:
+    """Fail fast if the generated reference dataset violates core invariants."""
+    errors: list[str] = []
+
+    missing_columns = set(REQUIRED_OUTPUT_COLUMNS) - set(df.columns)
+    if missing_columns:
+        errors.append(f"missing columns: {sorted(missing_columns)}")
+
+    if len(df) != config.n_rows:
+        errors.append(
+            f"row count {len(df)} does not match configured n_rows={config.n_rows}"
+        )
+
+    if df.isna().any().any():
+        errors.append(f"dataset contains {int(df.isna().sum().sum())} missing cells")
+
+    if "segment_id" in df and df["segment_id"].duplicated().any():
+        errors.append(
+            f"dataset contains {int(df['segment_id'].duplicated().sum())} duplicate segment_id values"
+        )
+
+    if {"asset_age", "installation_year"}.issubset(df.columns):
+        expected_age = config.snapshot_year - df["installation_year"]
+        age_mismatch = (df["asset_age"] != expected_age).sum()
+        if age_mismatch:
+            errors.append(f"{int(age_mismatch)} asset_age values are inconsistent")
+
+    if "installation_year" in df:
+        invalid_years = (
+            (df["installation_year"] < 1900)
+            | (df["installation_year"] > config.snapshot_year)
+        ).sum()
+        if invalid_years:
+            errors.append(f"{int(invalid_years)} installation years are invalid")
+
+    if "length_km" in df:
+        invalid_lengths = (~np.isfinite(df["length_km"]) | (df["length_km"] <= 0)).sum()
+        if invalid_lengths:
+            errors.append(f"{int(invalid_lengths)} segment lengths are invalid")
+
+    category_checks = [
+        ("voltage_category", EXPECTED_VOLTAGE_CATEGORIES),
+        ("material", EXPECTED_MATERIAL_CLASSES),
+        ("corrosion_zone", EXPECTED_CORROSION_ZONES),
+        ("location_group", {"Rural", "Regional", "Urban"}),
+        ("covering", {"Bare", "Covered"}),
+    ]
+
+    for column, allowed in category_checks:
+        if column not in df:
+            continue
+        unexpected = set(df[column].dropna().astype(str).unique()) - allowed
+        if unexpected:
+            errors.append(f"{column} has unexpected values: {sorted(unexpected)}")
+
+    route_targets = [
+        ("voltage_category", config.voltage_target),
+        ("corrosion_zone", config.corrosion_target),
+        ("material", config.material_target),
+    ]
+
+    for column, target in route_targets:
+        if column not in df or "length_km" not in df:
+            continue
+        observed = route_length_share(df, column)
+        deviations = distribution_deviation(observed, target)
+        too_large = {
+            category: deviation
+            for category, deviation in deviations.items()
+            if deviation > route_share_tolerance
+        }
+        if too_large:
+            errors.append(
+                f"{column} route-length share deviation exceeds "
+                f"{route_share_tolerance:.3f}: {too_large}"
+            )
+
+    if errors:
+        formatted = "\n - ".join(errors)
+        raise ValueError(f"Generated dataset validation failed:\n - {formatted}")
+
+
+def validate_dataset(df: pd.DataFrame, config: Config) -> dict[str, Any]:
+    """Create transparent validation statistics for reporting and audit."""
+    voltage_route = route_length_share(df, "voltage_category")
+    corrosion_route = route_length_share(df, "corrosion_zone")
+    material_route = route_length_share(df, "material")
+
+    return {
+        "config_file": str(config.config_path),
         "seed": config.seed,
         "rows": len(df),
         "snapshot_year": config.snapshot_year,
         "missing_cells": int(df.isna().sum().sum()),
+        "duplicate_segment_ids": int(df["segment_id"].duplicated().sum()),
         "mean_age": round(float(df["asset_age"].mean()), 2),
         "share_age_over_50": round(float((df["asset_age"] > 50).mean()), 4),
         "share_age_under_20": round(float((df["asset_age"] < 20).mean()), 4),
         "voltage_row_share": row_share(df, "voltage_category"),
-        "voltage_route_length_share": route_length_share(df, "voltage_category"),
+        "voltage_route_length_share": voltage_route,
+        "voltage_route_length_target": config.voltage_target,
+        "voltage_route_length_deviation": distribution_deviation(
+            voltage_route, config.voltage_target
+        ),
         "corrosion_row_share": row_share(df, "corrosion_zone"),
-        "corrosion_route_length_share": route_length_share(df, "corrosion_zone"),
+        "corrosion_route_length_share": corrosion_route,
+        "corrosion_route_length_target": config.corrosion_target,
+        "corrosion_route_length_deviation": distribution_deviation(
+            corrosion_route, config.corrosion_target
+        ),
         "material_row_share": row_share(df, "material"),
-        "material_route_length_share": route_length_share(df, "material"),
+        "material_route_length_share": material_route,
+        "material_route_length_target": config.material_target,
+        "material_route_length_deviation": distribution_deviation(
+            material_route, config.material_target
+        ),
         "covering_row_share": row_share(df, "covering"),
-        "total_route_length_km_in_synthetic_sample": round(float(df["length_km"].sum()), 2),
+        "total_route_length_km_in_synthetic_sample": round(
+            float(df["length_km"].sum()), 2
+        ),
     }
-
-    return summary
 
 
 # ---------------------------------------------------------------------------
 # 14. Assumptions / provenance log
 # ---------------------------------------------------------------------------
 
-def assumptions_table() -> pd.DataFrame:
+
+def format_distribution(distribution: Mapping[str, float]) -> str:
+    return ", ".join(
+        f"{label} {share * 100:.1f}%"
+        for label, share in distribution.items()
+    )
+
+
+def assumptions_table(config: Config) -> pd.DataFrame:
+    """Return a concise provenance table for generated-data assumptions."""
     rows = [
         {
+            "item": "generation_config",
+            "value": str(config.config_path),
+            "basis": "External YAML configuration",
+            "status": "Reproducibility control",
+        },
+        {
             "item": "snapshot_year",
-            "value": "2014",
+            "value": str(config.snapshot_year),
             "basis": "SAPN AMP publication/network snapshot",
             "status": "SAPN grounded",
         },
@@ -741,37 +1150,43 @@ def assumptions_table() -> pd.DataFrame:
         },
         {
             "item": "asset_age",
-            "value": "2014 - installation_year",
+            "value": f"{config.snapshot_year} - installation_year",
             "basis": "Deterministic derivation",
             "status": "Derived",
         },
         {
             "item": "voltage_categories",
-            "value": "66 kV, 33 kV, 19 kV SWER, 11/7.6 kV, LV",
+            "value": ", ".join(config.voltage_target.keys()),
             "basis": "SAPN AMP Table 1",
             "status": "SAPN grounded",
         },
         {
+            "item": "voltage_route_length_target",
+            "value": format_distribution(config.voltage_target),
+            "basis": "generation configuration / SAPN aggregate evidence",
+            "status": "Configuration controlled",
+        },
+        {
             "item": "voltage_by_era",
-            "value": "Older pre-1950 biased to 33kV; 1955-1977 biased to SWER/11kV",
+            "value": "Older pre-1950 biased to 33 kV; 1955-1977 biased to SWER/11 kV",
             "basis": "SAPN AMP text",
             "status": "SAPN grounded direction; exact probabilities synthetic",
         },
         {
-            "item": "corrosion_marginal",
-            "value": "Low ~53%, Severe ~35%, Very Severe ~11%",
-            "basis": "SAPN AMP corrosion-zone section",
-            "status": "SAPN grounded",
+            "item": "corrosion_route_length_target",
+            "value": format_distribution(config.corrosion_target),
+            "basis": "generation configuration / SAPN corrosion-zone evidence",
+            "status": "Configuration controlled",
         },
         {
             "item": "material_target",
-            "value": "Steel, Copper, Aluminium only",
-            "basis": "Sprint 2 matrix + SAPN conductor groups",
+            "value": ", ".join(config.material_target.keys()),
+            "basis": "Project pilot scope + SAPN conductor groups",
             "status": "Project scope",
         },
         {
-            "item": "material_marginal_reference",
-            "value": "Steel ~74.0%, Copper ~15.9%, Aluminium ~10.1%",
+            "item": "material_route_length_reference",
+            "value": format_distribution(config.material_target),
             "basis": "Normalized known non-ACSR route lengths from SAPN Table 2",
             "status": "SAPN-derived reference, not a direct material-field distribution",
         },
@@ -789,44 +1204,44 @@ def assumptions_table() -> pd.DataFrame:
         },
         {
             "item": "conductor_type_as_predictor",
-            "value": "Do not use directly for material prediction",
-            "basis": "Would reveal target and create leakage",
+            "value": "Excluded from material-model-ready output",
+            "basis": "Would reveal the target and create leakage",
             "status": "Modelling safeguard",
         },
         {
             "item": "covering",
             "value": "Bare / Covered; low overall covered share",
-            "basis": "SAPN AMP says covered conductor ~2.2% of overhead network",
+            "basis": "SAPN AMP says covered conductor is a small share of the network",
             "status": "SAPN grounded marginal; exact age relationship synthetic",
         },
         {
             "item": "location_group",
             "value": "Urban / Regional / Rural",
-            "basis": "AMP uses rural/urban but does not publish population proportions",
+            "basis": "AMP uses rural/urban but does not publish a full population split",
             "status": "Synthetic assumption",
         },
         {
             "item": "distance_to_sea_km",
-            "value": "Conditional on corrosion/location",
-            "basis": "AMP supports saline/coastal corrosion relationship but no km thresholds",
+            "value": "Conditional on corrosion zone and location group",
+            "basis": "Coastal/saline corrosion relationship; exact km thresholds not published",
             "status": "Synthetic enrichment assumption",
         },
         {
             "item": "segment_length",
-            "value": "Lognormal, context dependent",
+            "value": "Context-dependent lognormal distribution",
             "basis": "AMP gives total route length but no segment-length distribution",
-            "status": "Synthetic assumption / needs external calibration",
+            "status": "Synthetic assumption",
         },
         {
             "item": "route_length_calibration",
-            "value": "Iterative calibration to voltage, corrosion and 3-class material route-length marginals",
-            "basis": "SAPN percentages are route-length shares, not row shares",
-            "status": "Synthetic calibration step using SAPN aggregate targets",
+            "value": "Iterative calibration to voltage, corrosion and material route-length marginals",
+            "basis": "Published percentages are route-length shares rather than row shares",
+            "status": "Synthetic calibration step",
         },
         {
             "item": "missing_values",
-            "value": "None in complete reference dataset",
-            "basis": "Masking is a separate validation step",
+            "value": "None in the complete reference dataset",
+            "basis": "Controlled masking is a separate experimental step",
             "status": "Project design",
         },
     ]
@@ -837,77 +1252,124 @@ def assumptions_table() -> pd.DataFrame:
 # 15. Save outputs
 # ---------------------------------------------------------------------------
 
+
 def save_outputs(
     df: pd.DataFrame,
-    summary: Dict,
+    summary: Mapping[str, Any],
     config: Config,
 ) -> None:
-    output_dir = Path(config.output_dir)
+    output_dir = config.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     df.to_csv(
         output_dir / "overhead_conductors_complete_reference.csv",
         index=False,
+        encoding="utf-8",
     )
 
-    assumptions_table().to_csv(
+    assumptions_table(config).to_csv(
         output_dir / "generation_assumptions.csv",
         index=False,
+        encoding="utf-8",
     )
 
-    with open(
-        output_dir / "generation_summary.json",
+    with (output_dir / "generation_summary.json").open(
         "w",
         encoding="utf-8",
-    ) as f:
-        json.dump(summary, f, indent=2)
+    ) as file:
+        json.dump(summary, file, indent=2)
 
-    # A modelling-ready copy with the direct target-leakage field removed.
+    # Remove the direct target-leakage field. Identifiers/non-feature metadata
+    # can be removed later by the modelling pipeline as appropriate.
     model_df = df.drop(columns=["conductor_type"]).copy()
     model_df.to_csv(
         output_dir / "material_model_ready_data.csv",
         index=False,
+        encoding="utf-8",
     )
 
 
 # ---------------------------------------------------------------------------
-# 16. Main
+# 16. CLI and main
 # ---------------------------------------------------------------------------
 
-def main():
-    config = Config(
-        n_rows=10_000,
-        seed=219,
-        snapshot_year=2014,
-        output_dir=OUTPUT_DIR,
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate a validated synthetic overhead-conductor dataset."
     )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help=(
+            "Path to generation.yaml/yml. If omitted, the script searches "
+            "upward for config/overhead_conductors/generation.yaml or .yml."
+        ),
+    )
+    return parser.parse_args()
 
-    df = generate_dataset(config)
-    df = calibrate_route_length_marginals(df, config)
-    summary = validate_dataset(df, config)
-    save_outputs(df, summary, config)
 
+def print_summary(summary: Mapping[str, Any], output_dir: Path) -> None:
     print("\nSynthetic dataset generated successfully.\n")
-    print(f"Rows: {len(df):,}")
-    print(f"Missing cells: {df.isna().sum().sum()}")
+    print(f"Rows: {summary['rows']:,}")
+    print(f"Missing cells: {summary['missing_cells']}")
+    print(f"Duplicate segment IDs: {summary['duplicate_segment_ids']}")
     print(f"Mean age: {summary['mean_age']}")
     print(f"Share age > 50: {summary['share_age_over_50']}")
     print(f"Share age < 20: {summary['share_age_under_20']}")
 
     print("\nMaterial row shares:")
-    for k, v in summary["material_row_share"].items():
-        print(f"  {k}: {v:.4f}")
+    for key, value in summary["material_row_share"].items():
+        print(f"  {key}: {value:.4f}")
 
     print("\nVoltage route-length shares:")
-    for k, v in summary["voltage_route_length_share"].items():
-        print(f"  {k}: {v:.4f}")
+    for key, value in summary["voltage_route_length_share"].items():
+        print(f"  {key}: {value:.4f}")
 
     print("\nCorrosion route-length shares:")
-    for k, v in summary["corrosion_route_length_share"].items():
-        print(f"  {k}: {v:.4f}")
+    for key, value in summary["corrosion_route_length_share"].items():
+        print(f"  {key}: {value:.4f}")
 
     print("\nFiles written to:")
-    print(f"  {Path(config.output_dir).resolve()}")
+    print(f"  {output_dir}")
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    args = parse_args()
+
+    try:
+        config_path = args.config or find_default_config_path()
+        LOGGER.info("Loading generation configuration: %s", config_path)
+
+        config = Config.from_yaml(config_path)
+        LOGGER.info("Generation configuration validated successfully.")
+        LOGGER.info(
+            "Configured run: n_rows=%s, seed=%s, snapshot_year=%s",
+            f"{config.n_rows:,}",
+            config.seed,
+            config.snapshot_year,
+        )
+
+        LOGGER.info("Generating complete synthetic reference dataset...")
+        df = generate_dataset(config)
+
+        LOGGER.info("Calibrating route-length marginals...")
+        df = calibrate_route_length_marginals(df, config)
+
+        LOGGER.info("Validating generated dataset...")
+        validate_generated_dataset(df, config)
+        summary = validate_dataset(df, config)
+
+        LOGGER.info("Saving outputs...")
+        save_outputs(df, summary, config)
+
+        print_summary(summary, config.output_dir)
+
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        LOGGER.error("Generation failed: %s", exc)
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":
