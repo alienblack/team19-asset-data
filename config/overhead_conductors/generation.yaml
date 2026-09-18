@@ -1,0 +1,148 @@
+dataset:
+  n_rows: 10000
+  seed: 219
+  snapshot_year: 2014
+
+paths:
+  output_dir: data/synthetic/overhead_conductors
+
+corrosion:
+  neutral_distribution:
+    Low: 0.535
+    Severe: 0.355
+    "Very Severe": 0.110
+
+  location_effects:
+    Urban:
+      Low: -0.08
+      Severe: 0.05
+      "Very Severe": 0.03
+
+    Rural:
+      Low: 0.06
+      Severe: -0.04
+      "Very Severe": -0.02
+
+  voltage_effects:
+    "19 kV SWER":
+      Low: 0.04
+      Severe: -0.03
+      "Very Severe": -0.01
+
+voltage:
+  neutral_distribution:
+    "66 kV": 0.020
+    "33 kV": 0.056
+    "19 kV SWER": 0.409
+    "11/7.6 kV": 0.249
+    "LV": 0.266
+
+  by_installation_era:
+    pre_1950:
+      "66 kV": 0.05
+      "33 kV": 0.50
+      "19 kV SWER": 0.12
+      "11/7.6 kV": 0.15
+      "LV": 0.18
+
+    "1950_1977":
+      "66 kV": 0.02
+      "33 kV": 0.05
+      "19 kV SWER": 0.46
+      "11/7.6 kV": 0.29
+      "LV": 0.18
+
+    "1978_1994":
+      "66 kV": 0.02
+      "33 kV": 0.05
+      "19 kV SWER": 0.30
+      "11/7.6 kV": 0.25
+      "LV": 0.38
+
+    from_1995:
+      "66 kV": 0.01
+      "33 kV": 0.04
+      "19 kV SWER": 0.16
+      "11/7.6 kV": 0.25
+      "LV": 0.54
+
+material:
+  base_distribution:
+    Steel: 0.740
+    Copper: 0.159
+    Aluminium: 0.101
+
+  voltage_effects:
+    "19 kV SWER":
+      Steel: 0.16
+      Copper: -0.09
+      Aluminium: -0.07
+
+    "33 kV":
+      Steel: -0.12
+      Copper: 0.07
+      Aluminium: 0.05
+
+    "66 kV":
+      Steel: -0.12
+      Copper: 0.07
+      Aluminium: 0.05
+
+    "LV":
+      Steel: -0.10
+      Copper: 0.04
+      Aluminium: 0.06
+
+  era_effects:
+    pre_1950:
+      Steel: -0.16
+      Copper: 0.12
+      Aluminium: 0.04
+
+    from_1980:
+      Steel: -0.18
+      Copper: -0.02
+      Aluminium: 0.20
+
+  corrosion_effects:
+    "Very Severe":
+      Steel: -0.05
+      Copper: 0.02
+      Aluminium: 0.03
+
+    "Low":
+      Steel: 0.03
+      Copper: 0.01
+      Aluminium: -0.04
+
+location:
+  neutral_distribution:
+    Rural: 0.40
+    Regional: 0.30
+    Urban: 0.30
+
+  by_voltage:
+    "19 kV SWER":
+      Rural: 0.80
+      Regional: 0.18
+      Urban: 0.02
+
+    "33 kV":
+      Rural: 0.35
+      Regional: 0.35
+      Urban: 0.30
+
+    "66 kV":
+      Rural: 0.35
+      Regional: 0.35
+      Urban: 0.30
+
+    "11/7.6 kV":
+      Rural: 0.45
+      Regional: 0.30
+      Urban: 0.25
+
+    "LV":
+      Rural: 0.18
+      Regional: 0.27
+      Urban: 0.55

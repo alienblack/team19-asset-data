@@ -1,0 +1,15 @@
+profile_name: medium
+
+description: >
+  Medium-strength synthetic relationship profile. Selected conditional
+  relationships operate at 50 percent of the current baseline effect.
+
+relationship_strengths:
+  installation_year_to_voltage: 0.50
+  voltage_to_location: 0.50
+  voltage_to_corrosion: 0.50
+  location_to_corrosion: 0.50
+
+  installation_year_to_material: 0.50
+  voltage_to_material: 0.50
+  corrosion_to_material: 0.50
