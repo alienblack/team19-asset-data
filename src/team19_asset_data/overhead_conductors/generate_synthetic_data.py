@@ -71,6 +71,18 @@ EXPECTED_ERA_KEYS = {
     "from_1995",
 }
 
+EXPECTED_LOCATION_GROUPS = {"Rural", "Regional", "Urban"}
+EXPECTED_STRENGTH_KEYS = {
+    "installation_year_to_voltage",
+    "voltage_to_location",
+    "voltage_to_corrosion",
+    "location_to_corrosion",
+    "installation_year_to_material",
+    "voltage_to_material",
+    "corrosion_to_material",
+}
+DEFAULT_STRENGTH_PROFILE = "strength_100"  # Default relationship-strength profile name 
+
 ERA_KEY_ALIASES = {
     "pre_1950": "pre_1950",
     "1950_1977": "1950_1977",
@@ -222,38 +234,114 @@ def normalize_era_mapping_keys(raw_mapping: Mapping[Any, Any]) -> dict[str, Any]
 
 def validate_effects(
     effects: Any,
-    allowed_materials: set[str],
+    allowed_outputs: set[str],
     name: str,
+    allowed_groups: set[str] | None = None,
 ) -> None:
-    """Validate optional material-effect mappings used by the generator."""
+    """Validate additive-effect mappings used by the generator."""
     if effects is None:
         return
     if not isinstance(effects, Mapping):
         raise ValueError(f"'{name}' must be a mapping.")
 
+    if allowed_groups is not None:
+        unknown_groups = {str(group) for group in effects} - allowed_groups
+        if unknown_groups:
+            raise ValueError(
+                f"'{name}' contains unknown group(s): {sorted(unknown_groups)}"
+            )
+
     for group, adjustments in effects.items():
         if not isinstance(adjustments, Mapping):
             raise ValueError(f"'{name}.{group}' must be a mapping.")
 
-        unknown = set(adjustments) - allowed_materials
+        unknown = set(adjustments) - allowed_outputs
         if unknown:
             raise ValueError(
-                f"'{name}.{group}' contains unknown material class(es): "
+                f"'{name}.{group}' contains unknown output class(es): "
                 f"{sorted(unknown)}"
             )
 
-        for material, raw_value in adjustments.items():
+        for output, raw_value in adjustments.items():
             try:
                 value = float(raw_value)
             except (TypeError, ValueError) as exc:
                 raise ValueError(
-                    f"'{name}.{group}.{material}' must be numeric."
+                    f"'{name}.{group}.{output}' must be numeric."
                 ) from exc
 
             if not np.isfinite(value):
+                raise ValueError(f"'{name}.{group}.{output}' must be finite.")
+
+
+@dataclass(frozen=True)
+class StrengthConfig:
+    """Validated relationship-strength profile."""
+
+    profile_name: str
+    description: str
+    relationship_strengths: dict[str, float]
+    config_path: Path
+
+    @classmethod
+    def from_yaml(cls, config_path: str | Path) -> "StrengthConfig":
+        path = Path(config_path).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f"Relationship-strength config not found: {path}")
+
+        try:
+            with path.open("r", encoding="utf-8") as file:
+                raw = yaml.safe_load(file)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Invalid YAML syntax in {path}: {exc}") from exc
+
+        if not isinstance(raw, Mapping):
+            raise ValueError("Relationship-strength configuration must be a YAML mapping.")
+
+        profile_name = str(require_key(raw, "profile_name", "root")).strip()
+        if not profile_name:
+            raise ValueError("'profile_name' must be non-empty.")
+
+        description = str(raw.get("description", "")).strip()
+        strengths_raw = require_mapping(raw, "relationship_strengths", "root")
+
+        missing = EXPECTED_STRENGTH_KEYS - set(strengths_raw)
+        extra = set(strengths_raw) - EXPECTED_STRENGTH_KEYS
+        if missing:
+            raise ValueError(
+                "relationship_strengths is missing required key(s): "
+                f"{sorted(missing)}"
+            )
+        if extra:
+            raise ValueError(
+                "relationship_strengths contains unknown key(s): "
+                f"{sorted(extra)}"
+            )
+
+        strengths: dict[str, float] = {}
+        for name, raw_value in strengths_raw.items():
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as exc:
                 raise ValueError(
-                    f"'{name}.{group}.{material}' must be finite."
+                    f"relationship_strengths.{name} must be numeric."
+                ) from exc
+            if not np.isfinite(value) or not 0.0 <= value <= 1.0:
+                raise ValueError(
+                    f"relationship_strengths.{name} must be between 0.0 and 1.0; "
+                    f"received {raw_value!r}."
                 )
+            strengths[name] = value
+
+        return cls(
+            profile_name=profile_name,
+            description=description,
+            relationship_strengths=strengths,
+            config_path=path,
+        )
+
+    def get(self, relationship: str) -> float:
+        return self.relationship_strengths[relationship]
 
 
 @dataclass(frozen=True)
@@ -265,6 +353,7 @@ class Config:
     snapshot_year: int
     output_dir: Path
     voltage: dict[str, Any]
+    location: dict[str, Any]
     material: dict[str, Any]
     corrosion: dict[str, Any]
     config_path: Path
@@ -291,19 +380,17 @@ class Config:
         dataset = require_mapping(raw_config, "dataset", "root")
         paths = require_mapping(raw_config, "paths", "root")
         voltage = require_mapping(raw_config, "voltage", "root")
+        location = require_mapping(raw_config, "location", "root")
         material = require_mapping(raw_config, "material", "root")
         corrosion = require_mapping(raw_config, "corrosion", "root")
 
         try:
             n_rows = int(require_key(dataset, "n_rows", "dataset"))
             seed = int(require_key(dataset, "seed", "dataset"))
-            snapshot_year = int(
-                require_key(dataset, "snapshot_year", "dataset")
-            )
+            snapshot_year = int(require_key(dataset, "snapshot_year", "dataset"))
         except (TypeError, ValueError) as exc:
             raise ValueError(
-                "dataset.n_rows, dataset.seed and dataset.snapshot_year "
-                "must be integers."
+                "dataset.n_rows, dataset.seed and dataset.snapshot_year must be integers."
             ) from exc
 
         raw_output_dir = require_key(paths, "output_dir", "paths")
@@ -319,9 +406,7 @@ class Config:
         voltage_config = dict(voltage)
         raw_by_era = voltage_config.get("by_installation_era")
         if isinstance(raw_by_era, Mapping):
-            voltage_config["by_installation_era"] = normalize_era_mapping_keys(
-                raw_by_era
-            )
+            voltage_config["by_installation_era"] = normalize_era_mapping_keys(raw_by_era)
 
         config = cls(
             n_rows=n_rows,
@@ -329,6 +414,7 @@ class Config:
             snapshot_year=snapshot_year,
             output_dir=output_dir,
             voltage=voltage_config,
+            location=dict(location),
             material=dict(material),
             corrosion=dict(corrosion),
             config_path=path,
@@ -341,6 +427,13 @@ class Config:
         return normalize_distribution(
             self.voltage["neutral_distribution"],
             "voltage.neutral_distribution",
+        )
+
+    @property
+    def location_target(self) -> dict[str, float]:
+        return normalize_distribution(
+            self.location["neutral_distribution"],
+            "location.neutral_distribution",
         )
 
     @property
@@ -358,22 +451,23 @@ class Config:
         )
 
     def voltage_distribution_for_era(self, era: str) -> dict[str, float]:
-        by_era = self.voltage["by_installation_era"]
         return normalize_distribution(
-            by_era[era],
+            self.voltage["by_installation_era"][era],
             f"voltage.by_installation_era.{era}",
         )
 
+    def location_distribution_for_voltage(self, voltage: str) -> dict[str, float]:
+        return normalize_distribution(
+            self.location["by_voltage"][voltage],
+            f"location.by_voltage.{voltage}",
+        )
+
     def validate(self) -> None:
-        """Validate all settings needed by the current generation logic."""
+        """Validate all settings needed by the generation logic."""
         if self.n_rows <= 0:
             raise ValueError("'dataset.n_rows' must be greater than 0.")
-
         if self.seed < 0:
             raise ValueError("'dataset.seed' must be zero or greater.")
-
-        # The age profile and published validation targets in this generator are
-        # explicitly calibrated to the 2014 AMP snapshot.
         if self.snapshot_year != 2014:
             raise ValueError(
                 "'dataset.snapshot_year' must currently be 2014 because the "
@@ -381,20 +475,18 @@ class Config:
                 "2014 SAPN Overhead Conductor AMP."
             )
 
+        # Voltage
         if "neutral_distribution" not in self.voltage:
             raise ValueError("Missing 'voltage.neutral_distribution'.")
         if "by_installation_era" not in self.voltage:
             raise ValueError("Missing 'voltage.by_installation_era'.")
         if not isinstance(self.voltage["by_installation_era"], Mapping):
             raise ValueError("'voltage.by_installation_era' must be a mapping.")
-
-        voltage_target = self.voltage_target
-        if set(voltage_target) != EXPECTED_VOLTAGE_CATEGORIES:
+        if set(self.voltage_target) != EXPECTED_VOLTAGE_CATEGORIES:
             raise ValueError(
-                "voltage.neutral_distribution must contain exactly these "
-                f"categories: {sorted(EXPECTED_VOLTAGE_CATEGORIES)}"
+                "voltage.neutral_distribution must contain exactly these categories: "
+                f"{sorted(EXPECTED_VOLTAGE_CATEGORIES)}"
             )
-
         by_era = self.voltage["by_installation_era"]
         missing_eras = EXPECTED_ERA_KEYS - set(by_era)
         if missing_eras:
@@ -402,50 +494,101 @@ class Config:
                 "voltage.by_installation_era is missing required era(s): "
                 f"{sorted(missing_eras)}"
             )
-
         for era in EXPECTED_ERA_KEYS:
-            era_distribution = self.voltage_distribution_for_era(era)
-            if set(era_distribution) != EXPECTED_VOLTAGE_CATEGORIES:
+            if set(self.voltage_distribution_for_era(era)) != EXPECTED_VOLTAGE_CATEGORIES:
                 raise ValueError(
                     f"voltage.by_installation_era.{era} must contain exactly "
                     f"these categories: {sorted(EXPECTED_VOLTAGE_CATEGORIES)}"
                 )
 
+        # Location
+        if "neutral_distribution" not in self.location:
+            raise ValueError("Missing 'location.neutral_distribution'.")
+        if "by_voltage" not in self.location or not isinstance(self.location["by_voltage"], Mapping):
+            raise ValueError("Missing or invalid 'location.by_voltage'.")
+        if set(self.location_target) != EXPECTED_LOCATION_GROUPS:
+            raise ValueError(
+                "location.neutral_distribution must contain exactly these groups: "
+                f"{sorted(EXPECTED_LOCATION_GROUPS)}"
+            )
+        missing_voltage_location = EXPECTED_VOLTAGE_CATEGORIES - set(self.location["by_voltage"])
+        if missing_voltage_location:
+            raise ValueError(
+                "location.by_voltage is missing voltage category/categories: "
+                f"{sorted(missing_voltage_location)}"
+            )
+        for voltage in EXPECTED_VOLTAGE_CATEGORIES:
+            if set(self.location_distribution_for_voltage(voltage)) != EXPECTED_LOCATION_GROUPS:
+                raise ValueError(
+                    f"location.by_voltage.{voltage} must contain exactly these groups: "
+                    f"{sorted(EXPECTED_LOCATION_GROUPS)}"
+                )
+
+        # Corrosion
+        if "neutral_distribution" not in self.corrosion:
+            raise ValueError("Missing 'corrosion.neutral_distribution'.")
+        if set(self.corrosion_target) != EXPECTED_CORROSION_ZONES:
+            raise ValueError(
+                "corrosion.neutral_distribution must contain exactly these zones: "
+                f"{sorted(EXPECTED_CORROSION_ZONES)}"
+            )
+        validate_effects(
+            self.corrosion.get("location_effects", {}),
+            EXPECTED_CORROSION_ZONES,
+            "corrosion.location_effects",
+            allowed_groups=EXPECTED_LOCATION_GROUPS,
+        )
+        validate_effects(
+            self.corrosion.get("voltage_effects", {}),
+            EXPECTED_CORROSION_ZONES,
+            "corrosion.voltage_effects",
+            allowed_groups=EXPECTED_VOLTAGE_CATEGORIES,
+        )
+
+        # Material
         if "base_distribution" not in self.material:
             raise ValueError("Missing 'material.base_distribution'.")
-
-        material_target = self.material_target
-        if set(material_target) != EXPECTED_MATERIAL_CLASSES:
+        if set(self.material_target) != EXPECTED_MATERIAL_CLASSES:
             raise ValueError(
                 "material.base_distribution must contain exactly these classes: "
                 f"{sorted(EXPECTED_MATERIAL_CLASSES)}"
             )
-
         validate_effects(
             self.material.get("voltage_effects", {}),
             EXPECTED_MATERIAL_CLASSES,
             "material.voltage_effects",
+            allowed_groups=EXPECTED_VOLTAGE_CATEGORIES,
         )
         validate_effects(
             self.material.get("era_effects", {}),
             EXPECTED_MATERIAL_CLASSES,
             "material.era_effects",
+            allowed_groups={"pre_1950", "from_1980"},
         )
         validate_effects(
             self.material.get("corrosion_effects", {}),
             EXPECTED_MATERIAL_CLASSES,
             "material.corrosion_effects",
+            allowed_groups=EXPECTED_CORROSION_ZONES,
         )
 
-        if "neutral_distribution" not in self.corrosion:
-            raise ValueError("Missing 'corrosion.neutral_distribution'.")
 
-        corrosion_target = self.corrosion_target
-        if set(corrosion_target) != EXPECTED_CORROSION_ZONES:
-            raise ValueError(
-                "corrosion.neutral_distribution must contain exactly these "
-                f"zones: {sorted(EXPECTED_CORROSION_ZONES)}"
-            )
+def resolve_strength_config_path(
+    generation_config: Config,
+    profile_name: str | None = None,
+    explicit_path: str | Path | None = None,
+) -> Path:
+    """Resolve a strength-profile YAML path next to generation.yaml."""
+    if explicit_path is not None:
+        return Path(explicit_path).expanduser().resolve()
+
+    profile = profile_name or DEFAULT_STRENGTH_PROFILE
+    path = (
+        generation_config.config_path.parent
+        / "relationship_strength"
+        / f"{profile}.yaml"
+    )
+    return path.resolve()
 
 
 # ---------------------------------------------------------------------------
@@ -478,6 +621,40 @@ def weighted_choice(
 
     probabilities = probabilities / total
     return rng.choice(labels, size=size, p=probabilities)
+
+
+def blend_probabilities(
+    neutral_distribution: Mapping[str, float],
+    conditional_distribution: Mapping[str, float],
+    strength: float,
+) -> dict[str, float]:
+    """Interpolate from a neutral distribution to a conditional distribution."""
+    if not 0.0 <= strength <= 1.0:
+        raise ValueError("Relationship strength must be between 0.0 and 1.0.")
+    if set(neutral_distribution) != set(conditional_distribution):
+        raise ValueError(
+            "Neutral and conditional distributions must contain identical labels."
+        )
+
+    blended = {
+        label: (
+            float(neutral_distribution[label])
+            + strength
+            * (float(conditional_distribution[label]) - float(neutral_distribution[label]))
+        )
+        for label in neutral_distribution
+    }
+    return normalize_distribution(blended, "blended_distribution")
+
+
+def apply_scaled_effects(
+    probabilities: dict[str, float],
+    effects: Mapping[str, Any],
+    strength: float,
+) -> None:
+    """Apply additive configured effects multiplied by a relationship strength."""
+    for label, raw_effect in effects.items():
+        probabilities[label] += float(raw_effect) * strength
 
 
 def clipped_lognormal(
@@ -545,8 +722,9 @@ def sample_voltage(
     rng: np.random.Generator,
     installation_year: int,
     config: Config,
+    strengths: StrengthConfig,
 ) -> str:
-    """Generate voltage conditionally on installation era."""
+    """Generate voltage using controlled installation-year relationship strength."""
     if installation_year <= 1949:
         era = "pre_1950"
     elif installation_year <= 1977:
@@ -556,7 +734,11 @@ def sample_voltage(
     else:
         era = "from_1995"
 
-    distribution = config.voltage_distribution_for_era(era)
+    distribution = blend_probabilities(
+        config.voltage_target,
+        config.voltage_distribution_for_era(era),
+        strengths.get("installation_year_to_voltage"),
+    )
     return str(
         weighted_choice(
             rng,
@@ -574,40 +756,20 @@ def sample_voltage(
 def sample_location_group(
     rng: np.random.Generator,
     voltage: str,
+    config: Config,
+    strengths: StrengthConfig,
 ) -> str:
-    """Generate a simple synthetic operational location grouping."""
-    if voltage == "19 kV SWER":
-        return str(
-            weighted_choice(
-                rng,
-                ["Rural", "Regional", "Urban"],
-                [0.80, 0.18, 0.02],
-            )
-        )
-
-    if voltage in {"33 kV", "66 kV"}:
-        return str(
-            weighted_choice(
-                rng,
-                ["Rural", "Regional", "Urban"],
-                [0.35, 0.35, 0.30],
-            )
-        )
-
-    if voltage == "LV":
-        return str(
-            weighted_choice(
-                rng,
-                ["Rural", "Regional", "Urban"],
-                [0.18, 0.27, 0.55],
-            )
-        )
-
+    """Generate location by blending neutral and voltage-specific distributions."""
+    distribution = blend_probabilities(
+        config.location_target,
+        config.location_distribution_for_voltage(voltage),
+        strengths.get("voltage_to_location"),
+    )
     return str(
         weighted_choice(
             rng,
-            ["Rural", "Regional", "Urban"],
-            [0.45, 0.30, 0.25],
+            labels=list(distribution),
+            probs=list(distribution.values()),
         )
     )
 
@@ -617,26 +779,29 @@ def sample_corrosion_zone(
     voltage: str,
     location_group: str,
     config: Config,
+    strengths: StrengthConfig,
 ) -> str:
-    """Generate corrosion zone from the configured marginal plus context shifts."""
-    base = dict(config.corrosion_target)
+    """Generate corrosion using separately controlled location and voltage effects."""
+    probabilities = dict(config.corrosion_target)
 
-    if location_group == "Urban":
-        base["Low"] -= 0.08
-        base["Severe"] += 0.05
-        base["Very Severe"] += 0.03
-    elif location_group == "Rural":
-        base["Low"] += 0.06
-        base["Severe"] -= 0.04
-        base["Very Severe"] -= 0.02
+    location_effect = config.corrosion.get("location_effects", {}).get(
+        location_group, {}
+    )
+    apply_scaled_effects(
+        probabilities,
+        location_effect,
+        strengths.get("location_to_corrosion"),
+    )
 
-    if voltage == "19 kV SWER":
-        base["Low"] += 0.04
-        base["Severe"] -= 0.03
-        base["Very Severe"] -= 0.01
+    voltage_effect = config.corrosion.get("voltage_effects", {}).get(voltage, {})
+    apply_scaled_effects(
+        probabilities,
+        voltage_effect,
+        strengths.get("voltage_to_corrosion"),
+    )
 
-    labels = ["Low", "Severe", "Very Severe"]
-    probs = np.array([base[label] for label in labels], dtype=float)
+    labels = list(config.corrosion_target)
+    probs = np.array([probabilities[label] for label in labels], dtype=float)
     probs = np.clip(probs, 0.01, None)
     probs = probs / probs.sum()
 
@@ -703,14 +868,16 @@ def sample_material(
     voltage: str,
     corrosion_zone: str,
     config: Config,
+    strengths: StrengthConfig,
 ) -> str:
-    """Generate the three-class material target using configured assumptions."""
+    """Generate material using independently controlled direct relationships."""
     probabilities = dict(config.material_target)
 
-    for material, effect in (
-        config.material.get("voltage_effects", {}).get(voltage, {}).items()
-    ):
-        probabilities[material] += float(effect)
+    apply_scaled_effects(
+        probabilities,
+        config.material.get("voltage_effects", {}).get(voltage, {}),
+        strengths.get("voltage_to_material"),
+    )
 
     era: str | None = None
     if installation_year <= 1949:
@@ -719,17 +886,17 @@ def sample_material(
         era = "from_1980"
 
     if era is not None:
-        for material, effect in (
-            config.material.get("era_effects", {}).get(era, {}).items()
-        ):
-            probabilities[material] += float(effect)
+        apply_scaled_effects(
+            probabilities,
+            config.material.get("era_effects", {}).get(era, {}),
+            strengths.get("installation_year_to_material"),
+        )
 
-    for material, effect in (
-        config.material.get("corrosion_effects", {})
-        .get(corrosion_zone, {})
-        .items()
-    ):
-        probabilities[material] += float(effect)
+    apply_scaled_effects(
+        probabilities,
+        config.material.get("corrosion_effects", {}).get(corrosion_zone, {}),
+        strengths.get("corrosion_to_material"),
+    )
 
     labels = list(config.material_target)
     probs = np.array([probabilities[label] for label in labels], dtype=float)
@@ -829,7 +996,7 @@ def sample_length_km(
 # 11. Generate complete reference dataset
 # ---------------------------------------------------------------------------
 
-def generate_dataset(config: Config) -> pd.DataFrame:
+def generate_dataset(config: Config, strengths: StrengthConfig) -> pd.DataFrame:
     rng = np.random.default_rng(config.seed)
     feeder_map = make_feeder_map()
     rows: list[dict[str, Any]] = []
@@ -838,9 +1005,11 @@ def generate_dataset(config: Config) -> pd.DataFrame:
         installation_year = sample_installation_year(rng)
         asset_age = config.snapshot_year - installation_year
 
-        voltage = sample_voltage(rng, installation_year, config)
-        location = sample_location_group(rng, voltage)
-        corrosion = sample_corrosion_zone(rng, voltage, location, config)
+        voltage = sample_voltage(rng, installation_year, config, strengths)
+        location = sample_location_group(rng, voltage, config, strengths)
+        corrosion = sample_corrosion_zone(
+            rng, voltage, location, config, strengths
+        )
         feeder = sample_feeder(rng, location, feeder_map)
 
         distance_to_sea = sample_distance_to_sea(
@@ -855,6 +1024,7 @@ def generate_dataset(config: Config) -> pd.DataFrame:
             voltage=voltage,
             corrosion_zone=corrosion,
             config=config,
+            strengths=strengths,
         )
 
         conductor_type = sample_conductor_type(rng, material)
@@ -1074,7 +1244,11 @@ def validate_generated_dataset(
         raise ValueError(f"Generated dataset validation failed:\n - {formatted}")
 
 
-def validate_dataset(df: pd.DataFrame, config: Config) -> dict[str, Any]:
+def validate_dataset(
+    df: pd.DataFrame,
+    config: Config,
+    strengths: StrengthConfig,
+) -> dict[str, Any]:
     """Create transparent validation statistics for reporting and audit."""
     voltage_route = route_length_share(df, "voltage_category")
     corrosion_route = route_length_share(df, "corrosion_zone")
@@ -1082,6 +1256,9 @@ def validate_dataset(df: pd.DataFrame, config: Config) -> dict[str, Any]:
 
     return {
         "config_file": str(config.config_path),
+        "strength_config_file": str(strengths.config_path),
+        "strength_profile": strengths.profile_name,
+        "relationship_strengths": dict(strengths.relationship_strengths),
         "seed": config.seed,
         "rows": len(df),
         "snapshot_year": config.snapshot_year,
@@ -1127,7 +1304,7 @@ def format_distribution(distribution: Mapping[str, float]) -> str:
     )
 
 
-def assumptions_table(config: Config) -> pd.DataFrame:
+def assumptions_table(config: Config, strengths: StrengthConfig) -> pd.DataFrame:
     """Return a concise provenance table for generated-data assumptions."""
     rows = [
         {
@@ -1135,6 +1312,21 @@ def assumptions_table(config: Config) -> pd.DataFrame:
             "value": str(config.config_path),
             "basis": "External YAML configuration",
             "status": "Reproducibility control",
+        },
+        {
+            "item": "relationship_strength_profile",
+            "value": strengths.profile_name,
+            "basis": str(strengths.config_path),
+            "status": "Controlled synthetic experiment parameter",
+        },
+        {
+            "item": "relationship_strengths",
+            "value": ", ".join(
+                f"{name}={value:.2f}"
+                for name, value in strengths.relationship_strengths.items()
+            ),
+            "basis": "External relationship-strength YAML configuration",
+            "status": "Controlled synthetic experiment parameter",
         },
         {
             "item": "snapshot_year",
@@ -1257,8 +1449,10 @@ def save_outputs(
     df: pd.DataFrame,
     summary: Mapping[str, Any],
     config: Config,
-) -> None:
-    output_dir = config.output_dir
+    strengths: StrengthConfig,
+) -> Path:
+    # Keep outputs for each strength profile separate so experiments do not overwrite.
+    output_dir = config.output_dir / strengths.profile_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     df.to_csv(
@@ -1267,7 +1461,7 @@ def save_outputs(
         encoding="utf-8",
     )
 
-    assumptions_table(config).to_csv(
+    assumptions_table(config, strengths).to_csv(
         output_dir / "generation_assumptions.csv",
         index=False,
         encoding="utf-8",
@@ -1288,6 +1482,8 @@ def save_outputs(
         encoding="utf-8",
     )
 
+    return output_dir
+
 
 # ---------------------------------------------------------------------------
 # 16. CLI and main
@@ -1305,6 +1501,29 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Path to generation.yaml/yml. If omitted, the script searches "
             "upward for config/overhead_conductors/generation.yaml or .yml."
+        ),
+    )
+    parser.add_argument(
+        "--strength-profile",
+        choices=[
+            "strength_100", "strength_90", 
+            "strength_80","strength_70","strength_60",
+            "strength_50","strength_40","strength_30",
+            "strength_20", "strength_10","strength_0","your_custom_profile"],
+        default=DEFAULT_STRENGTH_PROFILE,
+        help=(
+            "Relationship-strength profile name. The file is loaded from "
+            "config/overhead_conductors/relationship_strength/<profile>.yaml. "
+            f"Default: {DEFAULT_STRENGTH_PROFILE}."
+        ),
+    )
+    parser.add_argument(
+        "--strength-config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional explicit path to a relationship-strength YAML file. "
+            "When supplied, this overrides --strength-profile."
         ),
     )
     return parser.parse_args()
@@ -1345,27 +1564,41 @@ def main() -> None:
 
         config = Config.from_yaml(config_path)
         LOGGER.info("Generation configuration validated successfully.")
+
+        strength_path = resolve_strength_config_path(
+            config,
+            profile_name=args.strength_profile,
+            explicit_path=args.strength_config,
+        )
+        LOGGER.info("Loading relationship-strength configuration: %s", strength_path)
+        strengths = StrengthConfig.from_yaml(strength_path)
         LOGGER.info(
-            "Configured run: n_rows=%s, seed=%s, snapshot_year=%s",
+            "Relationship-strength profile '%s' validated successfully.",
+            strengths.profile_name,
+        )
+
+        LOGGER.info(
+            "Configured run: n_rows=%s, seed=%s, snapshot_year=%s, profile=%s",
             f"{config.n_rows:,}",
             config.seed,
             config.snapshot_year,
+            strengths.profile_name,
         )
 
         LOGGER.info("Generating complete synthetic reference dataset...")
-        df = generate_dataset(config)
+        df = generate_dataset(config, strengths)
 
         LOGGER.info("Calibrating route-length marginals...")
         df = calibrate_route_length_marginals(df, config)
 
         LOGGER.info("Validating generated dataset...")
         validate_generated_dataset(df, config)
-        summary = validate_dataset(df, config)
+        summary = validate_dataset(df, config, strengths)
 
         LOGGER.info("Saving outputs...")
-        save_outputs(df, summary, config)
+        output_dir = save_outputs(df, summary, config, strengths)
 
-        print_summary(summary, config.output_dir)
+        print_summary(summary, output_dir)
 
     except (FileNotFoundError, OSError, ValueError) as exc:
         LOGGER.error("Generation failed: %s", exc)

@@ -1,0 +1,14 @@
+profile_name: strength_30
+
+description: >
+  Relationship profile using 30 percent of the current baseline
+  synthetic relationship effects.
+
+relationship_strengths:
+  installation_year_to_voltage: 0.3
+  voltage_to_location: 0.3
+  voltage_to_corrosion: 0.3
+  location_to_corrosion: 0.3
+  installation_year_to_material: 0.3
+  voltage_to_material: 0.3
+  corrosion_to_material: 0.3

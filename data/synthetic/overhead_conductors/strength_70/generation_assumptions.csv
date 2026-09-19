@@ -1,0 +1,22 @@
+item,value,basis,status
+generation_config,/Users/zisanaalam/Desktop/GitHub/team19-asset-data/config/overhead_conductors/generation.yaml,External YAML configuration,Reproducibility control
+relationship_strength_profile,strength_70,/Users/zisanaalam/Desktop/GitHub/team19-asset-data/config/overhead_conductors/relationship_strength/strength_70.yaml,Controlled synthetic experiment parameter
+relationship_strengths,"installation_year_to_voltage=0.70, voltage_to_location=0.70, voltage_to_corrosion=0.70, location_to_corrosion=0.70, installation_year_to_material=0.70, voltage_to_material=0.70, corrosion_to_material=0.70",External relationship-strength YAML configuration,Controlled synthetic experiment parameter
+snapshot_year,2014,SAPN AMP publication/network snapshot,SAPN grounded
+installation_year_profile,"Strong 1955-1977 expansion; extra peaks 1955, 1956, 1958, 1966",SAPN AMP age profile and text,SAPN grounded shape; exact probabilities synthetic
+asset_age,2014 - installation_year,Deterministic derivation,Derived
+voltage_categories,"66 kV, 33 kV, 19 kV SWER, 11/7.6 kV, LV",SAPN AMP Table 1,SAPN grounded
+voltage_route_length_target,"66 kV 2.0%, 33 kV 5.6%, 19 kV SWER 40.9%, 11/7.6 kV 24.9%, LV 26.6%",generation configuration / SAPN aggregate evidence,Configuration controlled
+voltage_by_era,Older pre-1950 biased to 33 kV; 1955-1977 biased to SWER/11 kV,SAPN AMP text,SAPN grounded direction; exact probabilities synthetic
+corrosion_route_length_target,"Low 53.5%, Severe 35.5%, Very Severe 11.0%",generation configuration / SAPN corrosion-zone evidence,Configuration controlled
+material_target,"Steel, Copper, Aluminium",Project pilot scope + SAPN conductor groups,Project scope
+material_route_length_reference,"Steel 74.0%, Copper 15.9%, Aluminium 10.1%",Normalized known non-ACSR route lengths from SAPN Table 2,"SAPN-derived reference, not a direct material-field distribution"
+ACSR,Excluded from current 3-class target,Composite conductor group; cannot cleanly map to one material class,Project modelling decision
+conductor_type,"AAC, AAAC, Aluminium, Copper, SC/AC, SC/GZ",SAPN AMP Table 2,SAPN grounded
+conductor_type_as_predictor,Excluded from material-model-ready output,Would reveal the target and create leakage,Modelling safeguard
+covering,Bare / Covered; low overall covered share,SAPN AMP says covered conductor is a small share of the network,SAPN grounded marginal; exact age relationship synthetic
+location_group,Urban / Regional / Rural,AMP uses rural/urban but does not publish a full population split,Synthetic assumption
+distance_to_sea_km,Conditional on corrosion zone and location group,Coastal/saline corrosion relationship; exact km thresholds not published,Synthetic enrichment assumption
+segment_length,Context-dependent lognormal distribution,AMP gives total route length but no segment-length distribution,Synthetic assumption
+route_length_calibration,"Iterative calibration to voltage, corrosion and material route-length marginals",Published percentages are route-length shares rather than row shares,Synthetic calibration step
+missing_values,None in the complete reference dataset,Controlled masking is a separate experimental step,Project design
