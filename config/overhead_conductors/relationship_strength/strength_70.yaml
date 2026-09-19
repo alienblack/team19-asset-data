@@ -1,0 +1,14 @@
+profile_name: strength_70
+
+description: >
+  Relationship profile using 70 percent of the current baseline
+  synthetic relationship effects.
+
+relationship_strengths:
+  installation_year_to_voltage: 0.7
+  voltage_to_location: 0.7
+  voltage_to_corrosion: 0.7
+  location_to_corrosion: 0.7
+  installation_year_to_material: 0.7
+  voltage_to_material: 0.7
+  corrosion_to_material: 0.7

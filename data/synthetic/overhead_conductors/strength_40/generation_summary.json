@@ -1,0 +1,95 @@
+{
+  "config_file": "/Users/zisanaalam/Desktop/GitHub/team19-asset-data/config/overhead_conductors/generation.yaml",
+  "strength_config_file": "/Users/zisanaalam/Desktop/GitHub/team19-asset-data/config/overhead_conductors/relationship_strength/strength_40.yaml",
+  "strength_profile": "strength_40",
+  "relationship_strengths": {
+    "installation_year_to_voltage": 0.4,
+    "voltage_to_location": 0.4,
+    "voltage_to_corrosion": 0.4,
+    "location_to_corrosion": 0.4,
+    "installation_year_to_material": 0.4,
+    "voltage_to_material": 0.4,
+    "corrosion_to_material": 0.4
+  },
+  "seed": 219,
+  "rows": 10000,
+  "snapshot_year": 2014,
+  "missing_cells": 0,
+  "duplicate_segment_ids": 0,
+  "mean_age": 50.75,
+  "share_age_over_50": 0.593,
+  "share_age_under_20": 0.0188,
+  "voltage_row_share": {
+    "11/7.6 kV": 0.2565,
+    "19 kV SWER": 0.4088,
+    "33 kV": 0.0703,
+    "66 kV": 0.0211,
+    "LV": 0.2433
+  },
+  "voltage_route_length_share": {
+    "11/7.6 kV": 0.249,
+    "19 kV SWER": 0.409,
+    "33 kV": 0.056,
+    "66 kV": 0.02,
+    "LV": 0.265999
+  },
+  "voltage_route_length_target": {
+    "66 kV": 0.02,
+    "33 kV": 0.056,
+    "19 kV SWER": 0.409,
+    "11/7.6 kV": 0.249,
+    "LV": 0.266
+  },
+  "voltage_route_length_deviation": {
+    "66 kV": 0.0,
+    "33 kV": 0.0,
+    "19 kV SWER": 0.0,
+    "11/7.6 kV": 0.0,
+    "LV": 1e-06
+  },
+  "corrosion_row_share": {
+    "Low": 0.5407,
+    "Severe": 0.3487,
+    "Very Severe": 0.1106
+  },
+  "corrosion_route_length_share": {
+    "Low": 0.534999,
+    "Severe": 0.355001,
+    "Very Severe": 0.11
+  },
+  "corrosion_route_length_target": {
+    "Low": 0.535,
+    "Severe": 0.355,
+    "Very Severe": 0.11
+  },
+  "corrosion_route_length_deviation": {
+    "Low": 1e-06,
+    "Severe": 1e-06,
+    "Very Severe": 0.0
+  },
+  "material_row_share": {
+    "Aluminium": 0.1028,
+    "Copper": 0.1572,
+    "Steel": 0.74
+  },
+  "material_route_length_share": {
+    "Aluminium": 0.101,
+    "Copper": 0.159,
+    "Steel": 0.74
+  },
+  "material_route_length_target": {
+    "Steel": 0.74,
+    "Copper": 0.159,
+    "Aluminium": 0.101
+  },
+  "material_route_length_deviation": {
+    "Steel": 0.0,
+    "Copper": 0.0,
+    "Aluminium": 0.0
+  },
+  "covering_row_share": {
+    "Bare": 0.9861,
+    "Covered": 0.0139
+  },
+  "total_route_length_km_in_synthetic_sample": 5303.8
+}

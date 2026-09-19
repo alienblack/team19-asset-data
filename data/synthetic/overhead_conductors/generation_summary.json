@@ -1,8 +1,10 @@
 {
+  "config_file": "/Users/zisanaalam/Desktop/GitHub/team19-asset-data/config/overhead_conductors/generation.yaml",
   "seed": 219,
   "rows": 10000,
   "snapshot_year": 2014,
   "missing_cells": 0,
+  "duplicate_segment_ids": 0,
   "mean_age": 50.62,
   "share_age_over_50": 0.5861,
   "share_age_under_20": 0.0203,
@@ -20,15 +22,39 @@
     "66 kV": 0.02,
     "LV": 0.266
   },
+  "voltage_route_length_target": {
+    "66 kV": 0.02,
+    "33 kV": 0.056,
+    "19 kV SWER": 0.409,
+    "11/7.6 kV": 0.249,
+    "LV": 0.266
+  },
+  "voltage_route_length_deviation": {
+    "66 kV": 0.0,
+    "33 kV": 0.0,
+    "19 kV SWER": 0.0,
+    "11/7.6 kV": 0.0,
+    "LV": 0.0
+  },
   "corrosion_row_share": {
     "Low": 0.5674,
     "Severe": 0.3312,
     "Very Severe": 0.1014
   },
   "corrosion_route_length_share": {
-    "Low": 0.5354,
-    "Severe": 0.3535,
-    "Very Severe": 0.1111
+    "Low": 0.534999,
+    "Severe": 0.355001,
+    "Very Severe": 0.11
+  },
+  "corrosion_route_length_target": {
+    "Low": 0.535,
+    "Severe": 0.355,
+    "Very Severe": 0.11
+  },
+  "corrosion_route_length_deviation": {
+    "Low": 1e-06,
+    "Severe": 1e-06,
+    "Very Severe": 0.0
   },
   "material_row_share": {
     "Aluminium": 0.118,
@@ -39,6 +65,16 @@
     "Aluminium": 0.101,
     "Copper": 0.159,
     "Steel": 0.74
+  },
+  "material_route_length_target": {
+    "Steel": 0.74,
+    "Copper": 0.159,
+    "Aluminium": 0.101
+  },
+  "material_route_length_deviation": {
+    "Steel": 0.0,
+    "Copper": 0.0,
+    "Aluminium": 0.0
   },
   "covering_row_share": {
     "Bare": 0.9887,
