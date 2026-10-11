@@ -36,6 +36,24 @@ scenarios:
     noise_level: 0.20
     seed: 323
 
+  N01_30:
+    name: "Random numeric noise - 30 percent"
+    strategy: "random_numeric"
+    columns:
+      - length_km
+      - distance_to_sea_km
+    noise_level: 0.30
+    seed: 323
+
+  N01_50:
+    name: "Random numeric noise - 50 percent"
+    strategy: "random_numeric"
+    columns:
+      - length_km
+      - distance_to_sea_km
+    noise_level: 0.50
+    seed: 323
+    
   N02_year_1:
     name: "Installation year recording error - one year"
     strategy: "installation_year_error"

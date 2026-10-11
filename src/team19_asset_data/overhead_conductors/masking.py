@@ -60,6 +60,7 @@ class MaskingEngine:
         self,
         df: pd.DataFrame,
         rule_id: str,
+        seed_override: int | None = None,
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """Apply one configured masking rule."""
         if rule_id not in self.rules:
@@ -69,6 +70,9 @@ class MaskingEngine:
             )
 
         rule = deepcopy(self.rules[rule_id])
+        if seed_override is not None:
+            rule["seed"] = int(seed_override)
+            
         strategy = rule.get("strategy")
 
         handlers = {

@@ -1,0 +1,60 @@
+version: 1
+
+asset_class: "overhead_conductors"
+
+columns:
+
+  numeric:
+    - installation_year
+    - distance_to_sea_km
+    - length_km
+
+  categorical:
+    - voltage_category
+    - location_group
+    - corrosion_zone
+    - material
+    - covering
+
+  excluded:
+    - segment_id
+    - feeder_id
+    - conductor_type
+    - asset_age
+    - data_status
+    - record_version
+
+
+constraints:
+
+  installation_year:
+    data_type: "integer"
+    min: 1930
+    max: 2014
+
+  distance_to_sea_km:
+    data_type: "float"
+    min: 0.0
+    max: 350.0
+
+  length_km:
+    data_type: "float"
+    min: 0.01
+    max: 10.0
+
+
+methods:
+
+  simple:
+    numeric_strategy: "mean"
+    categorical_strategy: "mode"
+
+  missforest:
+    n_estimators: 100
+    max_iter: 20
+    random_state: 219
+    n_jobs: -1
+    max_features: "sqrt"
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null

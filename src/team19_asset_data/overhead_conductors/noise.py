@@ -29,7 +29,7 @@ REQUIRED_COLUMNS = [
     "corrosion_zone",
     "distance_to_sea_km",
     "material",
-    "conductor_type",
+    # "conductor_type",
     "covering",
     "length_km",
     "data_status",
@@ -303,7 +303,8 @@ def apply_noise(
         "selected_counts": changed,
         "changed_counts": actual_changed,
         "realized_rates": {column: count / len(df) for column, count in actual_changed.items()},
-        "protected_columns": sorted(PROTECTED_COLUMNS),
+        # "protected_columns": sorted(PROTECTED_COLUMNS),
+        "protected_columns": sorted(PROTECTED_COLUMNS.intersection(df.columns)),
         "truth_sha256": dataframe_hash(df),
         "observed_sha256": dataframe_hash(observed),
     }
@@ -330,9 +331,14 @@ def validate_output(
         raise ValueError("Truth and observed row counts must match")
     if not truth["segment_id"].equals(observed["segment_id"]):
         raise ValueError("segment_id values must not change")
-    for column in PROTECTED_COLUMNS:
+    # for column in PROTECTED_COLUMNS:
+    #     if not truth[column].equals(observed[column]):
+    #         raise ValueError(f"Protected column changed: {column}")
+    for column in PROTECTED_COLUMNS.intersection(truth.columns):
         if not truth[column].equals(observed[column]):
-            raise ValueError(f"Protected column changed: {column}")
+            raise ValueError(
+                f"Protected column changed: {column}"
+            )
     if not (observed["asset_age"] == snapshot_year - observed["installation_year"]).all():
         raise ValueError("Observed installation_year and asset_age are inconsistent")
     for column, allowed in CATEGORICAL_VALUES.items():
