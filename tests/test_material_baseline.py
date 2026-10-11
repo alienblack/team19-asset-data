@@ -20,6 +20,14 @@ def sample_frame() -> pd.DataFrame:
         {
             "segment_id": ["S1", "S2", "S3", "S4", "S5", "S6"],
             "feeder_id": ["F1", "F1", "F2", "F2", "F3", "F3"],
+            "installation_year": [1980, 1981, 1990, 1991, 2000, 2001],
+            "asset_age": [34, 33, 24, 23, 14, 13],
+            "voltage_category": ["LV", "LV", "33 kV", "33 kV", "11/7.6 kV", "11/7.6 kV"],
+            "location_group": ["Urban", "Urban", "Regional", "Regional", "Rural", "Rural"],
+            "corrosion_zone": ["Low", "Low", "Severe", "Severe", "Very Severe", "Very Severe"],
+            "distance_to_sea_km": [10.0, 10.5, 50.0, 50.5, 100.0, 100.5],
+            "covering": ["Bare", "Bare", "Covered", "Covered", "Bare", "Bare"],
+            "length_km": [1.0, 1.1, 2.0, 2.1, 3.0, 3.1],
             "material": ["Steel", "Steel", "Copper", "Copper", "Aluminium", "Steel"],
         }
     )

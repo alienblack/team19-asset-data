@@ -2,6 +2,34 @@
 
 ## Purpose
 
+### Review corrections on 11 October 2026
+
+This revision addresses both comments on PR 14. The voltage-era audit uses
+<=1949, 1950-1977, 1978-1994 and >=1995. The material-era audit separately
+uses <=1949, 1950-1979 (no additional era effect) and >=1980, matching the
+current generator rather than reusing the former pre/post-1995 split.
+
+All leakage/recoverability rows now carry profile, seed and scope. Direct
+answer/duplicate evidence is distinguished from ordinary predictor screening;
+both are measured on every profile and seed. Classifier support is the held-out
+evaluation count, not the whole generated population. A high score triggers
+review and is not, by itself, proof of leakage.
+
+Every seed is regenerated from current configuration to avoid combining stale
+committed CSVs with newly generated runs. No committed data is overwritten.
+Run metadata contains source/configuration hashes, generated reference hashes
+are recorded per run, and the generator's own row-count/category/route-share
+checks are reused. Complete and model-ready rows and values must match exactly
+apart from the excluded conductor-type column.
+
+The implemented relationship statistics are categorical Cramer's V and NMI,
+plus quantile-binned numeric-to-material NMI. Numeric-numeric Spearman and
+conditional-composition tables below remain optional follow-up diagnostics;
+they are not claimed as produced by this revision. The endpoint NMI change
+threshold of 0.01 is descriptive, not a significance test, and the fitted
+slope does not establish monotonicity. Seed variability is not calibrated
+per-asset uncertainty.
+
 This plan defines the first validation experiment for the controlled synthetic
 overhead-conductor dataset. It addresses the client requirement that the
 synthetic data have understandable, controlled relationships before it is used

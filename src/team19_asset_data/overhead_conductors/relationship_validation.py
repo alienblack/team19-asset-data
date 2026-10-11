@@ -8,6 +8,7 @@ cannot be mistaken for evidence about SAPN's real asset register.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 from dataclasses import replace
@@ -38,6 +39,7 @@ from .generate_synthetic_data import (
     StrengthConfig,
     calibrate_route_length_marginals,
     generate_dataset,
+    validate_generated_dataset,
 )
 
 
@@ -101,10 +103,21 @@ def maximum_category_purity(
 
 
 def material_by_era(years: pd.Series) -> pd.Series:
+    """Match sample_material, including its explicit no-era-effect interval."""
     return pd.cut(
         years,
-        bins=[-np.inf, 1994, 2014],
-        labels=["pre_1995", "from_1995"],
+        bins=[-np.inf, 1949, 1979, np.inf],
+        labels=["pre_1950", "1950_1979", "from_1980"],
+        right=True,
+    ).astype(str)
+
+
+def voltage_by_era(years: pd.Series) -> pd.Series:
+    """Match the four intervals in the generator's sample_voltage."""
+    return pd.cut(
+        years,
+        bins=[-np.inf, 1949, 1977, 1994, np.inf],
+        labels=["pre_1950", "1950_1977", "1978_1994", "from_1995"],
         right=True,
     ).astype(str)
 
@@ -122,6 +135,7 @@ def schema_and_invariants(
     complete: pd.DataFrame,
     model_ready: pd.DataFrame,
     snapshot_year: int,
+    config: Config | None = None,
 ) -> dict[str, Any]:
     """Check the contract shared by generation and modelling layers."""
     checks: dict[str, Any] = {
@@ -139,8 +153,21 @@ def schema_and_invariants(
         "positive_lengths": bool((complete["length_km"] > 0).all()),
         "nonnegative_distance": bool((complete["distance_to_sea_km"] >= 0).all()),
         "no_conductor_type_in_model_ready": "conductor_type" not in model_ready.columns,
+        "model_ready_matches_reference": complete.drop(columns=["conductor_type"]).equals(model_ready),
+        "valid_years": bool(complete["installation_year"].between(1900, snapshot_year).all()),
+        "finite_numeric_fields": bool(np.isfinite(complete[["installation_year", "asset_age", "length_km", "distance_to_sea_km"]]).all().all()),
+        "valid_covering": set(complete["covering"].unique()) <= {"Bare", "Covered"},
     }
+    generator_error = None
+    if config is not None:
+        try:
+            validate_generated_dataset(complete, config)
+        except ValueError as error:
+            generator_error = str(error)
+        checks["generator_contract_including_route_shares"] = generator_error is None
     checks["passed"] = all(checks.values())
+    if generator_error:
+        checks["generator_validation_error"] = generator_error
     return checks
 
 
@@ -186,20 +213,22 @@ def feature_screen(df: pd.DataFrame, feature: str, random_state: int = 219) -> d
     return {
         "balanced_accuracy": float(balanced_accuracy_score(test_y, prediction)),
         "macro_f1": float(f1_score(test_y, prediction, average="macro")),
+        "evaluation_support": int(len(test_y)),
     }
 
 
 def profile_metrics(df: pd.DataFrame, profile: str, seed: int) -> list[dict[str, Any]]:
     """Calculate association statistics for one generated profile and seed."""
     frame = df.copy()
-    frame["installation_era"] = material_by_era(frame["installation_year"])
+    frame["material_era"] = material_by_era(frame["installation_year"])
+    frame["voltage_era"] = voltage_by_era(frame["installation_year"])
     frame["age_band"] = age_band(frame["asset_age"])
     relations = [
-        ("installation_era", "voltage_category", "configured_era_to_voltage"),
+        ("voltage_era", "voltage_category", "configured_era_to_voltage"),
         ("voltage_category", "location_group", "configured_voltage_to_location"),
         ("voltage_category", "corrosion_zone", "configured_voltage_to_corrosion"),
         ("location_group", "corrosion_zone", "configured_location_to_corrosion"),
-        ("installation_era", "material", "configured_era_to_material"),
+        ("material_era", "material", "configured_era_to_material"),
         ("voltage_category", "material", "configured_voltage_to_material"),
         ("corrosion_zone", "material", "configured_corrosion_to_material"),
         ("age_band", "material", "age_band_to_material"),
@@ -243,7 +272,7 @@ def profile_metrics(df: pd.DataFrame, profile: str, seed: int) -> list[dict[str,
     return rows
 
 
-def leakage_rows(df: pd.DataFrame, seed: int, min_support: int) -> list[dict[str, Any]]:
+def leakage_rows(df: pd.DataFrame, seed: int, min_support: int, profile: str) -> list[dict[str, Any]]:
     """Produce explicit leakage, duplicate-evidence and model-screening rows."""
     rows: list[dict[str, Any]] = []
     target = df["material"]
@@ -261,7 +290,7 @@ def leakage_rows(df: pd.DataFrame, seed: int, min_support: int) -> list[dict[str
                     "audit_type": "categorical_leakage_screen",
                     "statistic": statistic,
                     "value": float(value),
-                    "support": purity["support"],
+                    "support": purity["support"] if statistic == "max_category_purity" else association["n_rows"],
                     "threshold": 0.95 if statistic == "max_category_purity" else 0.80,
                     "flag": bool(value >= (0.95 if statistic == "max_category_purity" else 0.80)),
                     "interpretation": "Direct target-revealing evidence" if feature == "conductor_type" else "Review for unintended recoverability",
@@ -276,14 +305,15 @@ def leakage_rows(df: pd.DataFrame, seed: int, min_support: int) -> list[dict[str
     )
     for feature in screen_features:
         metrics = feature_screen(df, feature, random_state=seed)
-        for statistic, value in metrics.items():
+        for statistic in ("balanced_accuracy", "macro_f1"):
+            value = metrics[statistic]
             rows.append(
                 {
                     "feature": feature,
                     "audit_type": "single_feature_classifier",
                     "statistic": statistic,
                     "value": value,
-                    "support": len(df),
+                    "support": metrics["evaluation_support"],
                     "threshold": 0.80,
                     "flag": bool(value >= 0.80),
                     "interpretation": "Potential leakage or overly informative feature" if value >= 0.80 else "No standalone high-performance signal detected",
@@ -305,6 +335,12 @@ def leakage_rows(df: pd.DataFrame, seed: int, min_support: int) -> list[dict[str
             "seed": seed,
         }
     )
+    for row in rows:
+        row["profile"] = profile
+        row["scope"] = (
+            "direct_answer_or_duplicate" if row["feature"] in {"conductor_type", "installation_year + asset_age"}
+            else "profile_dependent_recoverability"
+        )
     return rows
 
 
@@ -352,14 +388,7 @@ def load_or_generate(
     seed: int,
     profile_root: Path,
 ) -> tuple[pd.DataFrame, pd.DataFrame, str]:
-    """Load the committed seed-219 artefact or generate another seed in memory."""
-    if seed == config.seed:
-        directory = profile_root / strengths.profile_name
-        complete_path = directory / "overhead_conductors_complete_reference.csv"
-        model_path = directory / "material_model_ready_data.csv"
-        if complete_path.is_file() and model_path.is_file():
-            return pd.read_csv(complete_path), pd.read_csv(model_path), str(complete_path)
-
+    """Regenerate every seed from current configuration; never mix stale CSVs."""
     run_config = replace(config, seed=seed)
     complete = calibrate_route_length_marginals(
         generate_dataset(run_config, strengths), run_config
@@ -376,6 +405,7 @@ def write_heatmap(metrics: pd.DataFrame, output_dir: Path) -> None:
     pivot = subset.pivot_table(index="relation", columns="profile", values="value", aggfunc="mean")
     if pivot.empty:
         return
+    pivot = pivot.reindex(columns=sorted(pivot.columns, key=lambda value: int(value.split("_")[-1])))
     figure, axis = plt.subplots(figsize=(12, 5.5))
     image = axis.imshow(pivot.to_numpy(), aspect="auto", cmap="YlGnBu", vmin=0, vmax=max(0.01, float(pivot.to_numpy().max())))
     axis.set_xticks(range(len(pivot.columns)), pivot.columns, rotation=45, ha="right")
@@ -421,6 +451,9 @@ def write_report(
         f"- Cross-seed stability rows: `{len(stability):,}`",
         "- Categorical association: Cramer's V and normalised mutual information; no arbitrary numeric encoding of material.",
         "- The direct `conductor_type` field is retained only for the leakage audit and excluded from material-model-ready data.",
+        "- Every seed is regenerated from the current generator/configuration; committed datasets are not overwritten.",
+        "- Voltage eras: <=1949, 1950-1977, 1978-1994, >=1995. Material eras: <=1949, 1950-1979 (no additional era effect), >=1980.",
+        "- All direct-evidence and profile-dependent recoverability screens run for every profile and seed, with explicit scope labels.",
         "",
         "## Results",
         "",
@@ -428,6 +461,7 @@ def write_report(
         f"- `conductor_type` leakage audit rows: `{len(direct)}`; high-purity flag observed: **{bool(direct['flag'].any())}**.",
         f"- Deterministic timing duplicate (`installation_year` and `asset_age`) detected: **{bool(duplicate['flag'].any())}**.",
         f"- Single-feature classifier screens flagged for review: `{len(high_screen)}` rows. These are review warnings, not proof that every flagged feature is invalid.",
+        f"- Flagged classifier features: {', '.join(sorted(high_screen['feature'].unique())) or 'none'}. Counts include repeated metrics, profiles and seeds, not unique features.",
         "",
         "### Direction checks",
         "",
@@ -452,6 +486,8 @@ def write_report(
         "",
         "- The generator uses explicit synthetic conditional probabilities and aggregate route-length calibration; observed associations are not SAPN record-level estimates.",
         "- Some associations at strength zero can remain because of upstream dependencies and route-length calibration.",
+        "- The 0.01 NMI endpoint-change threshold is a descriptive heuristic, not statistical significance or evidence of monotonicity. Cross-seed standard deviations are not calibrated per-asset confidence intervals.",
+        "- Single-feature logistic screening cannot rule out nonlinear or multi-feature leakage; high predictiveness alone is not proof of illegitimate information.",
         "- This ticket validates data-generation assumptions and leakage controls. It does not claim a final imputation method or downstream model stability.",
         "",
         "## Reproducibility",
@@ -477,6 +513,10 @@ def run_validation(
     min_support: int = DEFAULT_MIN_SUPPORT,
 ) -> Path:
     """Run E0-E3 validation and write all evidence files."""
+    if not seeds or len(set(seeds)) != len(seeds) or any(seed < 0 for seed in seeds):
+        raise ValueError("Provide nonempty, unique, nonnegative seeds")
+    if min_support < 1:
+        raise ValueError("min_support must be positive")
     config = Config.from_yaml(config_path)
     output = Path(output_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -496,21 +536,21 @@ def run_validation(
         for seed in seeds:
             LOGGER.info("Validating %s with seed %s", strengths.profile_name, seed)
             complete, model_ready, source = load_or_generate(config, strengths, seed, profile_root)
-            checks = schema_and_invariants(complete, model_ready, config.snapshot_year)
+            checks = schema_and_invariants(complete, model_ready, config.snapshot_year, config)
             invariant_records.append(
                 {
                     "profile": strengths.profile_name,
                     "seed": seed,
                     "source": source,
                     "rows": len(complete),
+                    "reference_sha256": hashlib.sha256(complete.to_csv(index=False).encode()).hexdigest(),
                     "checks": checks,
                 }
             )
             metric_rows.extend(profile_metrics(complete, strengths.profile_name, seed))
-            # Leakage is invariant to relationship profile, so collect it for
-            # the strongest profile only to avoid duplicating the same audit.
-            if strengths.profile_name == "strength_100":
-                leakage_rows_all.extend(leakage_rows(complete, seed, min_support))
+            # Ordinary predictors change with strength even when direct answer
+            # fields and the year/age equation retain their structural meaning.
+            leakage_rows_all.extend(leakage_rows(complete, seed, min_support, strengths.profile_name))
 
     metrics = pd.DataFrame(metric_rows)
     leakage = pd.DataFrame(leakage_rows_all)
@@ -544,6 +584,13 @@ def run_validation(
         "min_category_support": min_support,
         "material_model_excluded_columns": ["conductor_type"],
         "duplicate_timing_fields": ["installation_year", "asset_age"],
+        "generation_policy": "regenerate_all_seeds_from_current_config",
+        "recoverability_scope": "all_profiles_and_seeds",
+        "all_invariants_passed": all(record["checks"]["passed"] for record in invariant_records),
+        "source_sha256": {
+            str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in [Path(config_path), *profile_paths, Path(__file__), Path(__file__).with_name("generate_synthetic_data.py")]
+        },
     }
     (output / "run_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     write_heatmap(metrics, output / "relationship_heatmaps")
