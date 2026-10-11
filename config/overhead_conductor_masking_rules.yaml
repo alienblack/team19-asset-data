@@ -184,3 +184,17 @@ rules:
       corrosion_zone: 0.20
       voltage_category: 0.10
     seed: 260
+
+
+  # -------------------------------------------------
+  # MISSFOREST MULTI-FIELD EXPERIMENT
+  # -------------------------------------------------
+
+  MF01:
+    name: "MissForest Multi-Field Random 20 Percent"
+    description: "Independently mask 20% of known values across all model-ready attributes for mixed-field imputation evaluation."
+    strategy: "random_attribute"
+    rate: 0.20
+    number_of_attributes: 8
+    selection_mode: "independent"
+    seed: 219
