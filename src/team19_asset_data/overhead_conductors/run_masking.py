@@ -112,8 +112,12 @@ def main() -> None:
     masked_df, metadata = engine.apply_rules(df, args.rules)
 
     experiment_name = "_".join(args.rules)
-    experiment_dir = args.output_dir / experiment_name
-    experiment_dir.mkdir(parents=True, exist_ok=True)
+
+    experiment_dir = args.output_dir
+    experiment_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     dataset_path = experiment_dir / f"masked_{experiment_name}.csv"
     metadata_path = experiment_dir / f"metadata_{experiment_name}.json"
@@ -136,7 +140,9 @@ def main() -> None:
 
         truth_df.to_csv(truth_path, index=False)
 
-    model_facing_df = masked_df.drop(columns=truth_columns)
+    model_facing_df = masked_df.drop(
+        columns=truth_columns + mask_flag_columns
+    )
     model_facing_df.to_csv(dataset_path, index=False)
 
     metadata_payload = {
