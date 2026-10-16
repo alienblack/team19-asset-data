@@ -25,6 +25,11 @@ class ImputationConfig:
     simple_config: dict[str, Any]
     missforest_config: dict[str, Any]
 
+    # Optional ``methods.predictive_missforest`` section. ``None`` when the
+    # YAML has no such section (all historical configurations), so existing
+    # callers and positional construction are unaffected.
+    predictive_missforest_config: dict[str, Any] | None = None
+
     @property
     def model_columns(self) -> tuple[str, ...]:
         """All columns available to imputation methods."""
@@ -220,6 +225,40 @@ def _validate_methods(
     return dict(simple), dict(missforest)
 
 
+def _validate_predictive_section(
+    methods: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Validate the optional ``methods.predictive_missforest`` section.
+
+    Only structural checks live here; value validation is done by
+    ``imputation.predictive_missforest.validate_predictive_config`` so the two
+    cannot drift apart.
+    """
+
+    section = methods.get("predictive_missforest")
+
+    if section is None:
+        return None
+
+    if not isinstance(section, dict):
+        raise ValueError(
+            "methods.predictive_missforest must be a mapping when present."
+        )
+
+    n_passes = section.get("n_passes")
+
+    if (
+        not isinstance(n_passes, int)
+        or isinstance(n_passes, bool)
+        or n_passes < 1
+    ):
+        raise ValueError(
+            "predictive_missforest.n_passes must be a positive integer."
+        )
+
+    return dict(section)
+
+
 def load_imputation_config(
     path: str | Path,
 ) -> ImputationConfig:
@@ -312,6 +351,10 @@ def load_imputation_config(
         _validate_methods(methods)
     )
 
+    predictive_missforest_config = _validate_predictive_section(
+        methods
+    )
+
     return ImputationConfig(
         version=version,
         asset_class=asset_class.strip(),
@@ -324,4 +367,5 @@ def load_imputation_config(
         },
         simple_config=simple_config,
         missforest_config=missforest_config,
+        predictive_missforest_config=predictive_missforest_config,
     )
