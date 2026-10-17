@@ -1,22 +1,17 @@
 """Validation-only tuning and diagnostics for PredictiveMissForest.
 
-Everything here is model-side tooling. It never generates the hidden-truth
-masks for the real benchmark: the team's scenario engine supplies
-``X_tune`` (incomplete), ``tune_truth`` and ``tune_mask``. ``make_mcar_mask``
-exists only for development and tests.
+Supports two validation inputs:
 
-Integration contract (expected from the scenario engine)
---------------------------------------------------------
-* ``X_fit``        : DataFrame of fitting-partition records with NaN where
-                     values are missing (natural + any scenario missingness).
-* ``X_tune``       : DataFrame of tuning-partition records after the scenario
-                     engine has hidden evaluation cells (NaN).
-* ``tune_truth``   : DataFrame aligned with ``X_tune`` (same index and
-                     columns) holding true values for at least the hidden cells.
-* ``tune_mask``    : boolean DataFrame aligned with ``X_tune``: True where the
-                     scenario engine hid an originally observed value.
-The tuner only ever reads ``tune_truth`` through ``evaluation.evaluate_imputation``
-after ``transform`` has run.
+* Already-incomplete SAPN-like validation records: the tuner temporarily hides
+  a fixed fraction of currently observed target values once before the search.
+  In ``year_material`` mode, it hides year and material; in ``all_attributes``
+  mode, it hides every modelled attribute.
+* Explicit benchmark masks: callers may supply a pre-masked ``X_tune`` plus
+  aligned ``tune_truth`` and ``tune_mask``; the tuner never adds another mask.
+
+``X_fit`` is always a separate fitting partition and may contain existing
+missing values. The tuner does not use validation truth to fit forests; it is
+read only after the candidate model has transformed the masked validation data.
 """
 
 from __future__ import annotations
@@ -25,6 +20,7 @@ import itertools
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Mapping, Sequence
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -82,22 +78,107 @@ def hide_cells(X: pd.DataFrame, mask: pd.DataFrame) -> pd.DataFrame:
     return hidden
 
 
+def prepare_tuning_holdout(
+    X_validation: pd.DataFrame,
+    columns: Sequence[str],
+    rate: float = 0.10,
+    seed: int = 219,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Hide a fixed fraction of CURRENTLY OBSERVED validation values.
+
+    ``X_validation`` may already have natural or scenario missingness. Those
+    existing gaps are not scored: only additional, deliberately hidden cells
+    are True in the returned boolean mask.
+
+    Returns ``(masked_validation, validation_truth, holdout_mask)``.
+    The input is never mutated; the same holdout is reused across all grid
+    candidates. This helper is for validation records only, not training rows.
+    """
+    if not isinstance(X_validation, pd.DataFrame):
+        raise TypeError("X_validation must be a DataFrame.")
+    if not X_validation.index.is_unique:
+        raise ValueError("Validation record index must uniquely identify rows.")
+    if (
+        isinstance(rate, bool)
+        or not isinstance(rate, (int, float))
+        or not np.isfinite(rate)
+        or not 0 < rate < 1
+    ):
+        raise ValueError("Tuning mask rate must be strictly between zero and one.")
+    if type(seed) is not int or seed < 0:
+        raise ValueError("Tuning mask seed must be a nonnegative integer.")
+
+    targets = tuple(columns)
+    if not targets or len(targets) != len(set(targets)):
+        raise ValueError("Tuning target columns must be nonempty and unique.")
+    unknown = sorted(set(targets) - set(X_validation.columns))
+    if unknown:
+        raise ValueError(f"Unknown tuning target columns: {unknown}.")
+
+    rng = np.random.default_rng(seed)
+    mask = pd.DataFrame(False, index=X_validation.index, columns=X_validation.columns)
+    for column in targets:
+        observed_indices = np.flatnonzero(X_validation[column].notna().to_numpy())
+        if len(observed_indices) < 2:
+            raise ValueError(
+                f"Cannot tune '{column}': at least two known validation values "
+                "are needed to create a holdout."
+            )
+        n_hide = max(1, int(round(rate * len(observed_indices))))
+        n_hide = min(n_hide, len(observed_indices) - 1)
+        selected = rng.choice(observed_indices, size=n_hide, replace=False)
+        mask.iloc[selected, mask.columns.get_loc(column)] = True
+
+    truth = X_validation.copy(deep=True)
+    masked = hide_cells(X_validation, mask)
+    return masked, truth, mask
+
+
 @dataclass(frozen=True)
 class TuningObjective:
-    """Lower-is-better selection objective proposed in Plan v2.0.
+    """Validation-only selection objective; lower scores are better.
 
-    ``score = w * (year_MAE / year_scale) + (1 - w) * (1 - material_macro_F1)``
+    ``mode='year_material'`` preserves the original objective:
+        year_weight * year_MAE / training_year_IQR
+        + (1 - year_weight) * (1 - material_macro_F1).
 
-    ``year_scale`` is the IQR of originally observed fitting years. The rank
-    average across configurations is reported alongside because the two
-    terms live on different scales (see the review notes).
+    ``mode='all_attributes'`` gives equal TOTAL weight to the numerical and
+    categorical groups (controlled by ``numeric_weight``). Within each group,
+    each attribute receives equal weight:
+        numeric_weight * mean(MAE_j / training_IQR_j)
+        + (1 - numeric_weight) * mean(1 - macro_F1_k).
+
+    Macro-F1 is calculated using the deliberately hidden validation targets;
+    diagnostics report their class counts so single-class holdouts are visible.
     """
 
     year_column: str = "installation_year"
     material_column: str = "material"
     year_weight: float = 0.5
+    mode: str = "year_material"
+    numeric_weight: float = 0.5
+
+    def __post_init__(self) -> None:
+        if self.mode not in {"year_material", "all_attributes"}:
+            raise ValueError("mode must be 'year_material' or 'all_attributes'.")
+        for name, weight in (("year_weight", self.year_weight),
+                             ("numeric_weight", self.numeric_weight)):
+            if (isinstance(weight, bool) or not isinstance(weight, (int, float))
+                    or not np.isfinite(weight) or not 0 <= weight <= 1):
+                raise ValueError(f"{name} must be a number between zero and one.")
+
+    def target_columns(self, base: PredictiveMissForest) -> tuple[str, ...]:
+        """Columns that must receive an additional validation mask."""
+        if self.mode == "all_attributes":
+            # Hide the original two targets FIRST so their holdout positions
+            # remain identical to year_material mode for the same seed.
+            all_targets = (self.year_column, self.material_column,
+                           *base.numeric_columns, *base.categorical_columns)
+            return tuple(dict.fromkeys(all_targets))
+        return (self.year_column, self.material_column)
 
     def __call__(self, year_mae: float, year_scale: float, macro_f1: float) -> float:
+        """Backward-compatible year/material objective."""
         if not np.isfinite(year_scale) or year_scale <= 0:
             raise ValueError("year_scale must be a positive finite number.")
         return (
@@ -106,10 +187,67 @@ class TuningObjective:
         )
 
 
+def _observed_iqr(X_fit: pd.DataFrame, column: str) -> float:
+    observed = pd.to_numeric(X_fit[column], errors="raise").dropna()
+    if observed.empty:
+        raise ValueError(f"No observed fitting values to scale '{column}'.")
+    q75, q25 = np.percentile(observed.to_numpy(dtype=float), [75, 25])
+    scale = float(q75 - q25)
+    if not np.isfinite(scale) or scale <= 0:
+        raise ValueError(
+            f"Training IQR for '{column}' is zero or invalid. An all-attribute "
+            "objective cannot normalise its MAE; review this variable before "
+            "choosing an explicit fallback scale or excluding the variable."
+        )
+    return scale
+
+
 def _year_scale(X_fit: pd.DataFrame, year_column: str) -> float:
-    years = pd.to_numeric(X_fit[year_column], errors="coerce").dropna()
-    q75, q25 = np.percentile(years, [75, 25])
-    return float(q75 - q25)
+    """Keep the original helper name for backward compatibility."""
+    return _observed_iqr(X_fit, year_column)
+
+
+def _all_attribute_score(
+    metrics: pd.DataFrame,
+    X_fit: pd.DataFrame,
+    numeric_columns: Sequence[str],
+    categorical_columns: Sequence[str],
+    numeric_weight: float,
+) -> tuple[float, dict[str, float]]:
+    """Calculate a balanced numerical/categorical objective, using TRAIN scales.
+
+    No statistic is fitted or inferred from the validation target truth, apart
+    from the post-prediction performance metrics that the tuner must score.
+    """
+    if not numeric_columns or not categorical_columns:
+        raise ValueError("All-attribute objective requires both numeric and categorical targets.")
+
+    components: dict[str, float] = {}
+    numeric_losses = []
+    for column in numeric_columns:
+        scale = _observed_iqr(X_fit, column)
+        mae = float(metrics.loc[column, "mae"])
+        if not np.isfinite(mae):
+            raise ValueError(f"Non-finite validation MAE for '{column}'.")
+        normalised = mae / scale
+        components[f"scale_iqr__{column}"] = scale
+        components[f"normalized_mae__{column}"] = normalised
+        numeric_losses.append(normalised)
+
+    categorical_losses = []
+    for column in categorical_columns:
+        f1 = float(metrics.loc[column, "macro_f1"])
+        if not np.isfinite(f1):
+            raise ValueError(f"Non-finite validation Macro-F1 for '{column}'.")
+        loss = 1.0 - f1
+        components[f"classification_loss__{column}"] = loss
+        categorical_losses.append(loss)
+
+    components["numeric_group_loss"] = float(np.mean(numeric_losses))
+    components["categorical_group_loss"] = float(np.mean(categorical_losses))
+    score = (numeric_weight * components["numeric_group_loss"]
+             + (1.0 - numeric_weight) * components["categorical_group_loss"])
+    return float(score), components
 
 
 def _distribution_diagnostics(
@@ -218,15 +356,17 @@ def score_configuration(
         mask=tune_mask,
         numeric_columns=base.numeric_columns,
         categorical_columns=base.categorical_columns,
-    ).set_index("variable")
+    ).set_index("variable").reindex(base.model_columns)
 
     year_mae = float(metrics.loc[objective.year_column, "mae"])
     macro_f1 = float(metrics.loc[objective.material_column, "macro_f1"])
     year_scale = _year_scale(X_fit, objective.year_column)
 
+    # Preserve every legacy diagnostic field, including both original targets.
     row: dict[str, Any] = dict(overrides)
     row.update(
         {
+            "objective_mode": objective.mode,
             "year_mae": year_mae,
             "year_rmse": float(metrics.loc[objective.year_column, "rmse"]),
             "material_macro_f1": macro_f1,
@@ -234,12 +374,43 @@ def score_configuration(
                 metrics.loc[objective.material_column, "balanced_accuracy"]
             ),
             "year_scale_iqr": year_scale,
-            "objective": objective(year_mae, year_scale, macro_f1),
             "fit_seconds": fit_seconds,
             "transform_seconds": transform_seconds,
             "total_tree_nodes": model.fit_report_["total_tree_nodes"],
         }
     )
+
+    # Record the validation metrics of EVERY modelled attribute, not only the
+    # two legacy objective targets. In legacy mode some are intentionally NaN
+    # because those columns were not additionally masked.
+    for column in base.numeric_columns:
+        row[f"n_masked__{column}"] = int(tune_mask[column].sum())
+        row[f"mae__{column}"] = float(metrics.loc[column, "mae"])
+        row[f"rmse__{column}"] = float(metrics.loc[column, "rmse"])
+    for column in base.categorical_columns:
+        row[f"n_masked__{column}"] = int(tune_mask[column].sum())
+        row[f"accuracy__{column}"] = float(metrics.loc[column, "accuracy"])
+        row[f"balanced_accuracy__{column}"] = float(
+            metrics.loc[column, "balanced_accuracy"]
+        )
+        row[f"macro_f1__{column}"] = float(metrics.loc[column, "macro_f1"])
+        hidden = tune_truth.loc[tune_mask[column].to_numpy(dtype=bool), column]
+        class_counts = hidden.value_counts()
+        row[f"n_truth_classes__{column}"] = int(len(class_counts))
+        row[f"min_truth_class_support__{column}"] = (
+            int(class_counts.min()) if len(class_counts) else 0
+        )
+
+    if objective.mode == "year_material":
+        row["objective"] = objective(year_mae, year_scale, macro_f1)
+    else:
+        score, components = _all_attribute_score(
+            metrics, X_fit, base.numeric_columns, base.categorical_columns,
+            objective.numeric_weight,
+        )
+        row.update(components)
+        row["objective"] = score
+
     row.update(
         _distribution_diagnostics(
             tune_truth, imputed, tune_mask,
@@ -253,18 +424,59 @@ def tune_predictive_missforest(
     base: PredictiveMissForest,
     X_fit: pd.DataFrame,
     X_tune: pd.DataFrame,
-    tune_truth: pd.DataFrame,
-    tune_mask: pd.DataFrame,
+    tune_truth: pd.DataFrame | None = None,
+    tune_mask: pd.DataFrame | None = None,
     grid: Mapping[str, Sequence[Any]] | None = None,
     objective: TuningObjective | None = None,
+    *,
+    mask_rate: float = 0.10,
+    mask_seed: int = 219,
 ) -> tuple[pd.DataFrame, PredictiveMissForestConfig]:
-    """Validation-only grid search.
+    """Validation-only grid search on already-incomplete records.
 
-    Returns the full results table (one row per configuration, sorted by the
-    objective, with ``rank_average`` as a scale-free alternative) and the
-    best configuration. Never pass final-test partitions here.
+    If ``tune_truth`` and ``tune_mask`` are both absent, ``X_tune`` is treated
+    as the ORIGINAL incomplete validation partition. In ``year_material`` mode,
+    known year/material values are hidden; in ``all_attributes`` mode, known
+    values in EVERY modelled attribute are hidden once, before grid search.
+
+    If both are present, ``X_tune`` must already be masked and no additional
+    masking occurs (backward-compatible with the original runner).
+
+    Returns the full score table and best hyperparameter configuration.
+    Never pass the independent final-test partition here.
     """
     objective = objective or TuningObjective()
+
+    if (tune_truth is None) != (tune_mask is None):
+        raise ValueError("Supply both tune_truth and tune_mask, or neither.")
+    if tune_truth is None:
+        X_tune, tune_truth, tune_mask = prepare_tuning_holdout(
+            X_tune,
+            columns=objective.target_columns(base),
+            rate=mask_rate,
+            seed=mask_seed,
+        )
+    validate_tuning_alignment(X_tune, tune_truth, tune_mask, base.model_columns)
+    for column in objective.target_columns(base):
+        if column not in tune_mask or not tune_mask[column].any():
+            raise ValueError(
+                f"No deliberately masked validation cells for '{column}'. "
+                f"The '{objective.mode}' objective requires this target; "
+                "ensure the runner uses the same objective when preparing its mask."
+            )
+    if objective.mode == "all_attributes":
+        for column in base.categorical_columns:
+            held_out = tune_truth.loc[tune_mask[column].to_numpy(dtype=bool), column]
+            n_classes = int(held_out.nunique(dropna=True))
+            if n_classes < 2:
+                warnings.warn(
+                    f"Only {n_classes} class(es) for '{column}' in the validation "
+                    "holdout. Its Macro-F1 contributes to all-attribute tuning, "
+                    "but this is not a reliable measure of minority-class quality. "
+                    "Consider stratified/repeated holdouts before final selection.",
+                    RuntimeWarning, stacklevel=2,
+                )
+
     candidates = expand_grid(grid)
     rows = []
     for grid_index, overrides in enumerate(candidates):
@@ -275,10 +487,18 @@ def tune_predictive_missforest(
         rows.append(row)
 
     results = pd.DataFrame(rows)
-    results["rank_average"] = (
-        results["year_mae"].rank(method="average")
-        + (-results["material_macro_f1"]).rank(method="average")
-    ) / 2.0
+    if objective.mode == "year_material":
+        results["rank_average"] = (
+            results["year_mae"].rank(method="average")
+            + (-results["material_macro_f1"]).rank(method="average")
+        ) / 2.0
+    else:
+        # Use all attributes in tie-breaking, consistent with the objective.
+        ranks = [results[f"mae__{column}"].rank(method="average")
+                 for column in base.numeric_columns]
+        ranks += [(-results[f"macro_f1__{column}"]).rank(method="average")
+                  for column in base.categorical_columns]
+        results["rank_average"] = pd.concat(ranks, axis=1).mean(axis=1)
     results = results.sort_values(
         ["objective", "rank_average", "grid_index"], kind="mergesort"
     ).reset_index(drop=True)
