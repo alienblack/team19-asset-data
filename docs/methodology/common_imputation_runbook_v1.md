@@ -1,14 +1,14 @@
 # Common overhead-conductor imputation pilot
 
-Version 1.0 | 22 October 2026 | PGS219-190
+Version 1.1 | 23 October 2026 | PGS219-190
 
 This stage applies two methods to the **same frozen synthetic observations** prepared by PGS219-189. The seven model fields are `installation_year`, `distance_to_sea_km`, `voltage_category`, `location_group`, `corrosion_zone`, `material`, and `covering`. `segment_id` is used only to track rows. `conductor_type`, `asset_age`, `length_km`, and evaluator-only truth are not model inputs.
 
 ## Dependency and run
 
-The median/mode baseline and the input-preparation contract are in PR #18. The Predictive MissForest implementation belongs to Zisan's separate PR #17. This runner imports that model when it is available; it does not copy or modify the model implementation. Merge and review both dependencies before calling the combined workflow complete on `main`.
+The median/mode baseline and input-preparation contract were merged through PR #18. Zisan's Predictive MissForest implementation was merged through PR #17. This runner imports that model; it does not copy or modify the model implementation.
 
-From a checkout containing both dependencies, install the repository requirements, prepare an input pilot as described in `input_preparation_runbook_v1.md`, then run:
+From a checkout containing both merged dependencies, install the repository requirements, prepare an input pilot as described in `input_preparation_runbook_v1.md`, then run:
 
 ```sh
 PYTHONPATH=src python -m team19_asset_data.overhead_conductors.run_common_imputation \
@@ -27,6 +27,8 @@ The runner writes `baseline_test_N00.csv`, `baseline_test_N11.csv`, `predictive_
 
 Forest vote share and tree spread are **uncalibrated diagnostics**, not probabilities of correctness or accepted-fill decisions. They describe the forest's raw prediction; the saved candidate may also have undergone range or integer constraints. The median/mode baseline has no probability score. This stage does not compare candidates with clean answers, correct plausible-but-wrong observed values, calculate reconstruction metrics, or claim an effect on SAPN's PoF model. Those questions belong to PGS219-191 and later client-approved downstream validation.
 
-## Integration check on the open PRs
+## Integration check against merged main
 
-In a temporary checkout containing PR #18 plus only the predictive-model module from PR #17, the 10,000-row pilot completed with 6,000 fitting and 2,000 test rows. Each method produced 4,200 hidden-cell candidates per test condition, with no missing candidates or duplicate cell keys. All four completed views retained the test IDs and observed cells, contained no missing model fields, and derived age consistently. A second run reproduced all completed, candidate and diagnostic CSV files byte-for-byte. The serialized model bytes and its hash differed, so binary identity is not claimed. This is a synthetic integration check, not a quality or SAPN-data result. It must be repeated on reviewed `main` after the dependencies merge.
+On 23 October 2026, PGS219-190 was applied to a temporary checkout of `main` after PRs #17 and #18 merged. The 10,000-row synthetic pilot completed with 6,000 fitting and 2,000 test rows. Each method produced 4,200 hidden-cell candidates per test condition, with no missing candidates or duplicate cell keys. All four completed views retained test IDs and observed cells, contained no missing model fields, and derived age consistently. An earlier paired run reproduced the completed, candidate, and diagnostic CSV files byte-for-byte; serialized model bytes and their hash differed, so binary identity is not claimed. This is an integration check, not a quality or SAPN-data result.
+
+The repository-wide suite currently has two failures in `tests/test_predictive_experiment_runner_review.py` on `main` alone, both due to that runner's tests expecting unsupported CLI/config behaviour. Applying PGS219-190 to the same `main` leaves those same two failures, with 147 other tests passing. The PGS219-190 contract tests pass. These pre-existing failures are not evidence of a failure in the shared pilot, but should be resolved separately before claiming a green repository-wide suite.
