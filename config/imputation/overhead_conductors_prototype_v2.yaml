@@ -1,0 +1,115 @@
+# Prototype-specific configuration (Plan v2.0, seven-field schema).
+#
+# This file is NEW. The historical ``overhead_conductors.yaml`` is left
+# untouched so earlier whole-table experiments keep their exact behaviour.
+#
+# Differences from the historical file:
+#   * length_km moved from numeric model columns to excluded (generator
+#     shortcut risk) and its constraint removed (constraints may only refer
+#     to model columns).
+#   * methods.missforest kept verbatim for regression runs of the legacy
+#     whole-table function.
+#   * methods.predictive_missforest added: fixed five sequential passes,
+#     n_jobs 1 for bit-for-bit reproducibility (raise to -1 during the
+#     tuning grid if speed matters more than ulp-level determinism).
+#   * methods.simple is unchanged (mean/mode). Plan v2.0 describes the
+#     baseline as median/mode; that is the baseline owner's change to make,
+#     not this file's. The predictive imputer's own initial fill is set by
+#     predictive_missforest.numeric_init ("mean" keeps legacy semantics).
+
+version: 2
+
+asset_class: "overhead_conductors"
+
+columns:
+
+  numeric:
+    - installation_year
+    - distance_to_sea_km
+
+  categorical:
+    - voltage_category
+    - location_group
+    - corrosion_zone
+    - material
+    - covering
+
+  excluded:
+    - segment_id
+    - feeder_id
+    - conductor_type
+    - asset_age
+    - length_km
+    - data_status
+    - record_version
+
+
+constraints:
+
+  installation_year:
+    data_type: "integer"
+    min: 1930
+    max: 2014
+
+  distance_to_sea_km:
+    data_type: "float"
+    min: 0.0
+    max: 350.0
+
+
+methods:
+
+  simple:
+    numeric_strategy: "mean"
+    categorical_strategy: "mode"
+
+  missforest:
+    n_estimators: 100
+    max_iter: 20
+    random_state: 219
+    n_jobs: -1
+    max_features: "sqrt"
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null
+
+  predictive_missforest:
+    n_estimators: 100
+    n_passes: 5
+    random_state: 219
+    n_jobs: 1
+    max_features: "sqrt"
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null
+    numeric_init: "mean"
+    unknown_category_policy: "ignore"
+    min_observed_target: 2
+
+
+# Workflow configuration is optional; it is not used by the legacy MissForest.
+execution:
+  mode: fit_transform    # fit_only | fit_transform | transform_only | evaluate_only
+  model_path: outputs/models/predictive_missforest.joblib
+
+tuning:
+  enabled: false
+  mask_rate: 0.10       # Fraction of CURRENTLY KNOWN validation target cells
+  mask_seed: 219
+  grid:
+    max_depth: [4, 8, 16, null]
+    min_samples_leaf: [1, 2, 10]
+
+evaluation:
+  enabled: true
+  mask_rate: 0.10       # Fraction of CURRENTLY KNOWN test target cells
+  mask_seed: 319
+
+data_split:
+  train: 0.60
+  validation: 0.10
+  calibration: 0.10   # Reserved; no calibration operation defined yet
+  test: 0.20
+  random_seed: 219
+  strategy: row       # Use group after SAPN feeder/line identifiers are confirmed
+  group_column: null
