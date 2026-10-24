@@ -134,8 +134,11 @@ def test_fit_only_era_and_length_weighted_scoring(reference):
     prediction = model.predict(observed["test"], test_masks)
     cell, population = evaluate(prediction, reference, observed["test"], test_masks)
     assert "raw_q10_q90_empirical_coverage" in set(cell["measure"])
+    assert "macro_f1" in set(cell["measure"])
+    assert "fill_coverage" in set(cell["measure"])
     assert "length_weighted_aged_50_or_older_share_error" in set(population["measure"])
     assert "length_weighted_year_wasserstein" in set(population["measure"])
+    assert "year_std_error" in set(population["measure"])
     assert "length_weighted_material_expected_share_error_steel" in set(population["measure"])
 
 
