@@ -1118,7 +1118,7 @@ class PredictiveMissForest:
         if capture_scores:
             columns = [
                 "row", "position", "column", "kind", "imputed",
-                "max_proba", "margin", "entropy", "tree_std", "tree_p10", "tree_p90",
+                "max_proba", "margin", "entropy", "tree_std", "tree_p10", "tree_p50", "tree_p90",
                 "prediction_source", "raw_prediction", "material_probabilities",
             ]
             # A rare target with too few observed fitting examples has no forest.
@@ -1184,6 +1184,7 @@ class PredictiveMissForest:
                         "entropy": float(entropy[i]),
                         "tree_std": np.nan,
                         "tree_p10": np.nan,
+                        "tree_p50": np.nan,
                         "tree_p90": np.nan,
                         "material_probabilities": (
                             {str(label): float(probability)
@@ -1197,6 +1198,7 @@ class PredictiveMissForest:
             per_tree = np.stack([t.predict(encoded) for t in forest.estimators_])
             std = per_tree.std(axis=0)
             p10 = np.percentile(per_tree, 10, axis=0)
+            p50 = np.percentile(per_tree, 50, axis=0)
             p90 = np.percentile(per_tree, 90, axis=0)
             for i, pos in enumerate(positions):
                 rows.append(
@@ -1211,6 +1213,7 @@ class PredictiveMissForest:
                         "entropy": np.nan,
                         "tree_std": float(std[i]),
                         "tree_p10": float(p10[i]),
+                        "tree_p50": float(p50[i]),
                         "tree_p90": float(p90[i]),
                     }
                 )
@@ -1235,7 +1238,7 @@ class PredictiveMissForest:
         Columns: ``row`` (input index label), ``position``, ``column``,
         ``kind``, ``imputed``; categorical: ``max_proba``, ``margin``
         (top-1 minus top-2 vote share), ``entropy``; numeric: ``tree_std``,
-        ``tree_p10``, ``tree_p90`` across trees. These are *rankings* of
+        ``tree_p10``, ``tree_p50``, ``tree_p90`` across trees. These are *rankings* of
         confidence, not calibrated probabilities. ``raw_prediction`` is the
         unmodified forest output; ``imputed`` is the final constrained output.
         Low-observation fallbacks are explicitly identified in
