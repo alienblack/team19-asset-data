@@ -16,7 +16,7 @@ import pandas as pd
 import sklearn
 from matplotlib import pyplot as plt
 from scipy.stats import wasserstein_distance
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, mean_absolute_error, recall_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, mean_absolute_error, recall_score
 from sklearn.model_selection import train_test_split
 
 from team19_asset_data.imputation.predictive_missforest import (
@@ -605,6 +605,8 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
             {"method": method, "target": "material", "measure": "brier", "value": float(np.mean(np.sum((probs - (actual_m[:, None] == np.array(MATERIALS))) ** 2, axis=1)))},
             {"method": method, "target": "material", "measure": "accuracy", "value": float(accuracy_score(actual_m, predicted_m))},
             {"method": method, "target": "material", "measure": "balanced_accuracy", "value": float(balanced_accuracy_score(actual_m, predicted_m))},
+            {"method": method, "target": "material", "measure": "macro_f1", "value": float(f1_score(actual_m, predicted_m, labels=MATERIALS, average="macro", zero_division=0))},
+            {"method": method, "target": "material", "measure": "fill_coverage", "value": float(np.mean(pd.notna(predicted_m)))},
         ])
         recalls = recall_score(actual_m, predicted_m, labels=MATERIALS, average=None, zero_division=0)
         rows.extend({"method": method, "target": "material", "measure": f"recall_{label.lower()}", "value": float(value)} for label, value in zip(MATERIALS, recalls))
@@ -614,6 +616,7 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
         q90 = years["year_q90"].to_numpy(dtype=float)
         rows.extend([
             {"method": method, "target": "installation_year", "measure": "mae_years", "value": float(mean_absolute_error(actual_y, predicted_y))},
+            {"method": method, "target": "installation_year", "measure": "fill_coverage", "value": float(np.mean(np.isfinite(predicted_y)))},
             {"method": method, "target": "installation_year", "measure": "signed_bias_years", "value": float(np.mean(predicted_y - actual_y))},
             {"method": method, "target": "installation_year", "measure": "age_band_accuracy", "value": float(np.mean(_age_band(pd.Series(actual_y)).to_numpy() == _age_band(pd.Series(predicted_y)).to_numpy()))},
             {"method": method, "target": "installation_year", "measure": "raw_q10_q90_empirical_coverage", "value": float(np.mean((q10 <= actual_y) & (actual_y <= q90)))},
@@ -647,6 +650,7 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
                                "value": float(weighted_expected - np.average(truth_test["material"].eq(label), weights=weights))})
         population.extend([
             {"method": method, "measure": "aged_50_or_older_share_error", "value": float((SNAPSHOT_YEAR - filled["installation_year"].astype(float)).ge(50).mean() - (SNAPSHOT_YEAR - truth_test["installation_year"].astype(float)).ge(50).mean())},
+            {"method": method, "measure": "year_std_error", "value": float(filled["installation_year"].astype(float).std(ddof=0) - truth_test["installation_year"].astype(float).std(ddof=0))},
             {"method": method, "measure": "year_wasserstein", "value": float(wasserstein_distance(filled["installation_year"].astype(float), truth_test["installation_year"].astype(float)))},
             {"method": method, "measure": "length_weighted_aged_50_or_older_share_error", "value": float(np.average((SNAPSHOT_YEAR - filled["installation_year"].astype(float)).ge(50), weights=weights) - np.average((SNAPSHOT_YEAR - truth_test["installation_year"].astype(float)).ge(50), weights=weights))},
             {"method": method, "measure": "length_weighted_year_wasserstein", "value": float(wasserstein_distance(filled["installation_year"].astype(float), truth_test["installation_year"].astype(float), u_weights=weights, v_weights=weights))},
@@ -667,6 +671,8 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
     ])
     population.append({"method": "complete_case", "measure": "aged_50_or_older_share_error",
                        "value": float((SNAPSHOT_YEAR - complete["installation_year"].astype(float)).ge(50).mean() - (SNAPSHOT_YEAR - truth_test["installation_year"].astype(float)).ge(50).mean())})
+    population.append({"method": "complete_case", "measure": "year_std_error",
+                       "value": float(complete["installation_year"].astype(float).std(ddof=0) - truth_test["installation_year"].astype(float).std(ddof=0))})
     population.append({"method": "complete_case", "measure": "year_wasserstein",
                        "value": float(wasserstein_distance(complete["installation_year"].astype(float), truth_test["installation_year"].astype(float)))})
     population.append({"method": "complete_case", "measure": "length_weighted_aged_50_or_older_share_error",
