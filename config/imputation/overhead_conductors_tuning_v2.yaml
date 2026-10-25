@@ -90,11 +90,10 @@ methods:
 # Workflow configuration is optional; it is not used by the legacy MissForest.
 execution:
   mode: fit_transform    # fit_only | fit_transform | transform_only | evaluate_only
-  model_path: outputs/models/predictive_missforest_all_attributes.joblib
+  model_path: outputs/models/predictive_missforest_tuned.joblib
 
 tuning:
   enabled: true
-  objective: all_attributes
   mask_rate: 0.10       # Fraction of CURRENTLY KNOWN validation target cells
   mask_seed: 219
   grid:

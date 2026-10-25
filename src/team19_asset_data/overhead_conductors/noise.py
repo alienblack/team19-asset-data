@@ -1,9 +1,25 @@
 """Controlled predictor-noise scenarios for overhead-conductor experiments.
 
-The module keeps the complete clean reference untouched and creates separate
-observed views with documented predictor errors.  It deliberately does not
-modify ``material`` or ``conductor_type``: the former is the evaluation target
-and the latter is a known leakage field.
+The complete synthetic reference is never modified. Each scenario creates a
+separate noisy observed view, before the common MF01 missingness mask is applied
+by the existing masking pipeline.
+
+Random numeric noise: ``noise_level`` controls BOTH (1) the share of source
+cells selected and (2) the maximum absolute relative perturbation. Thus 0.30
+means approximately 30% of eligible entries receive an error in [-30%, +30%],
+subject to column bounds. At 100% this is an extreme stress test.
+
+Random categorical noise: ``noise_level`` is the fraction of eligible entries
+replaced with another valid category.
+
+For the same seed, strategy family and column, selection order and underlying
+random draws are stable across levels. Consequently 30% selection is a subset
+of 50% selection, which is a subset of 100% selection. To obtain repeated
+independent trials, vary the seed at the scenario-family level.
+
+Important: material is a PROTECTED evaluation target, not corrupted directly.
+conductor_type is also protected (it would leak the material target). The
+separate ``installation_year_error`` strategy preserves asset-age consistency.
 """
 
 from __future__ import annotations
@@ -139,6 +155,24 @@ def _sample_indices(rng: np.random.Generator, index: pd.Index, rate: float) -> p
     return pd.Index(rng.choice(index.to_numpy(), size=min(count, len(index)), replace=False))
 
 
+def _stable_column_rng(seed: int, family: str, column: str) -> np.random.Generator:
+    """Stable independent stream per column, unaffected by other columns/rates."""
+    tag = f"{int(seed)}|{family}|{column}".encode("utf-8")
+    derived_seed = int.from_bytes(hashlib.sha256(tag).digest()[:8], "big")
+    return np.random.default_rng(derived_seed)
+
+
+def _nested_sample_indices(
+    rng: np.random.Generator, eligible: pd.Index, rate: float
+) -> pd.Index:
+    """Select the first n positions of a full seeded permutation."""
+    count = int(round(len(eligible) * rate))
+    if rate > 0 and count == 0 and len(eligible):
+        count = 1
+    permutation = rng.permutation(len(eligible))
+    return eligible.take(permutation[:count])
+
+
 def _clip_numeric(column: str, values: pd.Series) -> pd.Series:
     low, high = NUMERIC_BOUNDS[column]
     return values.clip(lower=low, upper=high)
@@ -159,14 +193,28 @@ def _replace_categories(
 def _apply_random_numeric(
     observed: pd.DataFrame,
     scenario: NoiseScenario,
-    rng: np.random.Generator,
     changed: dict[str, int],
+    columns: tuple[str, ...] | None = None,
 ) -> None:
-    for column in scenario.columns:
-        if column not in NUMERIC_BOUNDS or column in PROTECTED_COLUMNS:
-            raise ValueError(f"Unsupported or protected numeric noise column: {column}")
-        indices = _sample_indices(rng, observed.index[observed[column].notna()], scenario.noise_level)
-        relative_error = rng.uniform(-scenario.noise_level, scenario.noise_level, size=len(indices))
+    """Use stable nested samples and per-record relative-error draws."""
+    for column in (scenario.columns if columns is None else columns):
+        if column not in {"length_km", "distance_to_sea_km"}:
+            raise ValueError(
+                f"Unsupported random numeric noise column '{column}'. "
+                "For installation_year use installation_year_error so asset_age stays consistent."
+            )
+        if column not in observed.columns:
+            raise ValueError(f"Unknown numeric noise column: {column}")
+        rng = _stable_column_rng(scenario.seed, "random_numeric", column)
+        eligible = observed.index[observed[column].notna()]
+        indices = _nested_sample_indices(rng, eligible, scenario.noise_level)
+        # Generate one full-length set of signed coefficients independent of rate.
+        # Draws for a selected row are then stable across scenarios with same seed.
+        coefficients = pd.Series(
+            rng.uniform(-1.0, 1.0, size=len(eligible)),
+            index=eligible,
+        )
+        relative_error = coefficients.loc[indices].to_numpy() * scenario.noise_level
         observed.loc[indices, column] = _clip_numeric(
             column,
             observed.loc[indices, column].astype(float) * (1.0 + relative_error),
@@ -222,17 +270,39 @@ def _apply_year_error(
 def _apply_categorical_replacement(
     observed: pd.DataFrame,
     scenario: NoiseScenario,
-    rng: np.random.Generator,
     changed: dict[str, int],
+    columns: tuple[str, ...] | None = None,
 ) -> None:
-    for column in scenario.columns:
+    """Replace a nested, reproducible subset with alternative valid categories."""
+    for column in (scenario.columns if columns is None else columns):
         if column not in CATEGORICAL_VALUES or column in PROTECTED_COLUMNS:
             raise ValueError(f"Unsupported or protected categorical noise column: {column}")
-        indices = _sample_indices(rng, observed.index, scenario.noise_level)
+        if column not in observed.columns:
+            raise ValueError(f"Unknown categorical noise column: {column}")
+        rng = _stable_column_rng(scenario.seed, "categorical_replacement", column)
+        eligible = observed.index[observed[column].notna()]
+        indices = _nested_sample_indices(rng, eligible, scenario.noise_level)
         values = observed[column].copy()
         _replace_categories(values, indices, rng)
         observed.loc[:, column] = values
         changed[column] = int(len(indices))
+
+
+def _apply_random_mixed(
+    observed: pd.DataFrame,
+    scenario: NoiseScenario,
+    changed: dict[str, int],
+) -> None:
+    """Apply independent numeric and categorical corruption at the same rate."""
+    numeric_columns = tuple(c for c in scenario.columns if c in {"length_km", "distance_to_sea_km"})
+    categorical_columns = tuple(c for c in scenario.columns if c in CATEGORICAL_VALUES)
+    unsupported = set(scenario.columns) - set(numeric_columns) - set(categorical_columns)
+    if unsupported:
+        raise ValueError(f"Unsupported mixed-noise columns: {sorted(unsupported)}")
+    if not numeric_columns or not categorical_columns:
+        raise ValueError("random_mixed needs at least one numeric and one categorical column")
+    _apply_random_numeric(observed, scenario, changed, numeric_columns)
+    _apply_categorical_replacement(observed, scenario, changed, categorical_columns)
 
 
 def _apply_group_numeric(
@@ -276,13 +346,15 @@ def apply_noise(
     if scenario.strategy == "clean":
         pass
     elif scenario.strategy == "random_numeric":
-        _apply_random_numeric(observed, scenario, rng, changed)
+        _apply_random_numeric(observed, scenario, changed)
+    elif scenario.strategy == "random_mixed":
+        _apply_random_mixed(observed, scenario, changed)
     elif scenario.strategy == "systematic_numeric":
         _apply_systematic_numeric(observed, scenario, changed)
     elif scenario.strategy == "installation_year_error":
         _apply_year_error(observed, scenario, rng, changed, snapshot_year)
     elif scenario.strategy == "categorical_replacement":
-        _apply_categorical_replacement(observed, scenario, rng, changed)
+        _apply_categorical_replacement(observed, scenario, changed)
     elif scenario.strategy == "group_numeric":
         _apply_group_numeric(observed, scenario, rng, changed)
     else:
@@ -298,6 +370,14 @@ def apply_noise(
         "strategy": scenario.strategy,
         "seed": scenario.seed,
         "noise_level": scenario.noise_level,
+        "noise_level_meaning": (
+            "selected_fraction_and_max_relative_error"
+            if scenario.strategy in {"random_numeric", "random_mixed"}
+            else "selected_fraction_for_categorical_replacement_or_strategy_specific"
+        ),
+        "nested_selection": scenario.strategy in {
+            "random_numeric", "categorical_replacement", "random_mixed"
+        },
         "columns": list(scenario.columns),
         "snapshot_year": snapshot_year,
         "selected_counts": changed,
@@ -488,7 +568,10 @@ def _write_markdown_report(
         "",
         "## Interpretation",
         "",
-        "- Random scenarios change a controlled fraction of predictor cells and are suitable for robustness curves.",
+        "- Random numerical levels specify both the selected fraction and maximum relative error; categorical levels specify the selected fraction.",
+        "- Same-seed random scenarios of the same family use nested corruption selections across increasing levels.",
+        "- Apply the same original MF01 missingness mask downstream; this generator alone does not add missingness.",
+        "- Do not treat a 100% categorical replacement scenario as a plausible real-world error rate; it is an extreme stress test.",
         "- Systematic and group-dependent scenarios represent structured data-quality problems and should not be averaged together with random noise.",
         "- Installation-year noise is propagated to asset age to preserve the source data contract.",
         "- `material` and `conductor_type` remain unchanged in every scenario.",

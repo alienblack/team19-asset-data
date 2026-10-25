@@ -8,7 +8,7 @@ __pycache__/
 data/private/
 data/raw/
 data/authorised/
-outputs/
+#outputs/
 
 # C extensions
 *.so

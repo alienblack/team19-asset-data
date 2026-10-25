@@ -1,107 +1,120 @@
+# Controlled predictor-noise robustness study.
+# Apply the SAME MF01 mask downstream to each resulting observed.csv.
+# random_numeric / random_mixed: noise_level controls BOTH corrupted-cell
+# fraction and maximum relative numeric error (e.g., 0.30 => 30% +/-30%).
+# categorical_replacement: noise_level controls corrupted-cell fraction only.
+# Common seeds within a family ensure nested selected cells across levels.
 settings:
   snapshot_year: 2014
 
 scenarios:
   N00:
     name: "Clean reference"
-    strategy: "clean"
+    strategy: clean
     columns: []
     noise_level: 0.0
     seed: 320
 
+  # Numeric-only: primarily stresses distance_to_sea_km; length_km is
+  # intentionally excluded from the seven Predictive MissForest model targets.
   N01_05:
     name: "Random numeric noise - 5 percent"
-    strategy: "random_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.05
-    seed: 321
-
+    seed: 323
   N01_10:
     name: "Random numeric noise - 10 percent"
-    strategy: "random_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.10
-    seed: 322
-
+    seed: 323
   N01_20:
     name: "Random numeric noise - 20 percent"
-    strategy: "random_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.20
     seed: 323
-
   N01_30:
     name: "Random numeric noise - 30 percent"
-    strategy: "random_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.30
     seed: 323
-
   N01_50:
     name: "Random numeric noise - 50 percent"
-    strategy: "random_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.50
     seed: 323
-    
+  N01_70:
+    name: "Random numeric noise - 70 percent"
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
+    noise_level: 0.70
+    seed: 323
+  N01_100:
+    name: "Random numeric noise - 100 percent extreme stress"
+    strategy: random_numeric
+    columns: [length_km, distance_to_sea_km]
+    noise_level: 1.00
+    seed: 323
+
+  # Recording-error scenarios: year and asset_age must stay consistent.
   N02_year_1:
     name: "Installation year recording error - one year"
-    strategy: "installation_year_error"
-    columns:
-      - installation_year
-      - asset_age
+    strategy: installation_year_error
+    columns: [installation_year, asset_age]
     noise_level: 0.10
     year_step: 1
     seed: 324
-
   N02_year_2:
     name: "Installation year recording error - two years"
-    strategy: "installation_year_error"
-    columns:
-      - installation_year
-      - asset_age
+    strategy: installation_year_error
+    columns: [installation_year, asset_age]
     noise_level: 0.10
     year_step: 2
     seed: 325
 
+  # Categorical-only: material protected, covering may show extreme class shift.
   N03_categorical:
     name: "Categorical replacement error - 10 percent"
-    strategy: "categorical_replacement"
-    columns:
-      - voltage_category
-      - location_group
-      - corrosion_zone
-      - covering
+    strategy: categorical_replacement
+    columns: [voltage_category, location_group, corrosion_zone, covering]
     noise_level: 0.10
     seed: 326
+  N03_cat_30:
+    name: "Categorical replacement error - 30 percent"
+    strategy: categorical_replacement
+    columns: [voltage_category, location_group, corrosion_zone, covering]
+    noise_level: 0.30
+    seed: 326
+  N03_cat_50:
+    name: "Categorical replacement error - 50 percent"
+    strategy: categorical_replacement
+    columns: [voltage_category, location_group, corrosion_zone, covering]
+    noise_level: 0.50
+    seed: 326
+  N03_cat_100:
+    name: "Categorical replacement error - 100 percent extreme stress"
+    strategy: categorical_replacement
+    columns: [voltage_category, location_group, corrosion_zone, covering]
+    noise_level: 1.00
+    seed: 326
 
+  # Existing structured-error scenarios retained.
   N04_systematic_rural:
     name: "Systematic rural numeric bias - 10 percent"
-    strategy: "systematic_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: systematic_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.10
     group_column: location_group
     group_value: Rural
     seed: 327
-
   N05_group_dependent:
     name: "Group-dependent numeric noise - 10 percent"
-    strategy: "group_numeric"
-    columns:
-      - length_km
-      - distance_to_sea_km
+    strategy: group_numeric
+    columns: [length_km, distance_to_sea_km]
     noise_level: 0.10
     group_column: location_group
     group_multiplier:
@@ -109,3 +122,23 @@ scenarios:
       Regional: 1.0
       Rural: 2.0
     seed: 328
+
+  # Mixed errors: same proportion of numerical + categorical corruption.
+  N06_mixed_30:
+    name: "Combined numeric and categorical noise - 30 percent"
+    strategy: random_mixed
+    columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+    noise_level: 0.30
+    seed: 329
+  N06_mixed_50:
+    name: "Combined numeric and categorical noise - 50 percent"
+    strategy: random_mixed
+    columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+    noise_level: 0.50
+    seed: 329
+  N06_mixed_100:
+    name: "Combined numeric and categorical noise - 100 percent extreme stress"
+    strategy: random_mixed
+    columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+    noise_level: 1.00
+    seed: 329
