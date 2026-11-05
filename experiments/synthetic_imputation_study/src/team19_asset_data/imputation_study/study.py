@@ -3,6 +3,9 @@
 Each model section of the notebook calls ``run_model`` and then ``show_model``.
 Fitting happens in ``runner``, which never reads truth; truth is read here,
 only after a model's tasks have finished.
+
+With ``evaluation_run_id`` nothing is fitted: saved predictions from a finished
+run are loaded, so evaluation can be repeated or started directly.
 """
 
 from pathlib import Path
@@ -12,6 +15,7 @@ import pandas as pd
 
 from . import evaluation as ev
 from . import figures as fg
+from . import relationships as rel
 from .columns import NUMERIC_TARGETS
 from .data import read_truth
 from .runner import (
@@ -35,11 +39,18 @@ SHOWN_EXPERIMENTS = ("main", "pmm", "joint")
 RESULT_COLUMNS = ["target", "MAE", "RMSE", "R2", "bias", "skill", "within tight", "within loose", "exact"]
 
 
+def _slug(family):
+    return family.lower().replace(" ", "_")
+
+
 class Study:
-    def __init__(self, root, config, scenarios, workers, resume_run_id=None):
+    def __init__(self, root, config, scenarios, workers, resume_run_id=None, evaluation_run_id=None):
+        if resume_run_id and evaluation_run_id:
+            raise ValueError("Set RESUME_RUN_ID or EVALUATION_RUN_ID, not both")
         self.root, self.config, self.scenarios, self.workers = root, config, scenarios, workers
         self.names = list(scenarios)
-        self.directory = open_run(root, config, self.names, resume_run_id)
+        self.saved = evaluation_run_id is not None
+        self.directory = open_run(root, config, self.names, evaluation_run_id or resume_run_id)
         self.figures = Path(self.directory) / "figures"
         self.plan = build_plan(self.names, config)
         self.measured = {name: load_measured(root, name, config) for name in self.names}
@@ -47,10 +58,22 @@ class Study:
         self.logs = {}
         self.scored, self.draws, self.importance = {}, {}, {}
 
+    def _load_saved(self, family):
+        """Read a finished model's task log and predictions. Nothing is fitted."""
+        path = Path(self.directory) / f"task_log_{_slug(family)}.csv"
+        if not path.exists():
+            raise FileNotFoundError(f"{family} has no saved results in {self.directory}: finish that run first")
+        self.logs[family] = pd.read_csv(path)
+        self._collect(family)
+        print(f"{family}: loaded {len(self.logs[family])} saved tasks")
+
     def run_model(self, family):
-        """Run all of this model's experiments."""
+        """Run all of this model's experiments, or load them when evaluating a finished run."""
+        if self.saved:
+            self._load_saved(family)
+            return
         methods = MODEL_FAMILIES[family]
-        slug = family.lower().replace(" ", "_")
+        slug = _slug(family)
         tasks = [t for t in self.plan if t.method in methods]
         print(f"Experiments: {len(tasks)} tasks")
         self.logs[family] = run_plan(tasks, self.config, self.root, self.directory, self.workers, f"task_log_{slug}")
@@ -104,8 +127,7 @@ class Study:
         across = numeric[numeric.experiment.eq("main") & numeric.method.ne("Median")]
         if across.scenario.nunique() > 1:
             matrix = across.pivot(index="target", columns="scenario", values="skill").reindex(list(NUMERIC_TARGETS))
-            slug = family.lower().replace(" ", "_")
-            fg.plot_heatmap(matrix, f"{family}: skill in each scenario", self.figures, f"model_{slug}",
+            fg.plot_heatmap(matrix, f"{family}: skill in each scenario", self.figures, f"model_{_slug(family)}",
                             "Skill vs median", center=0.0, limit=1.0)
         all_labels = category[category.experiment.eq("main")]
         if all_labels.scenario.nunique() > 1 and all_labels.method.ne("Mode").all():
@@ -120,8 +142,12 @@ class Study:
         return self._scores(family)
 
     def finish(self):
-        """Combine every model's results for the comparison sections."""
+        """Combine every model's results for the evaluation chapters."""
         missing = [family for family in MODEL_FAMILIES if family not in self.logs]
+        if self.saved:
+            for family in missing:
+                self._load_saved(family)
+            missing = []
         if missing:
             raise RuntimeError(f"These model sections have not run: {missing}")
         self.log = pd.concat(self.logs.values(), ignore_index=True)
@@ -136,10 +162,18 @@ class Study:
         self.groups = ev.group_table(self.all_scored, self.measured, self.config)
         self.ablation, self.ablation_labels = ev.ablation_table(self.numeric, self.category)
         self.cost = ev.cost_table(self.log)
+        representative = self.config.representative
+        self.relations = rel.relation_table(self.all_scored, self.measured, self.config)
+        self.links = rel.link_table(self.all_importance)
+        self.visibility = rel.visibility_table(self.all_scored, self.measured[representative], self.config)
+        self.correlations = rel.correlation_table(self.all_scored, self.all_draws, self.measured[representative],
+                                                  self.truth[representative], self.config)
+        self.targets = ev.target_table(self.numeric, self.pairs, self.effects, self.config)
         tables = {"numeric_scores": self.numeric, "category_scores": self.category, "paired_intervals": self.pairs,
                   "scenario_effects": self.effects, "visible_input_groups": self.groups,
                   "ablation_numeric": self.ablation, "ablation_model_id": self.ablation_labels,
-                  "cost": self.cost}
+                  "cost": self.cost, "relations": self.relations, "links": self.links,
+                  "visibility": self.visibility, "correlations": self.correlations, "targets": self.targets}
         for name, table in tables.items():
             table.to_csv(Path(self.directory) / f"{name}.csv", index=False)
         return self

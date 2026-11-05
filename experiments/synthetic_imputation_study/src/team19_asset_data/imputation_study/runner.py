@@ -29,6 +29,8 @@ from .models import (
 )
 
 PROBABILITY_COLUMNS = [f"prob_{i}" for i in range(CLASS_COUNT)]
+MODEL_SOURCES = ("columns.py", "data.py", "models.py", "runner.py")
+CHAIN_SETTINGS = ("passes", "linear_alpha", "curve_alpha")
 ALL_NUMERIC = "all numeric"
 ALL_COLUMNS = "all columns"
 ITERATIVE = "IterativeImputer"
@@ -40,17 +42,17 @@ def default_parameters():
     # Every setting was chosen by the fixed rule on cells that no scenario hides.
     # The records are in outputs/imputation-study/optimisation/clean_selection.
     return {
-        "KNN imputer": {"passes": 3, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_neighbors": 80,
+        "KNN imputer": {"passes": 6, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_neighbors": 80,
                         "weights": "distance"},
         ITERATIVE: {"max_iter": 10, "tol": 1e-3, "initial_strategy": "median",
                     "linear_alpha": 30.0, "curve_alpha": 1000.0},
         "Random Forest": {"passes": 4, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_estimators": 100,
-                          "min_samples_leaf": 5, "max_samples": 0.5},
+                          "min_samples_leaf": 2, "max_samples": 0.5},
         "HistGradientBoosting": {"passes": 6, "linear_alpha": 30.0, "curve_alpha": 300.0, "max_iter": 400,
                                  "classifier_rounds": 200, "early_stopping": True, "n_iter_no_change": 20,
                                  "validation_fraction": 0.15, "learning_rate": 0.05, "max_leaf_nodes": 31,
                                  "min_samples_leaf": 20, "l2_regularization": 0.0},
-        "CatBoost": {"passes": 4, "linear_alpha": 30.0, "curve_alpha": 300.0, "iterations": 800, "depth": 4,
+        "CatBoost": {"passes": 6, "linear_alpha": 30.0, "curve_alpha": 300.0, "iterations": 800, "depth": 4,
                      "learning_rate": 0.1, "patience": 30, "classifier_rounds": 500},
         "miceforest direct": {"iterations": 3, "rounds": 200, "learning_rate": 0.05, "num_leaves": 31,
                               "min_data_in_leaf": 20, "feature_fraction": 0.7},
@@ -324,7 +326,9 @@ def _joint_task(task, config, train, test):
 
 
 def _calibration_task(task, config, train, test, drop):
-    model = CalibratedForest(config.explanation["Random Forest"], task.seed + task.fold, drop)
+    # The same forest as the raw model_id result, so the comparison shows calibration alone.
+    forest = {k: v for k, v in config.parameters["Random Forest"].items() if k not in CHAIN_SETTINGS}
+    model = CalibratedForest(forest, task.seed + task.fold, drop)
     hidden = test[CATEGORY_TARGET].isna()
     started = time.perf_counter()
     model.fit(train)
@@ -412,13 +416,17 @@ def execute_task(task, config, root, run_directory):
 
 
 def run_contract(root, config, names):
-    """Everything that must match for an interrupted run to be resumed."""
+    """Everything that must match to reuse a run's predictions.
+
+    Only the code that produces predictions is included, so evaluation code and
+    figures can change without invalidating a finished run.
+    """
     source = Path(__file__).parent
     scenarios = discover(Path(root) / config.data_directory)
     return {
         "config": json.loads(json.dumps(asdict(config), default=str)),
         "inputs": {s: [file_hash(scenarios[s].measured), file_hash(scenarios[s].truth)] for s in names},
-        "source": {p.name: file_hash(p) for p in sorted(source.glob("*.py"))},
+        "source": {name: file_hash(source / name) for name in MODEL_SOURCES},
     }
 
 
@@ -431,7 +439,7 @@ def open_run(root, config, names, resume_run_id=None):
         saved = json.loads((folder / "contract.json").read_text(encoding="utf-8"))
         changed = [key for key in contract if saved[key] != contract[key]]
         if changed:
-            raise ValueError(f"Cannot resume {resume_run_id}: changed {changed}")
+            raise ValueError(f"Cannot reuse {resume_run_id}: changed {changed}")
         return folder
     folder = base / datetime.now().strftime("%Y%m%d-%H%M%S")
     (folder / "tasks").mkdir(parents=True)

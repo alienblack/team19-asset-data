@@ -16,9 +16,11 @@ from team19_asset_data.imputation_study.models import (
     CHAINED_CLASSES, MODEL_CLASSES, BaselineModel, BlockRidge, ChainedRidgeImputer, Features, JointModel,
     MiceforestModel, make_model,
 )
+from team19_asset_data.imputation_study import relationships as rel
 from team19_asset_data.imputation_study.study import MODEL_FAMILIES
 from team19_asset_data.imputation_study.runner import (
-    ALL_NUMERIC, ITERATIVE, Task, build_plan, default_parameters, fold_ids, quick_config,
+    ALL_NUMERIC, CHAIN_SETTINGS, ITERATIVE, MODEL_SOURCES, Task, build_plan, default_parameters, fold_ids,
+    quick_config,
 )
 
 
@@ -319,3 +321,81 @@ def test_file_pattern_reads_both_controls():
 def test_groups_use_visibility_of_companions():
     frame = pd.DataFrame({"x": [1.0, np.nan], "y": [np.nan, np.nan]})
     assert visible_group("altitude", frame).tolist() == ["x seen · y missing", "x missing · y missing"]
+
+
+def test_only_prediction_code_decides_whether_a_run_can_be_reused():
+    assert set(MODEL_SOURCES) == {"columns.py", "data.py", "models.py", "runner.py"}
+
+
+def test_calibration_uses_the_forest_of_the_raw_result():
+    settings = {k: v for k, v in default_parameters()["Random Forest"].items() if k not in CHAIN_SETTINGS}
+    assert not set(settings) & set(CHAIN_SETTINGS) and "n_estimators" in settings
+
+
+def test_total_gas_groups_count_the_visible_gas_readings():
+    frame = pd.DataFrame({"measured_gas_a": [1.0, np.nan], "measured_gas_b": [1.0, np.nan], "measured_gas_c": [1.0, 2.0]})
+    assert visible_group("total_gas", frame).tolist() == ["3 of 3 gas readings seen", "1 of 3 gas readings seen"]
+
+
+def test_life_definition_matches_each_model():
+    row = {"install_date": 10.0, "measured_humid": 0.1, "measured_salt": 0.2, "measured_overgrowth": 0.3, "total_gas": 30000.0}
+    frame = pd.DataFrame([{**row, "model_id": float(m)} for m in range(4)])
+    assert np.allclose(rel._life(frame), [100000 - 10 * h - 2500 for h in (0.6, 0.4, 0.5, 0.3)])
+
+
+def test_leakage_range_contains_the_true_value():
+    day, leakage = 500.0, 1.1
+    frame = pd.DataFrame([{
+        "install_date": day, "model_id": 0.0, "measured_gas_a": 10000 - day * leakage,
+        "measured_gas_b": 10000 - 0.0005 * day**2 * leakage,
+        "measured_gas_c": 10000 - (day + 0.00025 * day**2) * leakage,
+    }])
+    assert abs(rel._leakage(frame)[0] - leakage) < 0.4
+
+
+def relation_inputs():
+    measured = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [1.0, 1.0, np.nan, 1.0], "altitude": [np.nan, np.nan, np.nan, 105.0]})
+    for name in TARGETS:
+        if name not in measured:
+            measured[name] = np.nan
+    scored = pd.DataFrame({
+        "experiment": "main", "seed": 219, "scenario": "s", "target": "altitude", "method": ["Median"] * 3 + ["A"] * 3,
+        "row_id": [0, 1, 2] * 2, "prediction": [150.0, 150.0, 150.0, 102.0, 104.0, 100.0],
+        "truth": [102.0, 103.0, 104.0] * 2,
+    })
+    return scored, measured
+
+
+def test_relation_table_uses_only_cells_with_every_input_visible():
+    scored, measured = relation_inputs()
+    config = quick_config(noise_series=("s",))
+    table = rel.relation_table(scored, {"s": measured}, config)
+    altitude = table[table.relation.eq("altitude from x and y")].set_index("method")
+    assert altitude.n.iloc[0] == 2
+    assert altitude.MAE["A"] == pytest.approx(0.5)
+    assert altitude.MAE[rel.FORMULA] == 0
+
+
+def test_links_are_sorted_into_direct_two_steps_and_unrelated():
+    importance = pd.DataFrame({
+        "method": "M", "scenario": "s", "target": "altitude", "predictor": ["x", "install_date", "random_placebo"],
+        "importance": [0.5, 0.1, 0.0],
+    })
+    table = rel.classify_links(importance).set_index("predictor")
+    assert table.direct["x"] and table["two steps"]["install_date"] and table.unrelated["random_placebo"]
+    row = rel.link_table(importance).iloc[0]
+    assert row["direct links found"] == 1 and row["relied on: direct"] == 0.5
+
+
+def test_perfect_imputation_keeps_every_correlation():
+    generator = np.random.default_rng(0)
+    truth = pd.DataFrame(generator.normal(size=(200, len(TARGETS))), columns=list(TARGETS))
+    measured = truth.mask(generator.random(truth.shape) < 0.2)
+    rows = []
+    for target in truth:
+        hidden = measured.index[measured[target].isna()]
+        rows.append(pd.DataFrame({"row_id": hidden, "target": target, "prediction": truth.loc[hidden, target].to_numpy()}))
+    scored = pd.concat(rows, ignore_index=True).assign(scenario="s", experiment="main", seed=219, method="A")
+    config = quick_config(representative="s")
+    table = rel.correlation_table(scored, pd.DataFrame(), measured, truth, config)
+    assert table["mean Pearson gap"].iloc[0] == pytest.approx(0, abs=1e-12)

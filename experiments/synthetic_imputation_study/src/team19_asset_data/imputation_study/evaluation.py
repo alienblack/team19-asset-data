@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.stats import wasserstein_distance
 
 from .columns import (
-    ABSOLUTE, BY_NAME, CATEGORY_TARGET, COLUMNS, COMPANIONS, CONTROL, GAS_READINGS, NUMERIC_TARGETS, TARGETS,
+    ABSOLUTE, BY_NAME, CATEGORY_TARGET, COMPANIONS, GAS_READINGS, NUMERIC_TARGETS, TARGETS,
 )
 from .models import NUMERIC_METHODS
 from .runner import ALL_COLUMNS, ALL_NUMERIC, ITERATIVE, PROBABILITY_COLUMNS
@@ -213,6 +213,9 @@ def visible_group(target, frame):
     companions = COMPANIONS[target]
     if not companions:
         return np.repeat("all cells", len(frame))
+    if len(companions) > 2:
+        seen = frame[list(companions)].notna().sum(axis=1).to_numpy()
+        return np.array([f"{count} of {len(companions)} gas readings seen" for count in seen])
     parts = [np.where(frame[c].notna(), f"{c} seen", f"{c} missing") for c in companions]
     return np.array([" · ".join(items) for items in zip(*parts)])
 
@@ -328,7 +331,7 @@ def range_table(scored):
     return pd.DataFrame(rows)
 
 
-def _complete(measured, cells):
+def complete_table(measured, cells):
     frame = measured.copy()
     for target, block in cells.groupby("target"):
         frame.loc[block.row_id.to_numpy(), target] = block.value.to_numpy()
@@ -368,7 +371,7 @@ def coherence_table(scored, draws, measured, config):
         involved = measured[list(fields)].isna().any(axis=1)
         reference = residual(measured[list(fields)].dropna())
         for method, cells in sources.items():
-            frame = _complete(measured, cells)
+            frame = complete_table(measured, cells)
             values = residual(frame.loc[involved, list(fields)].dropna())
             rows.append({"relation": relation, "method": method, "rows": len(values),
                          "mean residual": values.mean(), "residual in fully observed rows": reference.mean()})
@@ -389,7 +392,7 @@ def draw_table(scored, draws, config):
             entry["truth among draws"] = wide.eq(y, axis=0).any(axis=1).mean()
         else:
             low, high = wide.quantile(config.interval[0], axis=1), wide.quantile(config.interval[1], axis=1)
-            entry["truth in 80% band"] = (y.ge(low) & y.le(high)).mean()
+            entry["truth in band"] = (y.ge(low) & y.le(high)).mean()
             entry["mean band width"] = (high - low).mean()
         rows.append(entry)
     return pd.DataFrame(rows)
@@ -484,7 +487,7 @@ def export_completions(scored, measured, scenario, folder):
     for method in NUMERIC_METHODS:
         chosen = block[(block.method.eq(method) & block.target.ne(CATEGORY_TARGET))
                        | (block.method.eq(partner.get(method, method)) & block.target.eq(CATEGORY_TARGET))]
-        filled = _complete(measured, chosen.assign(value=chosen.prediction))
+        filled = complete_table(measured, chosen.assign(value=chosen.prediction))
         name = method.replace(" ", "_") + ".csv"
         filled.to_csv(folder / name)
         rows.append({"method": method, "file": name, "cells still missing": int(filled.isna().sum().sum())})
@@ -547,53 +550,88 @@ def _representative_level(config, kind):
     return float(match[1] if kind == "completion" else match[2])
 
 
-def _describe_target(target, main, pairs, effects, groups, config):
-    rep = main[main.scenario.eq(config.representative) & main.target.eq(target) & main.method.ne("Median")]
-    ranked = rep.sort_values("MAE")
-    best, second = ranked.iloc[0], ranked.iloc[1]
-    gap = second.MAE / best.MAE - 1
-    pair = pairs[pairs.scenario.eq(config.representative) & pairs.target.eq(target) & pairs.comparison.eq("best two")].iloc[0]
-    separated = not (pair.low <= 0 <= pair.high)
-    if not separated:
-        lead = f"not clearly separated from {second.method}, whose MAE is {gap:.1%} higher"
-    elif gap < config.material_gap:
-        lead = f"practically tied with {second.method}, whose MAE is {gap:.1%} higher"
-    else:
-        lead = f"clearly ahead of {second.method}, whose MAE is {gap:.0%} higher"
-    text = (f"- **{target}:** {best.method}, skill {best.skill:.0%}, {lead}. "
-            f"MAE change on the same cells: noise 0 to 0.1 {_effect_text(effects, 'noise', target, best.method, config)}, "
-            f"completeness 0.7 to 0.9 {_effect_text(effects, 'completeness', target, best.method, config)}.")
-    visible = groups[groups.scenario.eq(config.representative) & groups.target.eq(target)
-                     & groups.method.eq(best.method) & ~groups["small group"]]
-    if len(visible) > 1:
-        high, low = visible.loc[visible.skill.idxmax()], visible.loc[visible.skill.idxmin()]
-        text += f" Skill runs from {low.skill:.0%} ({low.group}) to {high.skill:.0%} ({high.group})."
-    return text
+def target_table(numeric, pairs, effects, config):
+    """For each numeric target: the best method, how clear its lead is, and the effect of each control."""
+    main = numeric[numeric.experiment.eq("main") & numeric.seed.eq(config.seed)]
+    rows = []
+    for target in [t for t in NUMERIC_TARGETS if t != "random_placebo"]:
+        rep = main[main.scenario.eq(config.representative) & main.target.eq(target) & main.method.ne("Median")]
+        ranked = rep.sort_values("MAE")
+        best, second = ranked.iloc[0], ranked.iloc[1]
+        pair = pairs[pairs.scenario.eq(config.representative) & pairs.target.eq(target) & pairs.comparison.eq("best two")].iloc[0]
+        gap = second.MAE / best.MAE - 1
+        separated = not (pair.low <= 0 <= pair.high)
+        lead = "clear" if separated and gap >= config.material_gap else "small" if separated else "not separated"
+        rows.append({
+            "target": target, "best": best.method, "skill": best.skill, "next": second.method, "gap to next": gap,
+            "lead": lead, "noise 0 to 0.1": _effect_text(effects, "noise", target, best.method, config),
+            "completion 0.7 to 0.9": _effect_text(effects, "completeness", target, best.method, config),
+        })
+    return pd.DataFrame(rows)
 
 
-def findings(numeric, category, pairs, effects, groups, config):
-    """A summary written from this run's tables, grouped by what the columns are."""
-    main = numeric[numeric.experiment.eq("main")]
-    sections = []
-    families = {}
-    for column in COLUMNS:
-        if column.name != CATEGORY_TARGET and column.family != CONTROL:
-            families.setdefault(column.family, []).append(column.name)
-    for family, targets in families.items():
-        lines = [_describe_target(t, main, pairs, effects, groups, config) for t in targets]
-        sections.append(f"**{family.capitalize()}**\n\n" + "\n".join(lines))
-    labels = category[category.experiment.eq("main") & category.scenario.eq(config.representative)]
-    best = labels[labels.method.ne("Mode")].sort_values("accuracy", ascending=False).iloc[0]
-    base = labels[labels.method.eq("Mode")].iloc[0]
-    lowest = category[category.experiment.eq("main") & category.method.eq(best.method)].accuracy.min()
-    sections.append(f"**model_id**\n\n- {best.method} reaches {best.accuracy:.1%} accuracy against {base.accuracy:.1%} "
-                    f"for the mode, and at least {lowest:.1%} in every scenario.")
+def _top_effects(effects, control, method, config, count=3):
+    """The targets a control moves most for one method, on the same cells."""
+    held = "held completion" if control == "noise" else "held noise"
+    kind = "completion" if control == "noise" else "noise"
+    part = effects[effects.control.eq(control) & effects.method.eq(method)
+                   & effects[held].eq(_representative_level(config, kind)) & effects.target.ne(CATEGORY_TARGET)]
+    part = part[part["from"].eq(part["from"].min()) & part.to.eq(part.to.max())]
+    return part.reindex(part["relative change"].abs().sort_values(ascending=False).index).head(count)
+
+
+def findings(numeric, category, pairs, effects, relations, links, visibility, config):
+    """A summary written from this run's tables, organised by the study's three aims."""
+    main = numeric[numeric.experiment.eq("main") & numeric.seed.eq(config.seed)]
+    rep = main[main.scenario.eq(config.representative) & main.method.ne("Median") & main.target.ne("random_placebo")]
+    ranking = rep.groupby("method").skill.mean().sort_values(ascending=False)
+    leader = ranking.index[0]
+    tied = ranking[ranking >= ranking.iloc[0] - 0.01]
+    best_two = pairs[pairs.scenario.eq(config.representative) & pairs.comparison.eq("best two")
+                     & ~pairs.target.isin([CATEGORY_TARGET, "random_placebo"])]
+    unclear = int(((best_two.low <= 0) & (best_two.high >= 0)).sum())
+    labels = category[category.experiment.eq("main") & category.scenario.eq(config.representative) & category.seed.eq(config.seed)]
+    trained = labels[labels.method.ne("Mode")]
+    compare = [
+        f"- Highest mean skill in the representative scenario: {', '.join(f'{m} {s:.3f}' for m, s in tied.items())}. "
+        "Methods within 0.01 of the top are treated as tied.",
+        f"- The best two methods cannot be separated on {unclear} of {len(best_two)} numeric targets.",
+        f"- `model_id` accuracy ranges from {trained.accuracy.min():.1%} to {trained.accuracy.max():.1%} across methods, "
+        f"against {labels[labels.method.eq('Mode')].accuracy.iloc[0]:.1%} for the mode.",
+    ]
+
+    exact = relations[relations.scenario.eq(config.noise_series[0])]
+    learned = []
+    for relation, block in exact.groupby("relation", sort=False):
+        fitted = block[~block.method.isin(["Median", "Formula"])].sort_values("MAE")
+        median = block[block.method.eq("Median")].MAE.iloc[0]
+        if len(fitted):
+            learned.append(f"  - {relation}: {fitted.iloc[0].method}, MAE {fitted.iloc[0].MAE:.3g} against {median:.3g} for the median.")
+    found = links[links.scenario.eq(config.noise_series[0])]
     control = pairs[pairs.target.eq("random_placebo") & pairs.comparison.eq("versus baseline")]
     better, worse = int(control.high.lt(0).sum()), int(control.low.gt(0).sum())
     largest = main[main.target.eq("random_placebo") & main.method.ne("Median")].skill.max()
-    sections.append(
-        f"**Negative control**\n\n- {better} of {len(control)} comparisons with the median favour a method and "
-        f"{worse} favour the median. The largest skill reached is {largest:.1%}. With this many comparisons, about "
-        f"{0.025 * len(control):.0f} would favour a method by chance alone at the 95% level."
-    )
-    return "\n\n".join(sections)
+    relationships = [
+        "- With all defining inputs visible and no noise, the lowest errors are:", *learned,
+        f"- Importance finds {found['direct links found'].min():.0%} to {found['direct links found'].max():.0%} of direct links, "
+        f"and {found['relied on: unrelated'].max():.0%} or less of relied-on columns have no link within two steps.",
+        f"- Negative control: {better} of {len(control)} comparisons with the median favour a method and {worse} favour the median. "
+        f"The largest placebo skill is {largest:.1%}.",
+    ]
+
+    seen = visibility[visibility.method.eq(leader)].pivot(index="target", columns="level", values="skill")
+    failure = []
+    if {"all linked columns seen", "few seen"} <= set(seen.columns):
+        drop = (seen["all linked columns seen"] - seen["few seen"]).dropna().sort_values(ascending=False).head(3)
+        text = ", ".join(f"`{t}` ({seen.loc[t, 'all linked columns seen']:.2f} to {seen.loc[t, 'few seen']:.2f})" for t in drop.index)
+        failure.append(f"- Hidden inputs: for {leader}, skill falls most on {text} when few linked columns are visible.")
+    for control_name, label in (("noise", "Noise from lowest to highest"), ("completeness", "Completion from lowest to highest")):
+        top = _top_effects(effects, control_name, leader, config)
+        text = ", ".join(f"`{t}` {c:+.0%}" for t, c in zip(top.target, top["relative change"]))
+        failure.append(f"- {label}: largest MAE changes for {leader} are {text}.")
+
+    return "\n\n".join([
+        "**Model comparison**\n\n" + "\n".join(compare),
+        "**Relationships**\n\n" + "\n".join(relationships),
+        "**Failure conditions**\n\n" + "\n".join(failure),
+    ])

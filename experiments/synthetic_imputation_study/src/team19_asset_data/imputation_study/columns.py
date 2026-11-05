@@ -147,7 +147,7 @@ COMPANIONS = {
     "measured_gas_a": ("model_id", "install_date"),
     "measured_gas_b": ("model_id", "install_date"),
     "measured_gas_c": ("model_id", "install_date"),
-    "total_gas": ("install_date", "leakage"),
+    "total_gas": GAS_READINGS,
     "leakage": ("total_gas", "install_date"),
     "random_placebo": (),
 }
