@@ -3,21 +3,22 @@
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.preprocessing import PolynomialFeatures
 
 from team19_asset_data.imputation_study.columns import (
     BY_NAME, COMPANIONS, GENERATOR_LINKS, NAMES, TARGETS, finalise,
 )
 from team19_asset_data.imputation_study.data import FILE_PATTERN, relationship_residuals
 from team19_asset_data.imputation_study.evaluation import (
-    class_scores, default_comparison, numeric_scores, visible_group,
+    class_scores, cost_table, numeric_scores, visible_group,
 )
 from team19_asset_data.imputation_study.models import (
-    MODEL_CLASSES, BaselineModel, ChainedLinearImputer, Features, MiceforestModel, make_model,
+    CHAINED_CLASSES, MODEL_CLASSES, BaselineModel, BlockRidge, ChainedRidgeImputer, Features, JointModel,
+    MiceforestModel, make_model,
 )
 from team19_asset_data.imputation_study.study import MODEL_FAMILIES
 from team19_asset_data.imputation_study.runner import (
-    ALL_NUMERIC, ITERATIVE, Task, build_plan, build_tuning_plan, candidates, default_parameters,
-    fold_ids, quick_config, settings_for,
+    ALL_NUMERIC, ITERATIVE, Task, build_plan, default_parameters, fold_ids, quick_config,
 )
 
 
@@ -84,14 +85,13 @@ def test_features_keep_gaps_and_treat_category_as_nominal():
     assert matrix[:, 1:].sum(axis=1).tolist() == [1.0] * len(frame)
 
 
-@pytest.mark.parametrize("method", ["KNN imputer", "Random Forest", "HistGradientBoosting",
-                                    "CatBoost", "miceforest direct"])
-def test_models_handle_missing_predictors_and_learn_a_simple_signal(method):
+@pytest.mark.parametrize("method", ["Random Forest", "CatBoost"])
+def test_single_target_models_handle_missing_predictors_and_learn_a_simple_signal(method):
     config = quick_config()
     frame = small_frame(600)
     train, test = frame.iloc[:500], frame.iloc[500:]
     hidden = test.target.isna() & test.signal.notna()
-    settings = settings_for(method, "target", config)
+    settings = config.explanation[method]
     prediction = make_model(method, "target", config, settings, 0).fit(train).predict(test.loc[hidden])
     error = np.abs(prediction - 3 * test.loc[hidden, "signal"]).mean()
     assert np.isfinite(prediction).all()
@@ -107,8 +107,9 @@ def test_baseline_returns_the_observed_median():
 def test_classifiers_return_class_probabilities_with_missing_predictors():
     config = quick_config()
     frame = small_frame(300).assign(model_id=lambda f: (f.complete > 0).astype(float))
-    for method in ("KNN", "Random Forest", "HistGradientBoosting", "CatBoost", "miceforest direct"):
-        model = make_model(method, "model_id", config, settings_for(method, "model_id", config), 0).fit(frame)
+    for method in ("Random Forest", "CatBoost"):
+        settings = config.explanation[method]
+        model = make_model(method, "model_id", config, settings, 0).fit(frame)
         probabilities = model.predict_proba(frame.iloc[:5])
         assert probabilities.shape == (5, 2) and np.allclose(probabilities.sum(axis=1), 1)
 
@@ -116,16 +117,32 @@ def test_classifiers_return_class_probabilities_with_missing_predictors():
 def test_pmm_returns_one_column_per_draw():
     config = quick_config()
     frame = small_frame(300).drop(columns="model_id")
-    settings = settings_for("miceforest direct", "target", config)
-    model = MiceforestModel("target", config, settings, 0, draws=config.pmm_draws).fit(frame)
+    model = MiceforestModel("target", config, config.parameters["miceforest PMM"], 0, config.pmm_draws).fit(frame)
     hidden = frame[frame.target.isna()]
     assert model.draw(hidden).shape == (len(hidden), config.pmm_draws)
+
+
+def test_miceforest_runs_as_gradient_boosting():
+    config = quick_config()
+    model = CHAINED_CLASSES["miceforest direct"](config.parameters["miceforest direct"], 0).fit(chained_frame())
+    text = model.kernel.get_model("total", 0).model_to_string()
+    assert "[boosting: gbdt]" in text
+
+
+def test_joint_model_returns_completed_copies_with_observed_cells_unchanged():
+    config = quick_config()
+    frame = chained_frame()
+    train, test = frame.iloc[:400], frame.iloc[400:]
+    copies = JointModel(config, config.parameters["Joint miceforest PMM"], 0).fit(train).predict(test)
+    assert len(copies) == config.pmm_draws
+    for copy in copies:
+        assert copy.notna().all().all()
+        assert np.allclose(copy.where(test.notna()).fillna(0), test.fillna(0))
 
 
 def test_every_planned_method_belongs_to_one_notebook_section():
     config = quick_config()
     planned = {task.method for task in build_plan(list(config.scenarios), config)}
-    planned |= {task.method for task in build_tuning_plan(config)}
     sections = [method for methods in MODEL_FAMILIES.values() for method in methods]
     assert planned == set(sections) and len(sections) == len(set(sections))
     assert set(MODEL_CLASSES) <= set(sections)
@@ -141,10 +158,126 @@ def test_chained_imputer_recovers_a_linear_relation_in_original_units():
     frame = frame.assign(target=3 * frame.complete).drop(columns=["model_id", "signal"])
     frame.loc[::5, "target"] = np.nan
     train, test = frame.iloc[:500], frame.iloc[500:]
-    filled = ChainedLinearImputer(default_parameters()[ITERATIVE], 0).fit(train).predict(test)
+    settings = {**default_parameters()[ITERATIVE], "linear_alpha": 0.01}
+    filled = ChainedRidgeImputer(settings, 0).fit(train).predict(test)
     hidden = test.target.isna()
     assert np.allclose(filled.loc[hidden, "target"], 3 * test.loc[hidden, "complete"], atol=0.05)
     assert np.allclose(filled.loc[~hidden, "target"], test.loc[~hidden, "target"])
+
+
+def test_block_ridge_fits_a_product_that_a_line_cannot():
+    generator = np.random.default_rng(0)
+    matrix = generator.normal(size=(800, 3))
+    labels = matrix[:, 0] * matrix[:, 1]
+    predicted = BlockRidge(1.0, 1.0).fit(matrix, labels).predict(matrix)
+    assert np.abs(predicted - labels).mean() < 0.05
+
+
+def test_block_ridge_applies_a_separate_penalty_to_each_block():
+    generator = np.random.default_rng(1)
+    matrix = generator.normal(size=(400, 2))
+    labels = matrix[:, 0] + matrix[:, 0] * matrix[:, 1]
+    linear, curve = 5.0, 50.0
+    model = BlockRidge(linear, curve).fit(matrix, labels)
+    terms = PolynomialFeatures(2, include_bias=False).fit_transform(matrix)
+    centred, target = terms - terms.mean(axis=0), labels - labels.mean()
+    penalty = np.diag([linear] * 2 + [curve] * 3)
+    expected = centred @ np.linalg.solve(centred.T @ centred + penalty, centred.T @ target) + labels.mean()
+    assert np.allclose(model.predict(matrix), expected)
+
+
+def chained_frame(rows=500):
+    generator = np.random.default_rng(3)
+    frame = pd.DataFrame({"a": generator.normal(size=rows), "b": generator.normal(size=rows)})
+    frame["model_id"] = (frame.a > 0).astype(float) + 2 * (frame.b > 0)
+    frame["total"] = frame.a + 2 * frame.b
+    for name, step in (("a", 7), ("b", 5), ("model_id", 6), ("total", 4)):
+        frame.loc[frame.index[::step], name] = np.nan
+    return frame
+
+
+@pytest.mark.parametrize("method", list(CHAINED_CLASSES))
+def test_chained_models_fill_every_numeric_column_and_give_class_probabilities(method):
+    config = quick_config()
+    frame = chained_frame()
+    train, test = frame.iloc[:400], frame.iloc[400:]
+    model = CHAINED_CLASSES[method](config.parameters[method], 0).fit(train)
+    numeric, shares = model.predict(test)
+    assert list(numeric.index) == list(test.index) and numeric.notna().all().all()
+    assert "model_id" not in numeric and set(numeric) == {"a", "b", "total"}
+    assert shares.shape == (100, len(model.classes_)) and np.allclose(shares.sum(axis=1), 1)
+
+
+@pytest.mark.parametrize("method", list(CHAINED_CLASSES))
+def test_chained_estimate_of_a_row_does_not_depend_on_other_test_rows(method):
+    config = quick_config()
+    frame = chained_frame()
+    train, test = frame.iloc[:400], frame.iloc[400:]
+    model = CHAINED_CLASSES[method](config.parameters[method], 0).fit(train)
+    together, shares = model.predict(test)
+    alone, alone_shares = model.predict(test.iloc[:7])
+    assert np.allclose(together.iloc[:7], alone) and np.allclose(shares[:7], alone_shares)
+
+
+def test_chains_in_ablation_drop_the_block_and_keep_model_id():
+    config = quick_config()
+    frame = chained_frame()
+    train, test = frame.iloc[:400], frame.iloc[400:]
+    model = CHAINED_CLASSES["Random Forest"](config.parameters["Random Forest"], 0, ("total",)).fit(train)
+    numeric, shares = model.predict(test)
+    assert "total" not in numeric and shares.shape[0] == len(test)
+
+
+def test_cost_shares_a_chained_task_between_the_columns_it_covers():
+    log = pd.DataFrame({
+        "status": "success", "experiment": "main", "task_id": ["a", "b", "c"], "fit_seconds": 30.0,
+        "predict_seconds": 0.0, "method": ["HistGradientBoosting", "IterativeImputer", "Median"],
+        "target": ["all columns", "all numeric", "x"],
+    })
+    cost = cost_table(log).set_index("method")["seconds per target and fold"]
+    assert cost.to_dict() == {"HistGradientBoosting": 2.0, "IterativeImputer": 30 / 14, "Median": 30.0}
+
+
+def test_neighbours_fall_back_for_a_row_with_no_shared_cells():
+    config = quick_config()
+    frame = chained_frame()
+    train = frame.iloc[:400]
+    empty = frame.iloc[400:402].copy()
+    empty.loc[:, :] = np.nan
+    model = CHAINED_CLASSES["KNN imputer"](config.parameters["KNN imputer"], 0).fit(train)
+    numeric, shares = model.predict(empty)
+    assert numeric.notna().all().all() and np.allclose(shares.sum(axis=1), 1)
+
+
+def test_neighbours_give_the_same_estimates_in_blocks_as_in_one_call():
+    config = quick_config()
+    frame = chained_frame()
+    train, test = frame.iloc[:400], frame.iloc[400:]
+    model = CHAINED_CLASSES["KNN imputer"](config.parameters["KNN imputer"], 0).fit(train)
+    together, _ = model.predict(test)
+    for _, _, column_model in model.sequence:
+        (column_model.local if hasattr(column_model, "local") else column_model).block = 7
+    blocks, _ = model.predict(test)
+    assert np.allclose(together, blocks)
+
+
+def test_chained_methods_are_one_task_per_fold():
+    config = quick_config()
+    plan = build_plan(list(config.scenarios), config)
+    for method in CHAINED_CLASSES:
+        tasks = [t for t in plan if t.experiment == "main" and t.method == method]
+        assert len(tasks) == len(config.scenarios) * config.folds
+        assert {t.target for t in tasks} == {"all columns"}
+
+
+def test_chained_estimates_stay_inside_the_observed_range():
+    frame = small_frame(400)
+    frame = frame.assign(target=frame.complete ** 3)
+    frame.loc[::4, "target"] = np.nan
+    model = ChainedRidgeImputer(default_parameters()[ITERATIVE], 0).fit(frame)
+    filled = model.predict(frame)
+    assert filled.target.max() <= frame.target.max() + 1e-6
+    assert filled.target.min() >= frame.target.min() - 1e-6
 
 
 def test_plan_has_unique_tasks_and_skips_targets_inside_a_removed_block():
@@ -163,31 +296,6 @@ def test_iterative_imputer_is_one_task_per_fold():
     tasks = [t for t in plan if t.experiment == "main" and t.method == ITERATIVE]
     assert {t.target for t in tasks} == {ALL_NUMERIC}
     assert len(tasks) == len(config.scenarios) * config.folds
-
-
-def test_tuning_always_includes_the_default_settings():
-    config = quick_config()
-    assert candidates("Random Forest", config)[0] == {}
-    assert candidates("Random Forest", config) == candidates("Random Forest", config)
-    assert {t.experiment for t in build_tuning_plan(config)} == {"tuning"}
-
-
-def test_tuned_settings_apply_only_outside_the_default_experiment():
-    config = quick_config(tuned={"CatBoost|x": {"depth": 4}})
-    assert settings_for("CatBoost", "x", config)["depth"] == 4
-    assert settings_for("CatBoost", "x", config, tuned=False)["depth"] == 6
-    assert settings_for("CatBoost", "y", config)["depth"] == 6
-
-
-def test_default_comparison_handles_a_perfect_default():
-    config = quick_config()
-    numeric = pd.DataFrame({"scenario": config.representative, "seed": config.seed, "target": "x",
-                            "method": "CatBoost", "experiment": ["main", "defaults"], "MAE": [1.0, 2.0]})
-    category = pd.DataFrame({"scenario": config.representative, "seed": config.seed, "target": "model_id",
-                             "method": "CatBoost", "experiment": ["main", "defaults"], "accuracy": [1.0, 1.0]})
-    table = default_comparison(numeric, category, config).set_index("target")
-    assert table.loc["x", "relative change"] == pytest.approx(-0.5)
-    assert table.loc["model_id", "relative change"] == 0.0
 
 
 def test_relationship_residuals_detect_a_broken_definition():

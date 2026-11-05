@@ -11,7 +11,7 @@ from .columns import (
     ABSOLUTE, BY_NAME, CATEGORY_TARGET, COLUMNS, COMPANIONS, CONTROL, GAS_READINGS, NUMERIC_TARGETS, TARGETS,
 )
 from .models import NUMERIC_METHODS
-from .runner import ALL_NUMERIC, ITERATIVE, PROBABILITY_COLUMNS
+from .runner import ALL_COLUMNS, ALL_NUMERIC, ITERATIVE, PROBABILITY_COLUMNS
 
 KEYS = ["scenario", "experiment", "variant", "seed", "target", "method"]
 BASELINES = ("Median", "Mode")
@@ -426,7 +426,7 @@ def probability_table(scored, config):
 
 
 def budget_table(numeric, log, config):
-    """IterativeImputer MAE at low iteration limits against the converged main run."""
+    """IterativeImputer MAE at other iteration limits against the main run."""
     limit = config.parameters[ITERATIVE]["max_iter"]
     main = numeric[numeric.experiment.eq("main") & numeric.method.eq(ITERATIVE)
                    & numeric.scenario.eq(config.representative)].assign(limit=limit)
@@ -440,21 +440,6 @@ def budget_table(numeric, log, config):
            "fits stopped at the limit": ("n_iter", lambda s: int((s >= limit).sum()))}
     ).reset_index()
     return table, used
-
-
-def default_comparison(numeric, category, config):
-    """MAE or error rate with the earlier settings against the tuned settings, on the same cells."""
-    keys = ["target", "method"]
-    selected = numeric[numeric.scenario.eq(config.representative) & numeric.seed.eq(config.seed)]
-    tuned = selected[selected.experiment.eq("main")][keys + ["MAE"]].rename(columns={"MAE": "tuned"})
-    default = selected[selected.experiment.eq("defaults")][keys + ["MAE"]].rename(columns={"MAE": "default"})
-    table = default.merge(tuned, on=keys)
-    labels = category[category.scenario.eq(config.representative) & category.seed.eq(config.seed)]
-    tuned = labels[labels.experiment.eq("main")].assign(tuned=lambda f: 1 - f.accuracy)[keys + ["tuned"]]
-    default = labels[labels.experiment.eq("defaults")].assign(default=lambda f: 1 - f.accuracy)[keys + ["default"]]
-    table = pd.concat([table, default.merge(tuned, on=keys)], ignore_index=True)
-    table["relative change"] = np.where(table.default > 0, table.tuned / table.default.where(table.default > 0) - 1, 0.0)
-    return table
 
 
 def stability_table(numeric, category, config):
@@ -491,7 +476,7 @@ def export_completions(scored, measured, scenario, folder):
     Every filled value is out-of-fold. model_id is filled by the classifier of the
     same family; IterativeImputer has no classifier, so its model_id stays missing.
     """
-    partner = {"Median": "Mode", "KNN imputer": "KNN"}
+    partner = {"Median": "Mode"}
     block = scored[scored.experiment.eq("main") & scored.scenario.eq(scenario)]
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
@@ -509,8 +494,9 @@ def export_completions(scored, measured, scenario, folder):
 def cost_table(log):
     """Fit and predict time per method. Parallel workers share the machine, so times are indicative."""
     selected = log[log.status.eq("success")].copy()
-    # One IterativeImputer task covers every numeric target, so its time is shared between them.
-    selected["targets covered"] = np.where(selected.target.eq(ALL_NUMERIC), len(NUMERIC_TARGETS), 1)
+    # One chained or joint task covers many targets, so its time is shared between them.
+    selected["targets covered"] = selected.target.map(
+        {ALL_NUMERIC: len(NUMERIC_TARGETS), ALL_COLUMNS: len(TARGETS), "all": len(TARGETS)}).fillna(1)
     table = selected.groupby(["experiment", "method"], sort=False).agg(
         tasks=("task_id", "size"), targets=("targets covered", "sum"),
         **{"fit seconds": ("fit_seconds", "sum"), "predict seconds": ("predict_seconds", "sum")}

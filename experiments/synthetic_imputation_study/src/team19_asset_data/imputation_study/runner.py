@@ -7,7 +7,6 @@ interrupted run continues from the tasks that have not finished.
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from functools import lru_cache
-from itertools import product
 from pathlib import Path
 import hashlib
 import json
@@ -25,54 +24,51 @@ from threadpoolctl import threadpool_limits
 from .columns import CATEGORY_TARGET, GAS_READINGS, NUMERIC_TARGETS, TARGETS, finalise
 from .data import discover, file_hash, read_measured
 from .models import (
-    CATEGORY_METHODS, CLASS_COUNT, NUMERIC_METHODS,
-    CalibratedForest, ChainedLinearImputer, JointModel, MiceforestModel, make_model,
+    CATEGORY_METHODS, CHAINED_CLASSES, CLASS_COUNT, NUMERIC_METHODS,
+    CalibratedForest, ChainedRidgeImputer, JointModel, MiceforestModel, make_model,
 )
 
 PROBABILITY_COLUMNS = [f"prob_{i}" for i in range(CLASS_COUNT)]
 ALL_NUMERIC = "all numeric"
+ALL_COLUMNS = "all columns"
 ITERATIVE = "IterativeImputer"
-ABLATION_METHODS = ("KNN imputer", "Random Forest", "CatBoost")
-ABLATION_CATEGORY_METHODS = ("KNN", "Random Forest", "CatBoost")
+ABLATION_CHAINS = ("KNN imputer", "Random Forest", "CatBoost")
 IMPORTANCE_METHODS = ("Random Forest", "CatBoost")
-TUNED_METHODS = ("KNN imputer", "KNN", "Random Forest", "HistGradientBoosting", "CatBoost", "miceforest direct")
 
 
 def default_parameters():
-    # The settings of the earlier study, kept as the untuned reference.
+    # Every setting was chosen by the fixed rule on cells that no scenario hides.
+    # The records are in outputs/imputation-study/optimisation/clean_selection.
     return {
-        "KNN imputer": {"n_neighbors": 5, "weights": "distance"},
-        "KNN": {"n_neighbors": 5, "weights": "distance"},
-        # Stops by itself once converged. Heavy missingness can need over a thousand rounds.
-        ITERATIVE: {"max_iter": 2000, "tol": 1e-3, "initial_strategy": "median"},
-        "Random Forest": {"n_estimators": 200, "min_samples_leaf": 2},
-        "HistGradientBoosting": {"max_iter": 200, "learning_rate": 0.1, "l2_regularization": 1.0},
-        "CatBoost": {"iterations": 250, "depth": 6, "learning_rate": 0.05},
-        "miceforest direct": {"rounds": 100, "num_leaves": 31, "min_data_in_leaf": 20, "learning_rate": 0.1},
+        "KNN imputer": {"passes": 3, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_neighbors": 80,
+                        "weights": "distance"},
+        ITERATIVE: {"max_iter": 10, "tol": 1e-3, "initial_strategy": "median",
+                    "linear_alpha": 30.0, "curve_alpha": 1000.0},
+        "Random Forest": {"passes": 4, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_estimators": 100,
+                          "min_samples_leaf": 5, "max_samples": 0.5},
+        "HistGradientBoosting": {"passes": 6, "linear_alpha": 30.0, "curve_alpha": 300.0, "max_iter": 400,
+                                 "classifier_rounds": 200, "early_stopping": True, "n_iter_no_change": 20,
+                                 "validation_fraction": 0.15, "learning_rate": 0.05, "max_leaf_nodes": 31,
+                                 "min_samples_leaf": 20, "l2_regularization": 0.0},
+        "CatBoost": {"passes": 4, "linear_alpha": 30.0, "curve_alpha": 300.0, "iterations": 800, "depth": 4,
+                     "learning_rate": 0.1, "patience": 30, "classifier_rounds": 500},
+        "miceforest direct": {"iterations": 3, "rounds": 200, "learning_rate": 0.05, "num_leaves": 31,
+                              "min_data_in_leaf": 20, "feature_fraction": 0.7},
+        # Donor matching compares predictions for rows the model trained on. A model that
+        # fits those rows closely finds donors too similar to the prediction, and the draws
+        # lose their spread, so the two donor-matched models stay deliberately weak.
+        "miceforest PMM": {"iterations": 1, "rounds": 100, "num_leaves": 31, "min_data_in_leaf": 20},
+        "Joint miceforest PMM": {"iterations": 3, "rounds": 100, "learning_rate": 0.05, "num_leaves": 7,
+                                 "min_data_in_leaf": 50, "feature_fraction": 0.7},
     }
 
 
-def default_search():
-    # Values to sample from. IterativeImputer has no entry: its one setting that
-    # matters is the iteration limit, which is decided by convergence.
-    neighbours = {"n_neighbors": [3, 5, 10, 20, 40], "weights": ["uniform", "distance"]}
+def default_explanation():
+    # Single-target models for importance and calibration. A chain covers every column
+    # at once, so a column's influence on one target cannot be read from it.
     return {
-        "KNN imputer": neighbours,
-        "KNN": neighbours,
-        "Random Forest": {"min_samples_leaf": [1, 2, 5, 10, 20], "max_features": [1.0, 0.7, 0.5, 0.33]},
-        "HistGradientBoosting": {
-            "max_iter": [100, 200, 400], "learning_rate": [0.03, 0.05, 0.1, 0.2],
-            "max_leaf_nodes": [15, 31, 63], "min_samples_leaf": [10, 20, 50],
-            "l2_regularization": [0.0, 1.0, 10.0],
-        },
-        "CatBoost": {
-            "iterations": [250, 500, 1000], "depth": [4, 6, 8],
-            "learning_rate": [0.03, 0.05, 0.1], "l2_leaf_reg": [1, 3, 10],
-        },
-        "miceforest direct": {
-            "rounds": [100, 200, 400], "num_leaves": [15, 31, 63],
-            "min_data_in_leaf": [10, 20, 50], "learning_rate": [0.03, 0.05, 0.1],
-        },
+        "Random Forest": {"n_estimators": 200, "min_samples_leaf": 2},
+        "CatBoost": {"iterations": 500, "depth": 6, "learning_rate": 0.1},
     }
 
 
@@ -97,10 +93,7 @@ class StudyConfig:
     stability_seeds: tuple = (220, 221)
     folds: int = 5
     rows: int | None = None  # a smaller sample, for quick checks only
-    tuning_candidates: int = 12
-    tuning_folds: int = 3
-    iterative_budgets: tuple = (10, 30)
-    mice_iterations: int = 5
+    iterative_budgets: tuple = (5, 30)
     pmm_draws: int = 20
     pmm_candidates: int = 5
     interval: tuple = (0.1, 0.9)
@@ -108,43 +101,28 @@ class StudyConfig:
     small_group: int = 30
     material_gap: float = 0.05  # a smaller relative MAE gap is reported as practically tied
     parameters: dict = field(default_factory=default_parameters)
-    search: dict = field(default_factory=default_search)
+    explanation: dict = field(default_factory=default_explanation)
     blocks: dict = field(default_factory=default_blocks)
-    tuned: dict = field(default_factory=dict)  # "method|target" -> chosen settings
 
 
 def quick_config(**changes):
     """Every stage on a small sample with small models. Results are not findings."""
     config = StudyConfig(
-        rows=600, tuning_candidates=2, mice_iterations=2, pmm_draws=3, bootstrap_draws=50,
+        rows=600, pmm_draws=3, bootstrap_draws=50,
         scenarios=("completion0.7-noise0.05", "completion0.8-noise0.0", "completion0.8-noise0.05",
                    "completion0.8-noise0.1", "completion0.9-noise0.05"),
     )
-    config.parameters["Random Forest"]["n_estimators"] = 10
-    config.parameters["HistGradientBoosting"]["max_iter"] = 10
-    config.parameters["CatBoost"]["iterations"] = 10
-    config.parameters["miceforest direct"]["rounds"] = 10
-    config.parameters[ITERATIVE]["max_iter"] = 15
-    config.search["HistGradientBoosting"]["max_iter"] = [10, 20]
-    config.search["CatBoost"]["iterations"] = [10, 20]
-    config.search["miceforest direct"]["rounds"] = [10, 20]
+    config.parameters["KNN imputer"]["passes"] = 2
+    config.parameters["Random Forest"].update(n_estimators=10, passes=2)
+    config.explanation["Random Forest"]["n_estimators"] = 10
+    config.parameters["HistGradientBoosting"].update(max_iter=10, classifier_rounds=10, passes=2)
+    config.parameters["CatBoost"].update(iterations=10, classifier_rounds=10, passes=2)
+    config.explanation["CatBoost"]["iterations"] = 10
+    config.parameters["miceforest direct"].update(rounds=10, iterations=2)
+    config.parameters["miceforest PMM"].update(rounds=10, min_data_in_leaf=10)
+    config.parameters["Joint miceforest PMM"].update(rounds=10, iterations=2, min_data_in_leaf=10)
+    config.parameters[ITERATIVE]["max_iter"] = 3
     return replace(config, **changes)
-
-
-def candidates(method, config):
-    """The default settings plus a seeded random sample of the search space."""
-    space = config.search[method]
-    combos = [dict(zip(space, values)) for values in product(*space.values())]
-    generator = np.random.default_rng(config.seed)
-    chosen = generator.choice(len(combos), min(config.tuning_candidates, len(combos)), replace=False)
-    return [{}] + [combos[int(i)] for i in chosen]
-
-
-def settings_for(method, target, config, tuned=True):
-    settings = dict(config.parameters[method])
-    if tuned:
-        settings.update(config.tuned.get(f"{method}|{target}", {}))
-    return settings
 
 
 @dataclass(frozen=True)
@@ -162,21 +140,6 @@ class Task:
         return hashlib.sha256(json.dumps(asdict(self), sort_keys=True).encode()).hexdigest()[:20]
 
 
-def build_tuning_plan(config):
-    plan = []
-    for method in TUNED_METHODS:
-        if method == "KNN imputer":
-            targets = NUMERIC_TARGETS
-        elif method == "KNN":
-            targets = (CATEGORY_TARGET,)
-        else:
-            targets = TARGETS
-        for target in targets:
-            for index in range(len(candidates(method, config))):
-                plan.append(Task(config.representative, "tuning", str(index), config.seed, 0, target, method))
-    return plan
-
-
 def build_plan(names, config):
     """Every planned fit. The folds of a seed are shared by all methods and scenarios."""
     plan = []
@@ -188,11 +151,14 @@ def build_plan(names, config):
     def add_full_set(scenario, experiment, seed, fold):
         for target in NUMERIC_TARGETS:
             for method in NUMERIC_METHODS:
-                if method != ITERATIVE:
+                if method != ITERATIVE and method not in CHAINED_CLASSES:
                     add(scenario, experiment, "all predictors", seed, fold, target, method)
         for method in CATEGORY_METHODS:
-            add(scenario, experiment, "all predictors", seed, fold, CATEGORY_TARGET, method)
+            if method not in CHAINED_CLASSES:
+                add(scenario, experiment, "all predictors", seed, fold, CATEGORY_TARGET, method)
         add(scenario, experiment, "all predictors", seed, fold, ALL_NUMERIC, ITERATIVE)
+        for method in CHAINED_CLASSES:
+            add(scenario, experiment, "all predictors", seed, fold, ALL_COLUMNS, method)
 
     representative = config.representative
     for name in names:
@@ -202,10 +168,6 @@ def build_plan(names, config):
         for fold in folds:
             add_full_set(representative, "stability", seed, fold)
     for fold in folds:
-        for target in TARGETS:
-            for method in CATEGORY_METHODS if target == CATEGORY_TARGET else NUMERIC_METHODS:
-                if method in TUNED_METHODS:
-                    add(representative, "defaults", "default settings", config.seed, fold, target, method)
         for budget in config.iterative_budgets:
             add(representative, "budget", str(budget), config.seed, fold, ALL_NUMERIC, f"{ITERATIVE} ({budget})")
         for target in NUMERIC_TARGETS:
@@ -215,15 +177,11 @@ def build_plan(names, config):
             add(representative, "calibration", variant, config.seed, fold, CATEGORY_TARGET,
                 "Random Forest calibrated")
     for name in config.noise_series:
-        for variant, dropped in config.blocks.items():
+        for variant in config.blocks:
             for fold in folds:
                 add(name, "ablation", variant, config.seed, fold, ALL_NUMERIC, ITERATIVE)
-                for target in TARGETS:
-                    if target in dropped:
-                        continue
-                    methods = ABLATION_CATEGORY_METHODS if target == CATEGORY_TARGET else ABLATION_METHODS
-                    for method in methods:
-                        add(name, "ablation", variant, config.seed, fold, target, method)
+                for method in ABLATION_CHAINS:
+                    add(name, "ablation", variant, config.seed, fold, ALL_COLUMNS, method)
         for target in TARGETS:
             for method in IMPORTANCE_METHODS:
                 add(name, "importance", "all predictors", config.seed, 0, target, method)
@@ -277,9 +235,7 @@ def _full_probabilities(classes, values):
 
 def _point_task(task, config, train, test, drop):
     """Fit one target on one fold; returns predictions for its originally missing test cells."""
-    settings = settings_for(task.method, task.target, config, tuned=task.experiment != "defaults") \
-        if task.method in config.parameters else {}
-    model = make_model(task.method, task.target, config, settings, task.seed + task.fold, drop)
+    model = make_model(task.method, task.target, config, {}, task.seed + task.fold, drop)
     hidden = test[task.target].isna()
     started = time.perf_counter()
     model.fit(train)
@@ -297,7 +253,7 @@ def _point_task(task, config, train, test, drop):
 def _iterative_task(task, config, train, test, drop):
     """One chained fit supplies every numeric target for this fold."""
     budget = int(task.variant) if task.experiment == "budget" else None
-    model = ChainedLinearImputer(config.parameters[ITERATIVE], task.seed + task.fold, drop, budget)
+    model = ChainedRidgeImputer(config.parameters[ITERATIVE], task.seed + task.fold, drop, budget)
     started = time.perf_counter()
     model.fit(train)
     fitted = time.perf_counter()
@@ -310,9 +266,27 @@ def _iterative_task(task, config, train, test, drop):
     return frame, None, fitted - started, time.perf_counter() - fitted, {"n_iter": int(model.n_iter_)}
 
 
+def _chained_task(task, config, train, test, drop):
+    """One chained fit supplies every column for this fold."""
+    model = CHAINED_CLASSES[task.method](config.parameters[task.method], task.seed + task.fold, drop)
+    started = time.perf_counter()
+    model.fit(train)
+    fitted = time.perf_counter()
+    filled, probabilities = model.predict(test)
+    frames = []
+    for target in filled.columns:
+        hidden = test[target].isna()
+        frames.append(_rows(target, test.index[hidden], filled.loc[hidden, target]))
+    hidden = test[CATEGORY_TARGET].isna().to_numpy()
+    shares = _full_probabilities(model.classes_, probabilities[hidden])
+    labels = shares.argmax(axis=1).astype(float)
+    frames.append(_rows(CATEGORY_TARGET, test.index[hidden], labels, labels, shares))
+    return pd.concat(frames, ignore_index=True), None, fitted - started, time.perf_counter() - fitted, {}
+
+
 def _pmm_task(task, config, train, test):
-    settings = settings_for("miceforest direct", task.target, config)
-    model = MiceforestModel(task.target, config, settings, task.seed + task.fold, draws=config.pmm_draws)
+    settings = config.parameters["miceforest PMM"]
+    model = MiceforestModel(task.target, config, settings, task.seed + task.fold, config.pmm_draws)
     hidden = test[task.target].isna()
     started = time.perf_counter()
     model.fit(train)
@@ -327,8 +301,7 @@ def _pmm_task(task, config, train, test):
 
 
 def _joint_task(task, config, train, test):
-    # One shared setting: a joint model has no per-target settings to tune.
-    model = JointModel(config, config.parameters["miceforest direct"], task.seed + task.fold)
+    model = JointModel(config, config.parameters["Joint miceforest PMM"], task.seed + task.fold)
     started = time.perf_counter()
     model.fit(train)
     fitted = time.perf_counter()
@@ -351,8 +324,7 @@ def _joint_task(task, config, train, test):
 
 
 def _calibration_task(task, config, train, test, drop):
-    settings = settings_for("Random Forest", CATEGORY_TARGET, config)
-    model = CalibratedForest(settings, task.seed + task.fold, drop)
+    model = CalibratedForest(config.explanation["Random Forest"], task.seed + task.fold, drop)
     hidden = test[CATEGORY_TARGET].isna()
     started = time.perf_counter()
     model.fit(train)
@@ -365,8 +337,7 @@ def _calibration_task(task, config, train, test, drop):
 
 def _importance_task(task, config, train, test):
     """Permutation importance on held-out observed labels of the measured data."""
-    settings = settings_for(task.method, task.target, config)
-    model = make_model(task.method, task.target, config, settings, task.seed + task.fold)
+    model = make_model(task.method, task.target, config, config.explanation[task.method], task.seed + task.fold)
     started = time.perf_counter()
     model.fit(train)
     fitted = time.perf_counter()
@@ -391,32 +362,6 @@ def _importance_task(task, config, train, test):
     return pd.DataFrame(entries), None, fitted - started, time.perf_counter() - fitted, {}
 
 
-def _tuning_task(task, config, measured):
-    """Cross-validate one candidate on observed labels only; truth is not involved."""
-    index = int(task.variant)
-    settings = {**config.parameters[task.method], **candidates(task.method, config)[index]}
-    observed = np.flatnonzero(measured[task.target].notna().to_numpy())
-    losses = []
-    started = time.perf_counter()
-    splitter = KFold(config.tuning_folds, shuffle=True, random_state=config.seed)
-    for fold, (_, held) in enumerate(splitter.split(observed)):
-        validation = measured.iloc[observed[held]]
-        train = measured.drop(index=validation.index)
-        model = make_model(task.method, task.target, config, settings, config.seed + fold).fit(train)
-        labels = validation[task.target].to_numpy()
-        if model.categorical:
-            probabilities = _full_probabilities(model.classes_, model.predict_proba(validation))
-            chosen = probabilities[np.arange(len(labels)), labels.astype(int)]
-            losses.append(float(-np.log(np.maximum(chosen, 1e-12)).mean()))
-        else:
-            losses.append(float(np.mean(np.abs(model.predict(validation) - labels))))
-    frame = pd.DataFrame([{
-        "method": task.method, "target": task.target, "candidate": index,
-        "loss": float(np.mean(losses)), "settings": json.dumps(settings, sort_keys=True),
-    }])
-    return frame, None, time.perf_counter() - started, 0.0, {}
-
-
 def execute_task(task, config, root, run_directory):
     """Run one task in a worker. The JSON marker is written last and commits the result."""
     folder = Path(run_directory) / "tasks"
@@ -432,10 +377,10 @@ def execute_task(task, config, root, run_directory):
     with threadpool_limits(limits=1), warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         try:
-            if task.experiment == "tuning":
-                outcome = _tuning_task(task, config, measured)
-            elif task.method.startswith(ITERATIVE):
+            if task.method.startswith(ITERATIVE):
                 outcome = _iterative_task(task, config, train, test, drop)
+            elif task.target == ALL_COLUMNS:
+                outcome = _chained_task(task, config, train, test, drop)
             elif task.experiment == "pmm":
                 outcome = _pmm_task(task, config, train, test)
             elif task.experiment == "joint":
@@ -470,9 +415,8 @@ def run_contract(root, config, names):
     """Everything that must match for an interrupted run to be resumed."""
     source = Path(__file__).parent
     scenarios = discover(Path(root) / config.data_directory)
-    settings = {k: v for k, v in asdict(config).items() if k != "tuned"}
     return {
-        "config": json.loads(json.dumps(settings, default=str)),
+        "config": json.loads(json.dumps(asdict(config), default=str)),
         "inputs": {s: [file_hash(scenarios[s].measured), file_hash(scenarios[s].truth)] for s in names},
         "source": {p.name: file_hash(p) for p in sorted(source.glob("*.py"))},
     }
@@ -543,15 +487,3 @@ def load_outputs(log, run_directory, suffix=".parquet", experiments=None):
                     frame[key] = getattr(row, key)
             frames.append(frame)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-
-def select_parameters(tuning_log, run_directory, config):
-    """Pick the candidate with the lowest cross-validated loss; returns settings and the record."""
-    results = load_outputs(tuning_log, run_directory)
-    best = results.loc[results.groupby(["method", "target"]).loss.idxmin()]
-    default = results[results.candidate.eq(0)].set_index(["method", "target"]).loss.rename("default loss")
-    table = best.set_index(["method", "target"]).join(default).reset_index()
-    table["loss change"] = table.loss / table["default loss"] - 1
-    tuned = {f"{row.method}|{row.target}": json.loads(row.settings) for row in table.itertuples()}
-    columns = ["method", "target", "candidate", "default loss", "loss", "loss change", "settings"]
-    return tuned, table[columns].rename(columns={"loss": "tuned loss"})
