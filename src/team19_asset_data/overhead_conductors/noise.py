@@ -1,9 +1,9 @@
-"""Controlled predictor-noise scenarios for overhead-conductor experiments.
+"""Controlled attribute-noise scenarios for overhead-conductor experiments.
 
 The module keeps the complete clean reference untouched and creates separate
-observed views with documented predictor errors.  It deliberately does not
-modify ``material`` or ``conductor_type``: the former is the evaluation target
-and the latter is a known leakage field.
+observed views with documented errors. Legacy predictor-noise scenarios leave
+material untouched; explicitly configured mixed-noise scenarios may corrupt
+material as an imputation target. The leakage field conductor_type is protected.
 """
 
 from __future__ import annotations
@@ -38,7 +38,6 @@ REQUIRED_COLUMNS = [
 PROTECTED_COLUMNS = {
     "segment_id",
     "feeder_id",
-    "material",
     "conductor_type",
     "data_status",
     "record_version",
@@ -54,6 +53,7 @@ CATEGORICAL_VALUES = {
     "location_group": {"Rural", "Regional", "Urban"},
     "corrosion_zone": {"Low", "Severe", "Very Severe"},
     "covering": {"Bare", "Covered"},
+    "material": {"Steel", "Copper", "Aluminium"},
 }
 
 
@@ -235,6 +235,87 @@ def _apply_categorical_replacement(
         changed[column] = int(len(indices))
 
 
+def _mixed_column_rng(seed: int, column: str) -> np.random.Generator:
+    """Give each attribute a reproducible random stream across noise levels."""
+    payload = f"random_mixed:{seed}:{column}".encode("utf-8")
+    column_seed = int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
+    return np.random.default_rng(column_seed)
+
+
+def _nested_sample_indices(
+    rng: np.random.Generator,
+    index: pd.Index,
+    rate: float,
+) -> pd.Index:
+    """Choose a nested set of rows so 10% is contained in 30%, then 50%."""
+    count = int(round(len(index) * rate))
+    if rate > 0 and count == 0 and len(index) > 0:
+        count = 1
+    if count == 0:
+        return index[:0]
+    order = rng.permutation(len(index))
+    return index.take(order[: min(count, len(index))])
+
+
+def _apply_random_mixed(
+    observed: pd.DataFrame,
+    scenario: NoiseScenario,
+    changed: dict[str, int],
+    snapshot_year: int,
+) -> None:
+    """Corrupt selected numerical and categorical fields in one scenario.
+
+    Reuse the existing column bounds and category replacement rules from main.
+    Each column has its own deterministic stream, with nested row selections
+    when scenarios use the same seed and different noise levels.
+    """
+    numeric_columns = {"installation_year", "distance_to_sea_km", "length_km"}
+    supported_columns = numeric_columns | set(CATEGORICAL_VALUES)
+    unsupported = [
+        column for column in scenario.columns
+        if column not in supported_columns or column in PROTECTED_COLUMNS
+    ]
+    if unsupported:
+        raise ValueError(f"Unsupported mixed-noise columns: {unsupported}")
+    if len(set(scenario.columns)) != len(scenario.columns):
+        raise ValueError("random_mixed columns must not contain duplicates")
+    if not (set(scenario.columns) & numeric_columns) or not (
+        set(scenario.columns) & set(CATEGORICAL_VALUES)
+    ):
+        raise ValueError("random_mixed needs numerical and categorical attributes")
+
+    for column in scenario.columns:
+        rng = _mixed_column_rng(scenario.seed, column)
+        eligible = observed.index[observed[column].notna()]
+        indices = _nested_sample_indices(rng, eligible, scenario.noise_level)
+
+        if column == "installation_year":
+            signs = rng.choice(np.array([-1, 1]), size=len(indices))
+            new_years = observed.loc[indices, column].astype(int) + (
+                signs * scenario.year_step
+            )
+            observed.loc[indices, column] = (
+                _clip_numeric(column, new_years).round().astype(int)
+            )
+        elif column in {"distance_to_sea_km", "length_km"}:
+            relative_error = rng.uniform(
+                -scenario.noise_level, scenario.noise_level, size=len(indices)
+            )
+            new_values = observed.loc[indices, column].astype(float) * (
+                1.0 + relative_error
+            )
+            observed.loc[indices, column] = _clip_numeric(column, new_values)
+        else:
+            values = observed[column].copy()
+            _replace_categories(values, indices, rng)
+            observed.loc[:, column] = values
+
+        changed[column] = int(len(indices))
+
+    if "installation_year" in scenario.columns:
+        observed["asset_age"] = snapshot_year - observed["installation_year"]
+        changed["asset_age"] = changed["installation_year"]
+
 def _apply_group_numeric(
     observed: pd.DataFrame,
     scenario: NoiseScenario,
@@ -277,6 +358,8 @@ def apply_noise(
         pass
     elif scenario.strategy == "random_numeric":
         _apply_random_numeric(observed, scenario, rng, changed)
+    elif scenario.strategy == "random_mixed":
+        _apply_random_mixed(observed, scenario, changed, snapshot_year)
     elif scenario.strategy == "systematic_numeric":
         _apply_systematic_numeric(observed, scenario, changed)
     elif scenario.strategy == "installation_year_error":
@@ -491,7 +574,7 @@ def _write_markdown_report(
         "- Random scenarios change a controlled fraction of predictor cells and are suitable for robustness curves.",
         "- Systematic and group-dependent scenarios represent structured data-quality problems and should not be averaged together with random noise.",
         "- Installation-year noise is propagated to asset age to preserve the source data contract.",
-        "- `material` and `conductor_type` remain unchanged in every scenario.",
+        "- `conductor_type` remains protected in every scenario; `material` may change only when explicitly listed in a mixed-noise scenario.",
         "- Method comparisons are intentionally deferred to the next ticket.",
     ]
     report = output / "noise_quality_report.md"
