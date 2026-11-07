@@ -1,0 +1,121 @@
+# Imputation configuration for overhead conductors (seven-attribute schema).
+#
+# columns.numeric + columns.categorical are the model attributes every method
+# may use as predictors and must fill; they must equal model_attributes in
+# data_schema.yaml. columns.excluded lists every other column that may be
+# present in the input; those are carried through unchanged and never used for
+# prediction (preprocessing.feature_selection enforces this against
+# data_schema.yaml before any method runs).
+#
+# Methods
+#   simple                 mean/mode reference (legacy module, kept verbatim)
+#   missforest             original transductive MissForest (whole-table, iterates to convergence)
+#   predictive_missforest  fit/transform adaptation with frozen sequential replay
+#
+# selected_hyperparameters overrides the method defaults below. It is written
+# by experiments/hyperparameter_tuning/run_tuning.py and read by the pipeline;
+# the pipeline itself never tunes.
+
+version: 2
+
+asset_class: "overhead_conductors"
+
+columns:
+
+  numeric:
+    - installation_year
+    - distance_to_sea_km
+
+  categorical:
+    - voltage_category
+    - location_group
+    - corrosion_zone
+    - material
+    - covering
+
+  excluded:
+    - segment_id
+    - feeder_id
+    - conductor_type
+    - asset_age
+    - length_km
+    - data_status
+    - record_version
+
+
+# Post-imputation constraints (integer rounding, min/max) come from the column
+# ranges in data_schema.yaml; the pipeline passes the schema to
+# load_imputation_config, which builds them. A "constraints:" section may be
+# added here only for older callers and must then match the schema exactly.
+
+
+methods:
+
+  simple:
+    numeric_strategy: "mean"
+    categorical_strategy: "mode"
+
+  # Reference baseline used in every report. Fitted on the same records as
+  # the main method; median for numeric columns, deterministic mode for
+  # categorical columns.
+  median_mode:
+    numeric_strategy: "median"
+    categorical_strategy: "mode"
+
+  missforest:
+    n_estimators: 100
+    max_iter: 20
+    random_state: 219
+    n_jobs: 1            # 1 keeps runs bit-for-bit reproducible; -1 for speed
+    max_features: "sqrt"
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null
+
+  predictive_missforest:
+    n_estimators: 100
+    n_passes: 5
+    random_state: 219
+    n_jobs: 1            # 1 keeps runs bit-for-bit reproducible; -1 for speed
+    max_features: "sqrt"
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null
+    numeric_init: "mean"
+    unknown_category_policy: "ignore"
+    min_observed_target: 2
+
+
+# Overrides the matching methods.<name> defaults when the pipeline builds a
+# method. Remove a method key to fall back to the defaults above. Everything
+# below the marker line is rewritten by run_tuning.py --write-config.
+# >>> managed by experiments/hyperparameter_tuning/run_tuning.py >>>
+selected_hyperparameters:
+  predictive_missforest:
+    max_depth: 8
+    min_samples_leaf: 10
+  missforest:
+    max_depth: 8
+    min_samples_leaf: 10
+tuning_provenance:
+  script: experiments/hyperparameter_tuning/run_tuning.py
+  run: 20261022T130052Z
+  input: data/sample/conductors_synthetic_masked.csv
+  objective: all_attributes
+  grid:
+    max_depth:
+    - 8
+    - 16
+    - null
+    min_samples_leaf:
+    - 5
+    - 10
+    - 20
+  repeats: 3
+  mask_rate: 0.25
+  fit_rows: 7500
+  validation_rows: 2500
+  selected_objective_mean: 0.5973242247753502
+  selected_objective_std: 0.01116276751745335
+  best_objective_mean: 0.5885222852282065
+  baseline_objective_mean: 0.6719730825954086

@@ -1,0 +1,88 @@
+# Asset-local settings for overhead conductors.
+#
+# Paths are relative to this asset configuration directory unless absolute. Every setting can
+# be overridden on the command line (see `oc-pipeline all --help`).
+
+version: 1
+
+# release: every stage checks config/approvals.json and refuses to run on a
+#          configuration file that is invalid, edited since approval, or never
+#          approved (oc-pipeline config check / approve).
+# development: the same check runs and is recorded, but the stage continues.
+execution:
+  # The config layout changed; previous hashes are no longer approved.
+  # Switch to release only after reviewing and re-approving this asset profile.
+  mode: development
+
+seed: 219
+
+paths:
+  data_schema: data_schema.yaml
+  cleaning_rules: cleaning_rules.yaml
+  imputation: imputation.yaml
+
+stages:
+  quality: true        # schema / duplicate / range checks -> quality_report.csv
+  profiling: true      # missingness, distributions, relationships -> profile/
+  cleaning: true       # documented corrections -> cleaned.csv + cleaning_log.csv
+  imputation: true     # the configured method -> imputed.csv + diagnostics.csv
+  validation: true     # integrity, distribution and reconstruction checks -> validation/
+  reporting: true      # report.html
+
+quality:
+  # Stop the pipeline when the quality stage reports an error-level issue
+  # (missing required column, duplicate identifiers, no observed target values).
+  fail_on_error: true
+
+imputation:
+  method: predictive_missforest    # median_mode | missforest | predictive_missforest
+  reference_method: median_mode    # also run and shown next to the main method; null to skip
+  save_model: true                 # predictive only: write model.joblib + provenance sidecar
+  # Optional run-time overrides of imputation.yaml (development use; leave empty for releases)
+  overrides: {}
+
+validation:
+  # Reconstruction check: hide a fraction of CURRENTLY OBSERVED cells of every
+  # model attribute, run the configured method on the masked table, and score
+  # the hidden cells against the values that were hidden. This measures
+  # "how well are known values reconstructed", not "how right are the imputed
+  # originally-missing values" (those have no truth).
+  reconstruction:
+    enabled: true
+    mask_rate: 0.10
+    mask_seed: 319
+    repeats: 1                     # >1 averages over independently drawn masks
+    stratify_categorical: true     # every class with >= 2 observed cells gets hidden cells
+    include_reference: true        # score reference_method on the identical hidden cells
+  distribution:
+    enabled: true
+    year_bin_width: 10             # decade bins for the installation_year x material joint check
+
+confidence:
+  low_confidence_fraction: 0.10    # bottom 10% of imputed cells per column are listed
+  min_rows: 20
+
+# Evaluation MODE (`oc-pipeline evaluate`): records with known true values are
+# partitioned by identifier (grouped by feeder so no feeder straddles
+# partitions), gaps are filled, and only hidden cells of the TEST partition
+# are scored. The validation partition is reserved for hyperparameter tuning
+# (experiments) and is never scored here. This is separate from the
+# operational same-table reconstruction check under validation.reconstruction.
+evaluation:
+  split:
+    fit: 0.60
+    validation: 0.15
+    test: 0.25
+    seed: 219
+    strategy: group                # group (by group_column) | row
+    group_column: feeder_id
+  mask:                            # used only when no masked input is supplied
+    rate: 0.20                     # share of observed cells hidden, per model attribute, inside each partition
+    seed: 419
+    repeats: 1
+  protocols: [unseen_records, transductive]
+  methods: null                    # null -> the configured method and its reference; or a list
+
+report:
+  title: "Overhead Conductors - Data Quality and Imputation Report"
+  embed_figures: true              # base64-embed PNGs so the HTML is a single file

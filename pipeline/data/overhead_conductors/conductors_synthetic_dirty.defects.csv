@@ -1,0 +1,437 @@
+segment_id,column,original,injected,defect
+SEG_007174,material,Steel,galvanised steel,label_variant
+SEG_007716,material,Copper,CU,label_variant
+SEG_004725,material,Steel,galvanised steel,label_variant
+SEG_002946,material,Copper,CU,label_variant
+SEG_002419,material,Steel, steel ,label_variant
+SEG_000027,material,Steel,galvanised steel,label_variant
+SEG_001700,material,Aluminium,AL,label_variant
+SEG_006873,material,Steel,STEEL,label_variant
+SEG_001478,material,Steel, steel ,label_variant
+SEG_009239,material,Copper,copper,label_variant
+SEG_006440,material,Steel,galvanised steel,label_variant
+SEG_008090,material,Steel,St,label_variant
+SEG_005645,material,Steel,galvanised steel,label_variant
+SEG_008427,material,Steel,St,label_variant
+SEG_001212,material,Steel,galvanised steel,label_variant
+SEG_007945,material,Steel,St,label_variant
+SEG_009788,material,Steel,STEEL,label_variant
+SEG_002813,material,Steel,St,label_variant
+SEG_004846,material,Steel,St,label_variant
+SEG_006429,material,Steel,St,label_variant
+SEG_000609,material,Copper,HDC,label_variant
+SEG_003599,material,Steel,St,label_variant
+SEG_002202,material,Steel,St,label_variant
+SEG_004694,material,Steel,galvanised steel,label_variant
+SEG_007042,material,Steel,St,label_variant
+SEG_006758,material,Steel, steel ,label_variant
+SEG_000240,material,Steel,St,label_variant
+SEG_001455,material,Steel,galvanised steel,label_variant
+SEG_000498,material,Steel, steel ,label_variant
+SEG_002226,material,Steel,St,label_variant
+SEG_001098,material,Aluminium,AL,label_variant
+SEG_002896,material,Steel,STEEL,label_variant
+SEG_003430,material,Steel,St,label_variant
+SEG_000683,material,Steel, steel ,label_variant
+SEG_000244,material,Steel, steel ,label_variant
+SEG_007458,material,Steel,St,label_variant
+SEG_004720,material,Steel,galvanised steel,label_variant
+SEG_003325,material,Copper,CU,label_variant
+SEG_008130,material,Steel,galvanised steel,label_variant
+SEG_000167,material,Steel,STEEL,label_variant
+SEG_000970,material,Steel,galvanised steel,label_variant
+SEG_001828,material,Steel, steel ,label_variant
+SEG_006835,material,Copper,copper,label_variant
+SEG_008023,material,Steel, steel ,label_variant
+SEG_000410,material,Steel,STEEL,label_variant
+SEG_008761,material,Steel,St,label_variant
+SEG_005138,material,Steel,St,label_variant
+SEG_009763,material,Steel, steel ,label_variant
+SEG_002535,material,Steel,galvanised steel,label_variant
+SEG_001443,material,Steel,St,label_variant
+SEG_003699,material,Steel, steel ,label_variant
+SEG_009198,material,Copper,HDC,label_variant
+SEG_002391,material,Steel,St,label_variant
+SEG_006855,material,Copper,HDC,label_variant
+SEG_008770,material,Steel,STEEL,label_variant
+SEG_001911,material,Steel,galvanised steel,label_variant
+SEG_009812,material,Copper,CU,label_variant
+SEG_001914,material,Steel,galvanised steel,label_variant
+SEG_004435,material,Steel, steel ,label_variant
+SEG_001783,material,Steel,galvanised steel,label_variant
+SEG_009806,voltage_category,LV,lv,label_variant
+SEG_003102,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_005049,voltage_category,LV,lv,label_variant
+SEG_006763,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_007997,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_004001,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_008014,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_005916,voltage_category,LV,Low voltage,label_variant
+SEG_007738,voltage_category,19 kV SWER,SWER,label_variant
+SEG_002832,voltage_category,19 kV SWER,SWER,label_variant
+SEG_005647,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_003633,voltage_category,19 kV SWER,SWER,label_variant
+SEG_001352,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_008594,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_000945,voltage_category,19 kV SWER,SWER,label_variant
+SEG_007552,voltage_category,LV,lv,label_variant
+SEG_009222,voltage_category,19 kV SWER,SWER,label_variant
+SEG_008634,voltage_category,LV,lv,label_variant
+SEG_000079,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_002079,voltage_category,33 kV,33kv,label_variant
+SEG_005876,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_008462,voltage_category,LV,lv,label_variant
+SEG_009477,voltage_category,LV,lv,label_variant
+SEG_005180,voltage_category,19 kV SWER,SWER,label_variant
+SEG_008274,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_000094,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_000796,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_004009,voltage_category,33 kV,33kv,label_variant
+SEG_008998,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_002753,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_007547,voltage_category,19 kV SWER,SWER,label_variant
+SEG_001177,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_005252,voltage_category,33 kV,33kv,label_variant
+SEG_003584,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_004851,voltage_category,19 kV SWER,SWER,label_variant
+SEG_000361,voltage_category,19 kV SWER,SWER,label_variant
+SEG_007984,voltage_category,LV,lv,label_variant
+SEG_003655,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_003906,voltage_category,LV,Low voltage,label_variant
+SEG_006549,voltage_category,LV,Low voltage,label_variant
+SEG_009380,voltage_category,LV,lv,label_variant
+SEG_007309,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_001848,voltage_category,LV,Low voltage,label_variant
+SEG_009248,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_006402,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_004897,voltage_category,11/7.6 kV,11kV,label_variant
+SEG_001819,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_001547,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_005610,voltage_category,LV,lv,label_variant
+SEG_006069,voltage_category,19 kV SWER,SWER,label_variant
+SEG_006043,voltage_category,LV,Low voltage,label_variant
+SEG_007426,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_004777,voltage_category,19 kV SWER,19kV SWER,label_variant
+SEG_000834,voltage_category,11/7.6 kV,11 kv,label_variant
+SEG_003863,voltage_category,33 kV,33kv,label_variant
+SEG_007072,voltage_category,LV,lv,label_variant
+SEG_002565,voltage_category,LV,lv,label_variant
+SEG_002204,location_group,Urban,urban,label_variant
+SEG_003356,location_group,Urban,Metro,label_variant
+SEG_005025,location_group,Rural,rural ,label_variant
+SEG_009808,location_group,Rural,RURAL,label_variant
+SEG_002002,location_group,Urban,urban,label_variant
+SEG_009206,location_group,Urban,urban,label_variant
+SEG_006628,location_group,Rural,RURAL,label_variant
+SEG_000669,location_group,Urban,Metro,label_variant
+SEG_001740,location_group,Rural,RURAL,label_variant
+SEG_009601,location_group,Urban,urban,label_variant
+SEG_007753,location_group,Rural,rural ,label_variant
+SEG_009106,location_group,Rural,rural ,label_variant
+SEG_009684,location_group,Urban,Metro,label_variant
+SEG_009950,location_group,Urban,urban,label_variant
+SEG_007489,location_group,Urban,Metro,label_variant
+SEG_008851,location_group,Urban,Metro,label_variant
+SEG_002409,location_group,Rural,rural ,label_variant
+SEG_007993,location_group,Rural,RURAL,label_variant
+SEG_003887,location_group,Rural,RURAL,label_variant
+SEG_008719,location_group,Urban,Metro,label_variant
+SEG_007744,location_group,Rural,rural ,label_variant
+SEG_009040,location_group,Urban,urban,label_variant
+SEG_004498,location_group,Rural,RURAL,label_variant
+SEG_004104,location_group,Rural,RURAL,label_variant
+SEG_002514,location_group,Rural,RURAL,label_variant
+SEG_003478,location_group,Rural,RURAL,label_variant
+SEG_007528,location_group,Rural,rural ,label_variant
+SEG_008399,location_group,Rural,RURAL,label_variant
+SEG_000276,location_group,Urban,Metro,label_variant
+SEG_005497,location_group,Rural,RURAL,label_variant
+SEG_001014,location_group,Rural,rural ,label_variant
+SEG_004181,location_group,Rural,rural ,label_variant
+SEG_008865,location_group,Rural,rural ,label_variant
+SEG_005954,location_group,Urban,Metro,label_variant
+SEG_004362,location_group,Rural,rural ,label_variant
+SEG_001217,location_group,Rural,rural ,label_variant
+SEG_006881,location_group,Rural,rural ,label_variant
+SEG_001882,location_group,Rural,RURAL,label_variant
+SEG_005181,location_group,Urban,Metro,label_variant
+SEG_003915,location_group,Rural,RURAL,label_variant
+SEG_002668,location_group,Rural,RURAL,label_variant
+SEG_008586,location_group,Rural,RURAL,label_variant
+SEG_007467,location_group,Urban,Metro,label_variant
+SEG_009485,location_group,Rural,RURAL,label_variant
+SEG_000630,location_group,Urban,Metro,label_variant
+SEG_003504,location_group,Urban,urban,label_variant
+SEG_002313,location_group,Rural,rural ,label_variant
+SEG_007445,location_group,Rural,RURAL,label_variant
+SEG_000403,corrosion_zone,Very Severe,very-severe,label_variant
+SEG_002736,corrosion_zone,Very Severe,VERY SEVERE,label_variant
+SEG_009580,corrosion_zone,Low,L,label_variant
+SEG_005353,corrosion_zone,Low,L,label_variant
+SEG_007013,corrosion_zone,Low,L,label_variant
+SEG_005089,corrosion_zone,Low,low,label_variant
+SEG_001127,corrosion_zone,Low,L,label_variant
+SEG_003959,corrosion_zone,Very Severe,VERY SEVERE,label_variant
+SEG_008976,corrosion_zone,Low,L,label_variant
+SEG_004899,corrosion_zone,Low,L,label_variant
+SEG_005146,corrosion_zone,Low,low,label_variant
+SEG_005504,corrosion_zone,Low,L,label_variant
+SEG_007510,corrosion_zone,Low,L,label_variant
+SEG_009095,corrosion_zone,Low,low,label_variant
+SEG_007370,corrosion_zone,Very Severe,very-severe,label_variant
+SEG_007702,corrosion_zone,Low,low,label_variant
+SEG_006336,corrosion_zone,Low,L,label_variant
+SEG_000462,corrosion_zone,Low,L,label_variant
+SEG_002355,corrosion_zone,Low,L,label_variant
+SEG_008250,corrosion_zone,Low,low,label_variant
+SEG_004378,corrosion_zone,Low,low,label_variant
+SEG_006554,corrosion_zone,Low,low,label_variant
+SEG_005561,corrosion_zone,Low,low,label_variant
+SEG_006355,corrosion_zone,Low,low,label_variant
+SEG_001654,corrosion_zone,Low,low,label_variant
+SEG_003830,corrosion_zone,Very Severe,VERY SEVERE,label_variant
+SEG_004463,corrosion_zone,Low,low,label_variant
+SEG_001396,corrosion_zone,Low,L,label_variant
+SEG_003181,corrosion_zone,Low,low,label_variant
+SEG_007285,corrosion_zone,Low,low,label_variant
+SEG_003427,corrosion_zone,Very Severe,VERY SEVERE,label_variant
+SEG_003332,corrosion_zone,Low,L,label_variant
+SEG_002393,corrosion_zone,Low,low,label_variant
+SEG_006659,corrosion_zone,Low,L,label_variant
+SEG_006131,corrosion_zone,Low,low,label_variant
+SEG_001415,corrosion_zone,Low,L,label_variant
+SEG_008642,corrosion_zone,Very Severe,Very  Severe,label_variant
+SEG_002265,corrosion_zone,Low,L,label_variant
+SEG_008587,corrosion_zone,Low,L,label_variant
+SEG_000560,covering,Bare,Uncovered,label_variant
+SEG_007981,covering,Bare,Uncovered,label_variant
+SEG_005781,covering,Bare,bare,label_variant
+SEG_007983,covering,Bare,Uncovered,label_variant
+SEG_002512,covering,Bare,bare,label_variant
+SEG_002205,covering,Bare,Uncovered,label_variant
+SEG_001593,covering,Bare,Uncovered,label_variant
+SEG_007666,covering,Bare,Uncovered,label_variant
+SEG_002814,covering,Bare,bare,label_variant
+SEG_006384,covering,Bare,bare,label_variant
+SEG_002809,covering,Bare,bare,label_variant
+SEG_003699,covering,Bare,Uncovered,label_variant
+SEG_004714,covering,Bare,Uncovered,label_variant
+SEG_009970,covering,Bare,Uncovered,label_variant
+SEG_002058,covering,Bare,bare,label_variant
+SEG_001962,covering,Bare,bare,label_variant
+SEG_001480,covering,Bare,Uncovered,label_variant
+SEG_008825,covering,Bare,Uncovered,label_variant
+SEG_000247,covering,Bare,bare,label_variant
+SEG_001657,covering,Bare,bare,label_variant
+SEG_003206,covering,Bare,Uncovered,label_variant
+SEG_002215,covering,Bare,bare,label_variant
+SEG_002355,covering,Bare,bare,label_variant
+SEG_002261,covering,Bare,Uncovered,label_variant
+SEG_007471,covering,Bare,Uncovered,label_variant
+SEG_005282,covering,Bare,bare,label_variant
+SEG_009415,covering,Bare,bare,label_variant
+SEG_009954,covering,Bare,Uncovered,label_variant
+SEG_004539,covering,Bare,bare,label_variant
+SEG_008782,covering,Bare,bare,label_variant
+SEG_003068,covering,Bare,Uncovered,label_variant
+SEG_003119,covering,Bare,bare,label_variant
+SEG_004270,covering,Bare,bare,label_variant
+SEG_004740,covering,Bare,bare,label_variant
+SEG_005185,covering,Bare,Uncovered,label_variant
+SEG_006642,covering,Bare,Uncovered,label_variant
+SEG_002231,covering,Bare,Uncovered,label_variant
+SEG_002124,covering,Bare,Uncovered,label_variant
+SEG_001690,covering,Bare,bare,label_variant
+SEG_008077,covering,Bare,Uncovered,label_variant
+SEG_007010,covering,Bare,Uncovered,label_variant
+SEG_008743,covering,Bare,bare,label_variant
+SEG_009895,covering,Bare,Uncovered,label_variant
+SEG_007158,covering,Bare,Uncovered,label_variant
+SEG_004469,covering,Bare,bare,label_variant
+SEG_001075,covering,Bare,bare,label_variant
+SEG_003529,covering,Bare,bare,label_variant
+SEG_009630,covering,Bare,bare,label_variant
+SEG_009811,covering,Bare,bare,label_variant
+SEG_000207,covering,Bare,Uncovered,label_variant
+SEG_000284,covering,Bare,Uncovered,label_variant
+SEG_000732,covering,Bare,Uncovered,label_variant
+SEG_003743,covering,Bare,bare,label_variant
+SEG_003349,covering,Bare,Uncovered,label_variant
+SEG_003837,covering,Bare,bare,label_variant
+SEG_007348,covering,Bare,Uncovered,label_variant
+SEG_008437,covering,Bare,bare,label_variant
+SEG_004580,covering,Bare,Uncovered,label_variant
+SEG_008872,covering,Bare,bare,label_variant
+SEG_003614,covering,Bare,bare,label_variant
+SEG_002852,material,,N/A,missing_token
+SEG_007317,material,,null,missing_token
+SEG_008095,material,,unknown,missing_token
+SEG_000508,material,,-,missing_token
+SEG_005611,material,,unknown,missing_token
+SEG_002521,material,,unknown,missing_token
+SEG_005624,material,,unknown,missing_token
+SEG_000938,material,,NA,missing_token
+SEG_000211,material,,unknown,missing_token
+SEG_005296,material,,-,missing_token
+SEG_003555,material,,null,missing_token
+SEG_007457,material,,unknown,missing_token
+SEG_004514,material,,null,missing_token
+SEG_002315,material,,N/A,missing_token
+SEG_001246,material,,NA,missing_token
+SEG_005418,material,,-,missing_token
+SEG_004974,material,,-,missing_token
+SEG_003405,material,,null,missing_token
+SEG_008319,material,,null,missing_token
+SEG_000714,material,,null,missing_token
+SEG_009403,material,,NA,missing_token
+SEG_005350,material,,-,missing_token
+SEG_007970,material,,N/A,missing_token
+SEG_000191,material,,null,missing_token
+SEG_004168,material,,-,missing_token
+SEG_004167,installation_year,,null,missing_token
+SEG_007310,installation_year,,N/A,missing_token
+SEG_003225,installation_year,,N/A,missing_token
+SEG_007595,installation_year,,N/A,missing_token
+SEG_007210,installation_year,,N/A,missing_token
+SEG_002650,installation_year,,-,missing_token
+SEG_005034,installation_year,,-,missing_token
+SEG_008876,installation_year,,N/A,missing_token
+SEG_002082,installation_year,,NA,missing_token
+SEG_002759,installation_year,,unknown,missing_token
+SEG_000620,installation_year,,null,missing_token
+SEG_006333,installation_year,,null,missing_token
+SEG_004469,installation_year,,N/A,missing_token
+SEG_005800,installation_year,,-,missing_token
+SEG_006608,installation_year,,-,missing_token
+SEG_000379,installation_year,,N/A,missing_token
+SEG_007996,installation_year,,NA,missing_token
+SEG_001231,installation_year,,N/A,missing_token
+SEG_008603,installation_year,,N/A,missing_token
+SEG_003089,installation_year,,N/A,missing_token
+SEG_000509,installation_year,,null,missing_token
+SEG_002315,installation_year,,N/A,missing_token
+SEG_008907,installation_year,,NA,missing_token
+SEG_007292,installation_year,,NA,missing_token
+SEG_003386,installation_year,,NA,missing_token
+SEG_009883,distance_to_sea_km,,N/A,missing_token
+SEG_008229,distance_to_sea_km,,NA,missing_token
+SEG_006128,distance_to_sea_km,,null,missing_token
+SEG_009767,distance_to_sea_km,,N/A,missing_token
+SEG_003963,distance_to_sea_km,,-,missing_token
+SEG_009665,distance_to_sea_km,,-,missing_token
+SEG_007466,distance_to_sea_km,,unknown,missing_token
+SEG_007202,distance_to_sea_km,,unknown,missing_token
+SEG_000499,distance_to_sea_km,,-,missing_token
+SEG_008265,distance_to_sea_km,,N/A,missing_token
+SEG_005409,distance_to_sea_km,,-,missing_token
+SEG_001371,distance_to_sea_km,,NA,missing_token
+SEG_005726,distance_to_sea_km,,unknown,missing_token
+SEG_006910,distance_to_sea_km,,-,missing_token
+SEG_009477,distance_to_sea_km,,N/A,missing_token
+SEG_001231,distance_to_sea_km,,unknown,missing_token
+SEG_009827,distance_to_sea_km,,null,missing_token
+SEG_003073,distance_to_sea_km,,null,missing_token
+SEG_000267,distance_to_sea_km,,NA,missing_token
+SEG_005923,distance_to_sea_km,,N/A,missing_token
+SEG_006321,distance_to_sea_km,,-,missing_token
+SEG_005992,distance_to_sea_km,,-,missing_token
+SEG_009747,distance_to_sea_km,,N/A,missing_token
+SEG_008309,distance_to_sea_km,,-,missing_token
+SEG_005815,distance_to_sea_km,,-,missing_token
+SEG_005078,covering,,NA,missing_token
+SEG_005809,covering,,unknown,missing_token
+SEG_009307,covering,,NA,missing_token
+SEG_003600,covering,,null,missing_token
+SEG_007775,covering,,unknown,missing_token
+SEG_003658,covering,,N/A,missing_token
+SEG_000518,covering,,null,missing_token
+SEG_004040,covering,,unknown,missing_token
+SEG_000771,covering,,null,missing_token
+SEG_001111,covering,,-,missing_token
+SEG_004266,covering,,null,missing_token
+SEG_001534,covering,,unknown,missing_token
+SEG_007520,covering,,-,missing_token
+SEG_005147,covering,,-,missing_token
+SEG_007604,covering,,N/A,missing_token
+SEG_009998,covering,,N/A,missing_token
+SEG_000238,covering,,-,missing_token
+SEG_003384,covering,,null,missing_token
+SEG_002482,covering,,N/A,missing_token
+SEG_003543,covering,,null,missing_token
+SEG_004111,covering,,-,missing_token
+SEG_009761,covering,,null,missing_token
+SEG_003110,covering,,unknown,missing_token
+SEG_009832,covering,,null,missing_token
+SEG_009278,covering,,N/A,missing_token
+SEG_001491,installation_year,1951.0,2031,sentinel_or_out_of_range
+SEG_008314,installation_year,1962.0,9999,sentinel_or_out_of_range
+SEG_004764,installation_year,1971.0,9999,sentinel_or_out_of_range
+SEG_008863,installation_year,1958.0,2031,sentinel_or_out_of_range
+SEG_003137,installation_year,1956.0,0,sentinel_or_out_of_range
+SEG_009526,installation_year,1963.0,9999,sentinel_or_out_of_range
+SEG_005701,installation_year,1974.0,1899,sentinel_or_out_of_range
+SEG_008069,installation_year,1952.0,9999,sentinel_or_out_of_range
+SEG_006948,installation_year,1952.0,1899,sentinel_or_out_of_range
+SEG_004753,installation_year,1951.0,9999,sentinel_or_out_of_range
+SEG_009428,installation_year,1963.0,0,sentinel_or_out_of_range
+SEG_003105,installation_year,1979.0,0,sentinel_or_out_of_range
+SEG_006158,installation_year,1956.0,9999,sentinel_or_out_of_range
+SEG_006274,installation_year,1993.0,9999,sentinel_or_out_of_range
+SEG_007966,installation_year,1951.0,2031,sentinel_or_out_of_range
+SEG_001221,installation_year,1991.0,2031,sentinel_or_out_of_range
+SEG_000983,installation_year,1965.0,9999,sentinel_or_out_of_range
+SEG_006864,installation_year,1991.0,2031,sentinel_or_out_of_range
+SEG_004930,installation_year,1962.0,9999,sentinel_or_out_of_range
+SEG_008085,installation_year,1982.0,9999,sentinel_or_out_of_range
+SEG_009069,installation_year,1961.0,2031,sentinel_or_out_of_range
+SEG_000439,installation_year,1958.0,2031,sentinel_or_out_of_range
+SEG_007128,installation_year,1958.0,2031,sentinel_or_out_of_range
+SEG_000945,installation_year,1958.0,0,sentinel_or_out_of_range
+SEG_000150,installation_year,1975.0,9999,sentinel_or_out_of_range
+SEG_000808,installation_year,1958.0,2031,sentinel_or_out_of_range
+SEG_003862,installation_year,1987.0,2031,sentinel_or_out_of_range
+SEG_003482,installation_year,1966.0,1899,sentinel_or_out_of_range
+SEG_008339,installation_year,1958.0,2031,sentinel_or_out_of_range
+SEG_009469,installation_year,1966.0,9999,sentinel_or_out_of_range
+SEG_003812,installation_year,1958.0,1958.0.0,float_formatted_integer
+SEG_006020,installation_year,1956.0,1956.0.0,float_formatted_integer
+SEG_000892,installation_year,1958.0,1958.0.0,float_formatted_integer
+SEG_008228,installation_year,1955.0,1955.0.0,float_formatted_integer
+SEG_008203,installation_year,1956.0,1956.0.0,float_formatted_integer
+SEG_005101,installation_year,1960.0,1960.0.0,float_formatted_integer
+SEG_004169,installation_year,1958.0,1958.0.0,float_formatted_integer
+SEG_005277,installation_year,1983.0,1983.0.0,float_formatted_integer
+SEG_006651,installation_year,1966.0,1966.0.0,float_formatted_integer
+SEG_005486,installation_year,1956.0,1956.0.0,float_formatted_integer
+SEG_000377,distance_to_sea_km,158.33,n/a,non_numeric_or_sentinel
+SEG_003872,distance_to_sea_km,100.94,n/a,non_numeric_or_sentinel
+SEG_007792,distance_to_sea_km,63.72,n/a,non_numeric_or_sentinel
+SEG_009954,distance_to_sea_km,34.14,n/a,non_numeric_or_sentinel
+SEG_002449,distance_to_sea_km,52.49,9999,non_numeric_or_sentinel
+SEG_000783,distance_to_sea_km,243.09,abc,non_numeric_or_sentinel
+SEG_004019,distance_to_sea_km,39.77,-1,non_numeric_or_sentinel
+SEG_003220,distance_to_sea_km,25.44,n/a,non_numeric_or_sentinel
+SEG_002223,distance_to_sea_km,6.92,"12,5",non_numeric_or_sentinel
+SEG_002529,distance_to_sea_km,24.7,"12,5",non_numeric_or_sentinel
+SEG_006114,distance_to_sea_km,44.82,9999,non_numeric_or_sentinel
+SEG_003389,distance_to_sea_km,14.46,9999,non_numeric_or_sentinel
+SEG_002964,segment_id,SEG_002964, SEG_002964 ,whitespace
+SEG_003452,segment_id,SEG_003452, SEG_003452 ,whitespace
+SEG_006187,segment_id,SEG_006187, SEG_006187 ,whitespace
+SEG_000892,segment_id,SEG_000892, SEG_000892 ,whitespace
+SEG_007654,segment_id,SEG_007654, SEG_007654 ,whitespace
+SEG_001352,segment_id,SEG_001352, SEG_001352 ,whitespace
+SEG_001979,segment_id,SEG_001979, SEG_001979 ,whitespace
+SEG_002301,segment_id,SEG_002301, SEG_002301 ,whitespace
+SEG_008800,segment_id,SEG_008800, SEG_008800 ,whitespace
+SEG_003427,segment_id,SEG_003427, SEG_003427 ,whitespace
+SEG_009920,segment_id,SEG_009920, SEG_009920 ,whitespace
+SEG_006600,segment_id,SEG_006600, SEG_006600 ,whitespace
+SEG_009354,segment_id,SEG_009354, SEG_009354 ,whitespace
+SEG_003062,segment_id,SEG_003062, SEG_003062 ,whitespace
+SEG_000852,segment_id,SEG_000852, SEG_000852 ,whitespace
+SEG_004571,*,,duplicate row,exact_duplicate_row
+SEG_001942,*,,duplicate row,exact_duplicate_row
+SEG_006154,*,,duplicate row,exact_duplicate_row
+SEG_009236,*,,duplicate row,exact_duplicate_row
+SEG_009482,*,,duplicate row,exact_duplicate_row

@@ -1,0 +1,140 @@
+# Cleaning rules for overhead-conductor records.
+#
+# Every correction the cleaner makes is written to cleaning_log.csv with the
+# record identifier, column, old value, new value and the rule that fired.
+# Nothing is changed silently, and the cleaner never fills missing values:
+# that is the imputation stage's job. `plan_changes` runs the same rules as a
+# dry run so the planned changes can be reviewed before they are applied.
+#
+# Rule families and who may approve them (see the `approval` section):
+#   spelling_variants  other spellings, cases or abbreviations of an allowed
+#                      label ("aluminum", "CU", "33kv") - no domain decision
+#   code_mappings      a code or product designation INTERPRETED as a label
+#                      ("ACSR" -> Aluminium, "ABC" -> Covered) - a domain
+#                      decision; never applied until the data owner approves
+#   sentinel_values, out_of_range, unknown_category, non_integer, non_numeric
+#                      policies that discard or alter observed values - need
+#                      the data owner's approval for the dataset at hand
+#
+# Rule order inside the cleaner:
+#   1. text normalisation (whitespace, missing tokens)
+#   2. categorical labels: case, spelling variants, approved code mappings, unknown labels
+#   3. numeric coercion, sentinel values, range checks, integer rounding
+#   4. duplicate identifiers
+
+version: 2
+
+text:
+  strip_whitespace: true              # "  Steel " -> "Steel"
+  collapse_internal_whitespace: true  # "Very   Severe" -> "Very Severe"
+
+categorical:
+  # What to do with a label that is neither allowed nor mapped after the rules
+  # above: `keep` leaves it (it is then treated as an observed category by the
+  # imputer, which would also impute it into other records); `missing` removes
+  # it so the cell is imputed and the label is listed for the data owner to map.
+  unknown_category_action: missing
+
+  spelling_variants:
+    voltage_category:
+      "lv": "LV"
+      "low voltage": "LV"
+      "11kv": "11/7.6 kV"
+      "11 kv": "11/7.6 kV"
+      "11/7.6kv": "11/7.6 kV"
+      "11/7.6 kv": "11/7.6 kV"
+      "19kv swer": "19 kV SWER"
+      "19 kv swer": "19 kV SWER"
+      "swer": "19 kV SWER"
+      "33kv": "33 kV"
+      "33 kv": "33 kV"
+      "66kv": "66 kV"
+      "66 kv": "66 kV"
+    location_group:
+      "urb": "Urban"
+      "reg": "Regional"
+      "rur": "Rural"
+    corrosion_zone:
+      "l": "Low"
+      "s": "Severe"
+      "vs": "Very Severe"
+      "very-severe": "Very Severe"
+      "verysevere": "Very Severe"
+    material:
+      "al": "Aluminium"
+      "aluminum": "Aluminium"
+      "alum": "Aluminium"
+      "cu": "Copper"
+      "st": "Steel"
+      "galvanised steel": "Steel"
+      "galvanized steel": "Steel"
+    covering:
+      "bare conductor": "Bare"
+      "uncovered": "Bare"
+      "covered conductor": "Covered"
+
+  # Interpretations of conductor-type codes and product names. These are
+  # statements about SA Power Networks' asset register, not about spelling,
+  # and stay switched off (approval.code_mappings.approved: false) until the
+  # data owner confirms each one. Values matching an unapproved mapping are
+  # counted in the cleaning summary (pending_code_mappings) and, with
+  # unknown_category_action: missing, become missing and are imputed.
+  code_mappings:
+    material:
+      "aac": "Aluminium"
+      "aaac": "Aluminium"
+      "acsr": "Aluminium"
+      "hdc": "Copper"
+      "sc/gz": "Steel"
+      "sc/ac": "Steel"
+    location_group:
+      "metro": "Urban"
+      "metropolitan": "Urban"
+    covering:
+      "insulated": "Covered"
+      "abc": "Covered"
+
+numeric:
+  non_numeric_action: missing       # missing | error
+  out_of_range_action: missing      # missing | keep | error
+  sentinel_action: missing          # missing | keep
+  non_integer_action: round         # round | missing | error   (integer columns)
+
+duplicates:
+  exact_duplicate_action: drop      # drop | keep | error
+  duplicate_id_action: error        # error | keep_first
+
+# Who accepted each policy FOR THE DATASET THIS FILE IS USED WITH. The
+# approvals below were given by Team 19 for the synthetic sample data; they
+# are not SAPN approvals and must be re-issued by the data owner before the
+# rules run on real records (docs/DATA_HANDLING.md). An unapproved family is
+# skipped and listed under inactive_families in the cleaning summary.
+approval:
+  code_mappings:
+    requires_domain_approval: true
+    approved: false
+    approved_by: null
+    note: "Conductor-type and product codes are domain interpretations; confirm each with SAPN before enabling."
+  sentinel_values:
+    requires_domain_approval: true
+    approved: true
+    approved_by: "Team 19 (synthetic sample only)"
+    note: "0 and 9999 in installation_year, -1 and 9999 in distance_to_sea_km stand for unknown in the synthetic defects."
+  out_of_range:
+    requires_domain_approval: true
+    approved: true
+    approved_by: "Team 19 (synthetic sample only)"
+    note: "Years outside [1900, snapshot_year] and distances outside [0, 400] km are treated as unknown."
+  unknown_category:
+    requires_domain_approval: true
+    approved: true
+    approved_by: "Team 19 (synthetic sample only)"
+    note: "Labels outside the allowed list become missing and are imputed; they are listed for mapping."
+  non_integer:
+    requires_domain_approval: true
+    approved: true
+    approved_by: "Team 19 (synthetic sample only)"
+    note: "Fractional years are rounded to the nearest year."
+  non_numeric:
+    requires_domain_approval: false
+    note: "Text in a numeric column cannot be kept; it becomes missing and is logged."

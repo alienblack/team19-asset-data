@@ -1,0 +1,85 @@
+# Provisional transformer profile for the supplied 10,000-row paired synthetic benchmark.
+# Excluded features are intentionally conservative pending domain confirmation.
+version: 1
+asset_class: transformers
+id_column: row_id
+id_generation: row_number
+# These columns are unnoised in the supplied 0.90/0.05 scenario and help
+# detect accidental row shuffling between measured and truth files.
+id_alignment_columns: [x, y, install_date, model_id, altitude]
+snapshot_year: 2026
+missing_tokens: ["", "NA", "N/A", "null", "None", "?"]
+column_mapping: {}
+columns:
+  row_id:
+    dtype: string
+    role: identifier
+    required: false
+  x:
+    dtype: integer
+    role: predictor
+    min: 0
+    max: 99
+  y:
+    dtype: integer
+    role: predictor
+    min: 0
+    max: 99
+  install_date:
+    dtype: integer
+    role: target
+    min: 0
+    max: 1500
+  model_id:
+    dtype: category
+    role: target
+    allowed: ["0", "1", "2", "3"]
+  altitude:
+    dtype: integer
+    role: predictor
+    min: 0
+    max: 1000
+  measured_humid:
+    dtype: float
+    role: predictor
+    min: 0
+  measured_salt:
+    dtype: float
+    role: predictor
+    min: 0
+  measured_overgrowth:
+    dtype: float
+    role: predictor
+    min: 0
+  life:
+    dtype: float
+    role: passthrough
+  random_placebo:
+    dtype: float
+    role: passthrough
+  measured_gas_a:
+    dtype: float
+    role: passthrough
+  measured_gas_b:
+    dtype: float
+    role: passthrough
+  measured_gas_c:
+    dtype: float
+    role: passthrough
+  total_gas:
+    dtype: float
+    role: passthrough
+  leakage:
+    dtype: float
+    role: passthrough
+primary_targets: [install_date, model_id]
+model_attributes: [x, y, install_date, model_id, altitude, measured_humid, measured_salt, measured_overgrowth]
+forbidden_predictors:
+  - row_id
+  - life
+  - random_placebo
+  - measured_gas_a
+  - measured_gas_b
+  - measured_gas_c
+  - total_gas
+  - leakage

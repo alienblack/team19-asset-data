@@ -1,0 +1,162 @@
+# Data schema for overhead-conductor asset records.
+#
+# This file is the single description of what a conductor record looks like
+# once it enters the pipeline. It drives ingestion (column mapping), data
+# quality checks, profiling, feature selection (leakage guard) and derived
+# fields. The imputation method configuration lives in imputation.yaml and is
+# cross-checked against this schema by preprocessing.feature_selection.
+#
+# Roles
+#   identifier  unique record key; never used for prediction
+#   group       grouping key (e.g. feeder) for group-aware evaluation splits;
+#               never used for prediction
+#   target      attribute the project is asked to reconstruct; also usable as a
+#               predictor for the other attributes
+#   predictor   approved model attribute
+#   derived     computed from another column AFTER imputation; never a predictor
+#   passthrough carried through unchanged; never a predictor
+
+version: 1
+asset_class: overhead_conductors
+
+id_column: segment_id
+
+# Reference year for age-type derived fields (asset_age = snapshot_year - installation_year).
+# Set this to the extract date of the dataset being processed. Every column that
+# feeds such a derivation is bound to it with "max: snapshot_year" below, so an
+# installation year after the snapshot cannot be accepted or imputed.
+snapshot_year: 2014
+
+# Tokens that mean "missing" in the source file (matched after whitespace trimming,
+# case-insensitively). Empty cells are always missing.
+missing_tokens: ["", "NA", "N/A", "NaN", "null", "NULL", "None", "-", "--", "?", "unknown", "UNKNOWN"]
+
+# Rename partner column names to the canonical names used below.
+# Keys are source names, values are canonical names. Leave empty when the
+# source already uses canonical names.
+column_mapping: {}
+
+columns:
+  segment_id:
+    dtype: string
+    role: identifier
+    required: true
+
+  feeder_id:
+    dtype: string
+    role: group
+    required: false
+
+  installation_year:
+    dtype: integer
+    role: target
+    required: true
+    min: 1900
+    max: snapshot_year        # resolved to snapshot_year (2014); also the imputation constraint
+    sentinel_values: [0, 9999]
+
+  distance_to_sea_km:
+    dtype: float
+    role: predictor
+    required: true
+    min: 0.0                  # min/max of numeric model attributes are also the imputation constraints
+    max: 400.0
+    sentinel_values: [-1, 9999]
+
+  voltage_category:
+    dtype: category
+    role: predictor
+    required: true
+    allowed: ["LV", "11/7.6 kV", "19 kV SWER", "33 kV", "66 kV"]
+
+  location_group:
+    dtype: category
+    role: predictor
+    required: true
+    allowed: ["Urban", "Regional", "Rural"]
+
+  corrosion_zone:
+    dtype: category
+    role: predictor
+    required: true
+    allowed: ["Low", "Severe", "Very Severe"]
+
+  material:
+    dtype: category
+    role: target
+    required: true
+    allowed: ["Aluminium", "Copper", "Steel"]
+
+  covering:
+    dtype: category
+    role: predictor
+    required: true
+    allowed: ["Bare", "Covered"]
+
+  asset_age:
+    dtype: integer
+    role: derived
+    required: false
+    derive:
+      method: snapshot_year_minus
+      source: installation_year
+      # recover_source: when installation_year is missing but asset_age is
+      # observed, installation_year = snapshot_year - asset_age is restored
+      # before imputation (provenance "derived", never "imputed"). Evaluation
+      # masks hide asset_age together with a hidden installation_year, so the
+      # recovery cannot leak a hidden truth.
+      recover_source: true
+
+  conductor_type:
+    dtype: string
+    role: passthrough
+    required: false
+
+  length_km:
+    dtype: float
+    role: passthrough
+    required: false
+    min: 0.0
+
+  data_status:
+    dtype: string
+    role: passthrough
+    required: false
+
+  record_version:
+    dtype: string
+    role: passthrough
+    required: false
+
+# The two attributes the project is judged on: they carry the headline metrics
+# and the tuning-objective weights. They are also model attributes (below), so
+# they are used as predictors for the other attributes when observed.
+# (Older spelling accepted by the parser: "targets".)
+primary_targets: [installation_year, material]
+
+# The seven approved model attributes: every imputation method may use them as
+# predictors and must fill them when missing. Only these may reach a method.
+# (Older spelling accepted by the parser: "allowed_predictors".)
+model_attributes:
+  - installation_year
+  - distance_to_sea_km
+  - voltage_category
+  - location_group
+  - corrosion_zone
+  - material
+  - covering
+
+# Columns that must never reach an imputer as predictors. asset_age is a
+# deterministic function of installation_year (target leakage); conductor_type
+# and length_km were generator shortcuts in the synthetic data and are not
+# approved attributes; identifiers and bookkeeping columns carry no physics.
+# length_km therefore keeps its gaps: they are reported as "unresolved" in the
+# output provenance rather than filled.
+forbidden_predictors:
+  - segment_id
+  - feeder_id
+  - asset_age
+  - conductor_type
+  - length_km
+  - data_status
+  - record_version

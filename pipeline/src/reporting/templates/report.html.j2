@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<style>
+  :root { --ink: #0b0b0b; --muted: #52514e; --line: #e6e5e1; --surface: #fcfcfb; --panel: #f4f3f0; --accent: #2a78d6; --good: #008300; --bad: #e34948; --warn: #c98500; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--surface); }
+  header { padding: 28px 32px 18px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0 0 6px; font-size: 24px; }
+  header .meta { color: var(--muted); font-size: 13px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 8px 32px 48px; }
+  nav { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line); padding: 8px 32px; font-size: 13px; z-index: 2; }
+  nav a { margin-right: 14px; color: var(--accent); text-decoration: none; }
+  section { margin-top: 36px; }
+  h2 { font-size: 19px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 15px; margin: 22px 0 6px; }
+  p.lead { color: var(--muted); margin: 0 0 12px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: var(--panel); border-radius: 8px; padding: 12px 14px; }
+  .card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .card .value { font-size: 22px; font-weight: 600; margin-top: 2px; }
+  .card .ref { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .card.good .value { color: var(--good); } .card.bad .value { color: var(--bad); }
+  .table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0 4px; }
+  .table th, .table td { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  .table th { background: var(--panel); font-weight: 600; }
+  .scroll .table th { position: sticky; top: 0; }
+  .table td:first-child, .table th:first-child { padding-left: 4px; }
+  .scroll { max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+  figure { margin: 14px 0; }
+  figure img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; }
+  .note { background: var(--panel); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 14px; margin: 12px 0; }
+  code, pre { font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--panel); padding: 10px 12px; border-radius: 6px; overflow: auto; }
+  .status-pass { color: var(--good); font-weight: 600; } .status-fail { color: var(--bad); font-weight: 600; }
+  .small { font-size: 13px; color: var(--muted); }
+  ul.files { columns: 2; font-size: 12.5px; }
+  @media (max-width: 720px) { header, main, nav { padding-left: 16px; padding-right: 16px; } ul.files { columns: 1; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ title }}</h1>
+  <div class="meta">
+    Generated {{ generated }} · pipeline version {{ package_version }} · Python {{ versions.python_version }} · scikit-learn {{ versions.sklearn_version }} · pandas {{ versions.pandas_version }}<br>
+    Input: <code>{{ input }}</code> · Run directory: <code>{{ run_dir }}</code>
+  </div>
+</header>
+<nav>
+  <a href="#summary">Summary</a><a href="#configuration">Configuration</a><a href="#quality">Data quality</a><a href="#cleaning">Cleaning</a><a href="#profile">Profile</a><a href="#imputation">Imputation</a><a href="#validation">Validation</a>{% if evaluation %}<a href="#evaluation">Evaluation (known truth)</a>{% endif %}<a href="#reading">How to read this</a><a href="#files">Files</a>
+</nav>
+<main>
+
+<section id="summary">
+  <h2>Summary</h2>
+  <div class="cards">
+    {% for c in cards %}<div class="card {{ c.status or '' }}"><div class="label">{{ c.label }}</div><div class="value">{{ c.value }}</div></div>{% endfor %}
+  </div>
+  {% if recon_cards %}
+  <h3>Reconstruction of deliberately hidden known values ({{ method }})</h3>
+  <div class="cards">
+    {% for c in recon_cards %}<div class="card"><div class="label">{{ c.label }}</div><div class="value">{{ c.value }}</div><div class="ref">{{ c.reference }}{% if c.note %} · {{ c.note }}{% endif %}</div></div>{% endfor %}
+  </div>
+  <p class="small">Hidden-value reconstruction measures how well the method recovers values that were known and temporarily hidden on this same table. {% if evaluation %}The section <a href="#evaluation">Evaluation against known truth</a> scores a record-disjoint test partition against a complete reference.{% else %}Without a complete reference it is the only accuracy that can be measured; the originally missing values have no truth to compare with.{% endif %}</p>
+  {% endif %}
+</section>
+
+<section id="configuration">
+  <h2>Configuration</h2>
+  {% if configuration %}
+  <p class="lead">Execution mode <strong>{{ configuration.execution_mode }}</strong>{% if configuration.refused %} — <span class="status-fail">the run was refused on this configuration</span>{% elif configuration.all_approved %} — all four files approved at the content hashes below{% else %} — <span class="status-fail">unapproved or changed files</span> (development run){% endif %}.</p>
+  {% if config_states_table %}{{ config_states_table|safe }}{% endif %}
+  {% if config_findings_table %}<h3>Findings from the configuration check</h3>{{ config_findings_table|safe }}{% endif %}
+  <p class="small">Approvals are recorded in <code>config/approvals.json</code> as SHA-256 hashes of each file; an edit invalidates the approval. Approvals marked "synthetic sample only" were given by the project team for the synthetic data and are not SA Power Networks approvals.</p>
+  {% else %}<p class="small">No configuration record for this run.</p>{% endif %}
+</section>
+
+<section id="quality">
+  <h2>Data quality</h2>
+  {% if quality %}
+  <p class="lead">{{ quality.n_rows }} records, {{ quality.n_columns }} columns · {{ quality.n_errors }} errors, {{ quality.n_warnings }} warnings, {{ quality.n_info }} informational findings. Source copied unchanged to <code>source_records.csv</code>.</p>
+  {% if quality.renamed_columns %}<p class="small">Columns renamed by the schema mapping: {{ quality.renamed_columns }}</p>{% endif %}
+  {% if quality_table %}<div class="scroll">{{ quality_table|safe }}</div>{% else %}<p>No findings.</p>{% endif %}
+  {% else %}<p class="small">Quality stage not run.</p>{% endif %}
+</section>
+
+<section id="cleaning">
+  <h2>Cleaning</h2>
+  {% if cleaning %}
+  <p class="lead">{{ cleaning.rows_in }} rows in, {{ cleaning.rows_out }} rows out, {{ cleaning.rows_dropped }} rows dropped, {{ cleaning.cells_changed }} cells changed. Every change is in <code>cleaning_log.csv</code> ({{ cleaning_log_rows }} entries); rules in <code>{{ cleaning.rules }}</code>.</p>
+  {% if cleaning_by_rule %}{{ cleaning_by_rule|safe }}{% endif %}
+  {% if cleaning_inactive %}<div class="note">Rule families skipped for lack of domain approval: <strong>{{ cleaning_inactive|join(', ') }}</strong>.{% if cleaning_pending_codes %} Values matching unapproved code mappings: {% for col, n in cleaning_pending_codes.items() %}<code>{{ col }}</code> {{ n }}{% if not loop.last %}, {% endif %}{% endfor %} — they were treated as unknown labels and listed for the data owner to map.{% endif %}</div>{% endif %}
+  {% if cleaning_log_sample %}<h3>First entries of the cleaning log</h3><div class="scroll">{{ cleaning_log_sample|safe }}</div>{% endif %}
+  <div class="note">The cleaner never fills missing values and never changes a value that no rule covers. Values that fail a rule (non-numeric, out of range, sentinel) become missing and are then candidates for imputation.</div>
+  {% else %}<p class="small">Cleaning stage not run.</p>{% endif %}
+</section>
+
+<section id="profile">
+  <h2>Profile before imputation</h2>
+  {% if profiling %}
+  <p class="lead">{{ profiling.n_rows }} records · {{ profiling.n_model_columns }} model attributes · overall missing rate across model attributes {{ '%.1f%%'|format(100 * profiling.overall_model_missing_rate) }} · {{ profiling.complete_model_rows }} records complete in every model attribute.</p>
+  <h3>Missingness</h3>
+  {{ missingness_table|safe if missingness_table else '' }}
+  {% if patterns_table %}<h3>Most common missingness patterns</h3>{{ patterns_table|safe }}{% endif %}
+  {% if mar_table %}<h3>Where targets go missing more or less often than average</h3><p class="small">Ratio of the target's missing rate within a group to its overall missing rate. Values far from 1.0 indicate that missingness depends on other attributes (missing-at-random evidence), which the forest methods can exploit and the median/mode reference cannot.</p>{{ mar_table|safe }}{% endif %}
+  {% if numeric_summary_table %}<h3>Numeric attributes</h3>{{ numeric_summary_table|safe }}{% endif %}
+  {% if categorical_summary_table %}<h3>Categorical attributes</h3><div class="scroll">{{ categorical_summary_table|safe }}</div>{% endif %}
+  {% if relationships_table %}<h3>Relationships between attributes</h3><p class="small">Spearman correlation (numeric-numeric), eta-squared (numeric-categorical, share of variance explained) and bias-corrected Cramér's V (categorical-categorical) on pairwise-complete records. Weak relationships with a target mean the attributes carry little information for reconstructing it.</p>{{ relationships_table|safe }}{% endif %}
+  <div class="figures">
+    {% for f in profile_figures %}<figure><img src="{{ f.src }}" alt="{{ f.name }}"><figcaption>{{ f.name }}</figcaption></figure>{% endfor %}
+  </div>
+  {% else %}<p class="small">Profiling stage not run.</p>{% endif %}
+</section>
+
+<section id="imputation">
+  <h2>Imputation</h2>
+  {% if imputation %}
+  <p class="lead">Method <strong>{{ method }}</strong>{% if imputation.mode == 'apply' %} applied from saved model <code>{{ imputation.model_path }}</code>{% endif %} on {{ imputation.n_rows }} records; {{ imputation.cells_imputed }} cells filled{% if reference %}; reference method <strong>{{ reference }}</strong> run on the same records (<code>reference_imputed.csv</code>){% endif %}.</p>
+  <h3>Hyperparameters</h3>
+  <pre>{{ hyperparameters | tojson(indent=2) }}</pre>
+  {% if cells_by_column %}<h3>Cells imputed per attribute</h3>{{ cells_by_column|safe }}{% endif %}
+  {% if source_counts %}<h3>Prediction source</h3><p class="small"><code>random_forest</code> cells were predicted by a fitted forest; <code>training_statistic_fallback</code> cells belong to an attribute with too few observed values to fit a forest and received the training statistic instead.</p>{{ source_counts|safe }}{% endif %}
+  {% if convergence_table %}<h3>Convergence</h3><p class="small">Change in imputed values between successive passes/iterations (numeric: normalised squared change; categorical: share of imputed cells that changed).</p><div class="scroll">{{ convergence_table|safe }}</div>{% endif %}
+  {% if recovery_table %}<h3>Deterministic recovery before imputation</h3><p class="small">A missing source restored from its observed derived column (provenance "derived", never "imputed"); values outside the declared range are rejected.</p>{{ recovery_table|safe }}{% endif %}
+  {% if derived_table %}<h3>Derived fields (computed after imputation)</h3>{{ derived_table|safe }}{% endif %}
+  {% if provenance_table %}<h3>Cell provenance of the delivered dataset</h3>
+  <p class="small">Every cell of <code>final_imputed.csv</code> is observed (left untouched), derived (computed by an approved rule), imputed (produced by the method) or unresolved (still missing). Totals: {% for k, v in provenance.totals.items() if k != 'n_cells' %}<strong>{{ k }}</strong> {{ '{:,}'.format(v) }}{% if not loop.last %} · {% endif %}{% endfor %}. Row-level detail for every non-observed cell is in <code>cell_provenance.csv</code>.</p>
+  {{ provenance_table|safe }}
+  {% if provenance.unresolved_columns %}<div class="note">Unresolved cells remain in: {% for col, info in provenance.unresolved_columns.items() %}<code>{{ col }}</code> {{ '{:,}'.format(info.n_cells) }} ({{ info.reason }}){% if not loop.last %}; {% endif %}{% endfor %}. They are reported, not filled.</div>{% endif %}
+  {% endif %}
+  {% if compatibility_warnings %}<div class="note">Saved-model compatibility warnings: {% for w in compatibility_warnings %}{{ w }}{% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+  {% if imputation.model_path %}<p class="small">Fitted model saved to <code>{{ imputation.model_path }}</code> with a provenance sidecar listing fingerprints of the fitting records.</p>{% endif %}
+  {% else %}<p class="small">Imputation stage not run.</p>{% endif %}
+</section>
+
+<section id="validation">
+  <h2>Validation</h2>
+  {% if validation %}
+  <h3>Integrity checks {% if integrity_failed is not none %}<span class="{{ 'status-pass' if integrity_failed == 0 else 'status-fail' }}">{{ 'all passed' if integrity_failed == 0 else (integrity_failed ~ ' failed') }}</span>{% endif %}</h3>
+  <p class="small">Pass/fail conditions every output must meet: nothing observed was altered, every model cell is filled, constraints and vocabularies hold, records are in the original order, derived fields agree with their sources.</p>
+  {% if integrity_table %}<div class="scroll">{{ integrity_table|safe }}</div>{% endif %}
+
+  {% if reconstruction and reconstruction.headline %}
+  <h3>Same-table reconstruction of hidden known values (operational check)</h3>
+  <p class="small">This check runs inside the operational pipeline without any ground truth file: it hides known cells of this very table, refills them and compares. It is <em>not</em> a held-out test on unseen records; for that, see the Evaluation section (evaluation mode) when present. Protocol: {{ reconstruction.protocol }}. {{ '%.0f%%'|format(100 * reconstruction.mask_rate) }} of the observed cells of each attribute were hidden{% if reconstruction.stratified_categorical %}, class by class for categorical attributes{% endif %}, {{ reconstruction.repeats }} time(s). Lower MAE and higher macro-F1 are better; <code>signed_bias</code> is mean(imputed − true). The reference method is scored on the identical hidden cells.</p>
+  {% if recon_table %}<div class="scroll">{{ recon_table|safe }}</div>{% endif %}
+  {% if recon_per_class_table %}<h3>Per-class reconstruction of categorical attributes</h3><p class="small">Recall shows whether minority classes are recovered or absorbed into the majority class.</p><div class="scroll">{{ recon_per_class_table|safe }}</div>{% endif %}
+  {% elif reconstruction and reconstruction.skipped %}
+  <p class="small">Reconstruction check skipped: {{ reconstruction.skipped }}.</p>
+  {% endif %}
+
+  {% if distribution_table %}
+  <h3>Distribution of imputed cells vs observed cells</h3>
+  <p class="small">Diagnostics, not pass/fail: <code>std_ratio</code> below 1 means imputed values are less spread than observed ones (a median fill gives 0); <code>wasserstein_1</code> is the average distributional shift in the attribute's units; <code>total_variation</code> is the share of categorical mass that differs; a <code>majority_share_imputed</code> near 1 means the method mostly returns the majority class. When missingness depends on other attributes, some difference is expected and correct.</p>
+  {{ distribution_table|safe }}
+  {% if joint_shift %}<p class="small">Joint shift of (decade × class) between records complete in both targets and records with at least one imputed target: {% for k, v in joint_shift.items() %}<code>{{ k }}</code> total variation {{ '%.3f'|format(v.total_variation) if v.total_variation is not none else 'n/a' }} ({{ v.n_imputed_rows }} vs {{ v.n_observed_rows }} records){% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+  {% endif %}
+  <div class="figures">
+    {% for f in validation_figures %}<figure><img src="{{ f.src }}" alt="{{ f.name }}"><figcaption>{{ f.name }}</figcaption></figure>{% endfor %}
+  </div>
+
+  <h3>Low-confidence imputations</h3>
+  {% if confidence and confidence.note %}<p class="small">{{ confidence.note }}</p>
+  {% elif confidence %}
+  <p class="small">{{ confidence.n_listed }} of {{ confidence.n_cells }} imputed cells listed (bottom {{ '%.0f%%'|format(100 * confidence.fraction) }} per attribute by forest decisiveness, plus {{ confidence.fallback_cells }} fallback cells). Full list in <code>validation/low_confidence_cells.csv</code>; every imputed cell with its rank in <code>validation/diagnostics_ranked.csv</code>. Confidence here is a within-attribute ranking of vote margin (categorical) or tree spread (numeric), not a calibrated probability.</p>
+  {% if low_confidence_table %}<div class="scroll">{{ low_confidence_table|safe }}</div>{% endif %}
+  {% endif %}
+  {% else %}<p class="small">Validation stage not run.</p>{% endif %}
+</section>
+
+{% if evaluation %}
+<section id="evaluation">
+  <h2>Evaluation against known truth (evaluation mode)</h2>
+  <p class="lead">Records were partitioned by identifier{% if evaluation.partition_strategy == 'group' %}, using the configured group column,{% endif %} into fit ({{ evaluation.partitions.fit }}), validation ({{ evaluation.partitions.validation }}, reserved for tuning, not scored) and test ({{ evaluation.partitions.test }}). Missing cells of the test partition were scored against the reference{% if evaluation.mask_source == 'masked_input' %} (the gaps come from the measured input, which may also contain observation noise){% else %} (masks drawn here at rate {{ '%.0f%%'|format(100 * evaluation.mask_rate) }}, seed {{ evaluation.mask_seed }}, {{ evaluation.repeats }} repeat(s)){% endif %}. Split seed {{ evaluation.split_seed }}.</p>
+  <div class="cards">{% for c in eval_cards %}<div class="card"><div class="label">{{ c.label }}</div><div class="value">{{ c.value }}</div><div class="ref">{{ c.reference }} · {{ c.note }}</div></div>{% endfor %}</div>
+  <p class="small"><code>unseen_records</code>: fitted on the fit partition, applied to the test partition (the fit-once/apply-later use; persistable methods only). <code>transductive</code>: every method fills the fit+test table together and the test cells are scored (the whole-table use, in which Original and Predictive MissForest are compared like for like). <code>within_5_years</code>: share of hidden installation years reconstructed within ±5 years.</p>
+  {% if eval_summary_table %}<div class="scroll">{{ eval_summary_table|safe }}</div>{% endif %}
+  {% if observed_difference_table %}<h3>Observed measurement differences from truth</h3><p class="small">This audit compares existing measured values with ground truth. Differences may reflect observation noise or other errors; they are not imputation errors. Ground truth is used only for evaluation.</p><div class="scroll">{{ observed_difference_table|safe }}</div>{% endif %}
+  {% if eval_per_class_table %}<h3>Per-class reconstruction</h3><div class="scroll">{{ eval_per_class_table|safe }}</div>{% endif %}
+  <div class="figures">{% for f in eval_figures %}<figure><img src="{{ f.src }}" alt="{{ f.name }}"><figcaption>{{ f.name }}</figcaption></figure>{% endfor %}</div>
+  <p class="small">Synthetic-data results describe the synthetic generator, not SA Power Networks records; see docs/LIMITATIONS.md.</p>
+</section>
+{% endif %}
+
+<section id="reading">
+  <h2>How to read this report</h2>
+  <ul>
+    <li><strong>What was measured.</strong> {% if evaluation and evaluation.measured_input %}Paired evaluation scores originally missing measured cells against their supplied ground truth on a held-out test partition. Observed-data noise is audited separately.{% else %}Operational reconstruction hides known cells and refills them; it does not establish the truth of originally missing cells.{% endif %}</li>
+    <li><strong>What the methods are.</strong> <em>median_mode</em> fills every gap with the training median or mode and is the reference every other method must beat. <em>missforest</em> is the original iterative Random Forest imputer (Stekhoven &amp; Bühlmann, 2012), run on the whole table. <em>predictive_missforest</em> is this project's fit/transform adaptation: it fits forests once, freezes them, and can be re-applied to new records; it follows the design of missForestPredict (Albu et al., 2024) and scikit-learn's IterativeImputer.</li>
+    <li><strong>Where to be careful.</strong> If the profile shows weak relationships between a target and the other attributes, no method can reconstruct it well and the reference will be close to the forest methods. If missingness is not at random, reconstruction on hidden known values can overstate performance on the originally missing cells. Imputed values should not be used to fit survival or Weibull models without accounting for this uncertainty.</li>
+    <li><strong>Traceability.</strong> Every table in this report is a CSV in the run directory; <code>run_metadata.json</code> records settings, versions and timings; <code>run.log</code> records the stages as they ran.</li>
+  </ul>
+</section>
+
+<section id="files">
+  <h2>Files in the run directory</h2>
+  <ul class="files">{% for f in files %}<li><code>{{ f }}</code></li>{% endfor %}</ul>
+</section>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Project-local virtual environment and generated files
+.venv/
+outputs/
+models/
+data/raw/
+data/private/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.DS_Store

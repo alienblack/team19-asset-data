@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "updated_utc": "2026-11-01T00:59:23+00:00",
+  "files": {
+    "cleaning_rules.yaml": {
+      "sha256": "2058ab8798033bf047c696091089de23e69b92f0da35796b2ef7cad986b5efc7",
+      "approved_by": "Team 19 (synthetic sample only)",
+      "approved_at": "2026-11-01T00:44:35+00:00",
+      "note": "Approved for the synthetic sample data in data/sample; SAPN must re-approve before use on real records."
+    },
+    "data_schema.yaml": {
+      "sha256": "6a7c9e7395ceaba5b2e3cb5cf0969283a05d204c4e70c0f9cd95b183ed4a666a",
+      "approved_by": "Team 19 (synthetic sample only)",
+      "approved_at": "2026-11-01T00:49:55+00:00",
+      "note": "recover_source added for asset_age -> installation_year; synthetic sample approval only"
+    },
+    "imputation.yaml": {
+      "sha256": "d8e7f98eadd0bf056903b0e738c1426d11a9b0fa56e258ea524785e04b1bab72",
+      "approved_by": "Team 19 (synthetic sample only)",
+      "approved_at": "2026-11-01T00:44:35+00:00",
+      "note": "Approved for the synthetic sample data in data/sample; SAPN must re-approve before use on real records."
+    },
+    "pipeline.yaml": {
+      "sha256": "c3bf13195d6bbfbbab0d0bcfd64a0aff3f0dfd1f9c5a2408979daa8446235e8b",
+      "approved_by": "Team 19 (synthetic sample only)",
+      "approved_at": "2026-11-01T00:59:23+00:00",
+      "note": "evaluation-mode settings added; synthetic sample approval only"
+    }
+  }
+}

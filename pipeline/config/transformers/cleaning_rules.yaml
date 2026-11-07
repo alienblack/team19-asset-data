@@ -1,0 +1,14 @@
+version: 1
+text:
+  strip_whitespace: true
+  collapse_internal_whitespace: true
+categorical:
+  unknown_category_action: missing
+numeric:
+  non_numeric_action: missing
+  out_of_range_action: missing
+  sentinel_action: missing
+  non_integer_action: round
+duplicates:
+  exact_duplicate_action: keep
+  duplicate_id_action: error

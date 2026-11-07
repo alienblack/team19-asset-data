@@ -1,0 +1,46 @@
+# Development-only transformer benchmark; predictor eligibility needs domain review.
+version: 1
+execution:
+  mode: development
+seed: 219
+paths:
+  data_schema: data_schema.yaml
+  cleaning_rules: cleaning_rules.yaml
+  imputation: imputation.yaml
+stages:
+  quality: true
+  profiling: true
+  cleaning: true
+  imputation: true
+  validation: true
+  reporting: true
+quality:
+  fail_on_error: true
+imputation:
+  method: median_mode
+  reference_method: null
+  save_model: true
+validation:
+  reconstruction:
+    enabled: true
+    mask_rate: 0.10
+    repeats: 1
+    include_reference: false
+  distribution:
+    enabled: true
+evaluation:
+  split:
+    strategy: row
+    group_column: null
+    fit: 0.60
+    validation: 0.15
+    test: 0.25
+  mask:
+    rate: 0.10
+    seed: 419
+    repeats: 1
+  protocols: [unseen_records, transductive]
+  methods: [median_mode]
+report:
+  title: "Transformers - Paired Data Imputation Evaluation"
+  embed_figures: true
