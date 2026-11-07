@@ -1,0 +1,79 @@
+{
+  "scenario_id": "N06_mixed_10",
+  "name": "Combined numeric and categorical noise - 10 percent",
+  "strategy": "random_mixed",
+  "seed": 329,
+  "noise_level": 0.1,
+  "noise_level_meaning": "selected_fraction_and_max_relative_error",
+  "nested_selection": true,
+  "columns": [
+    "installation_year",
+    "distance_to_sea_km",
+    "length_km",
+    "voltage_category",
+    "location_group",
+    "corrosion_zone",
+    "material",
+    "covering"
+  ],
+  "snapshot_year": 2014,
+  "selected_counts": {
+    "distance_to_sea_km": 1000,
+    "length_km": 1000,
+    "voltage_category": 1000,
+    "location_group": 1000,
+    "corrosion_zone": 1000,
+    "material": 1000,
+    "covering": 1000,
+    "installation_year": 1000,
+    "asset_age": 1000
+  },
+  "changed_counts": {
+    "distance_to_sea_km": 1000,
+    "length_km": 1000,
+    "voltage_category": 1000,
+    "location_group": 1000,
+    "corrosion_zone": 1000,
+    "material": 1000,
+    "covering": 1000,
+    "installation_year": 995,
+    "asset_age": 995
+  },
+  "realized_rates": {
+    "distance_to_sea_km": 0.1,
+    "length_km": 0.1,
+    "voltage_category": 0.1,
+    "location_group": 0.1,
+    "corrosion_zone": 0.1,
+    "material": 0.1,
+    "covering": 0.1,
+    "installation_year": 0.0995,
+    "asset_age": 0.0995
+  },
+  "protected_columns": [
+    "data_status",
+    "feeder_id",
+    "record_version",
+    "segment_id"
+  ],
+  "truth_sha256": "1f044f5c0c5b4ed75fbe9f2ff269ee1b7594f015cd07d2b30a28896e2a70cb84",
+  "observed_sha256": "74024db6ac3f029a54b514bb60bd72e734e7405c25450fd454d46c5888109d34",
+  "input_file": "/Users/zisanaalam/Desktop/GitHub/team19-asset-data/data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv",
+  "observed_file": "/Users/zisanaalam/Desktop/GitHub/team19-asset-data/outputs/team19_shared/noisy_sources/N06_mixed_10/observed.csv",
+  "truth_file": "/Users/zisanaalam/Desktop/GitHub/team19-asset-data/outputs/team19_shared/noisy_sources/N06_mixed_10/truth.csv",
+  "validation": {
+    "passed": true,
+    "changed_cells": 8990,
+    "changed_columns": [
+      "installation_year",
+      "asset_age",
+      "voltage_category",
+      "location_group",
+      "corrosion_zone",
+      "distance_to_sea_km",
+      "material",
+      "covering",
+      "length_km"
+    ]
+  }
+}
