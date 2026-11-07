@@ -54,7 +54,6 @@ REQUIRED_COLUMNS = [
 PROTECTED_COLUMNS = {
     "segment_id",
     "feeder_id",
-    "material",
     "conductor_type",
     "data_status",
     "record_version",
@@ -70,6 +69,7 @@ CATEGORICAL_VALUES = {
     "location_group": {"Rural", "Regional", "Urban"},
     "corrosion_zone": {"Low", "Severe", "Very Severe"},
     "covering": {"Bare", "Covered"},
+    "material": {"Steel", "Copper", "Aluminium"},
 }
 
 
@@ -288,21 +288,193 @@ def _apply_categorical_replacement(
         changed[column] = int(len(indices))
 
 
+
 def _apply_random_mixed(
     observed: pd.DataFrame,
     scenario: NoiseScenario,
     changed: dict[str, int],
+    snapshot_year: int,
 ) -> None:
-    """Apply independent numeric and categorical corruption at the same rate."""
-    numeric_columns = tuple(c for c in scenario.columns if c in {"length_km", "distance_to_sea_km"})
-    categorical_columns = tuple(c for c in scenario.columns if c in CATEGORICAL_VALUES)
-    unsupported = set(scenario.columns) - set(numeric_columns) - set(categorical_columns)
+    """Apply mixed noise to all eight primary attributes."""
+
+    numeric_columns = tuple(
+        c for c in scenario.columns
+        if c in {"length_km", "distance_to_sea_km"}
+    )
+
+    categorical_columns = tuple(
+        c for c in scenario.columns
+        if c in CATEGORICAL_VALUES
+    )
+
+    year_selected = "installation_year" in scenario.columns
+
+    supported = (
+        set(numeric_columns)
+        | set(categorical_columns)
+        | {"installation_year"}
+    )
+
+    unsupported = set(scenario.columns) - supported
+
     if unsupported:
-        raise ValueError(f"Unsupported mixed-noise columns: {sorted(unsupported)}")
-    if not numeric_columns or not categorical_columns:
-        raise ValueError("random_mixed needs at least one numeric and one categorical column")
-    _apply_random_numeric(observed, scenario, changed, numeric_columns)
-    _apply_categorical_replacement(observed, scenario, changed, categorical_columns)
+        raise ValueError(
+            f"Unsupported mixed-noise columns: {sorted(unsupported)}"
+        )
+
+    if not (numeric_columns or year_selected) or not categorical_columns:
+        raise ValueError(
+            "random_mixed needs numerical and categorical attributes"
+        )
+
+    # Preserve existing numeric noise behaviour.
+    if numeric_columns:
+        _apply_random_numeric(
+            observed, scenario, changed, numeric_columns
+        )
+
+    # Preserve existing categorical noise behaviour.
+    if categorical_columns:
+        _apply_categorical_replacement(
+            observed, scenario, changed, categorical_columns
+        )
+
+    # Installation year requires special handling.
+    if year_selected:
+        rng = _stable_column_rng(
+            scenario.seed,
+            "installation_year_error",
+            "installation_year",
+        )
+
+        eligible = observed.index[
+            observed["installation_year"].notna()
+        ]
+
+        indices = _nested_sample_indices(
+            rng,
+            eligible,
+            scenario.noise_level,
+        )
+
+        signs = rng.choice(
+            np.array([-1, 1]),
+            size=len(indices),
+        )
+
+        new_years = (
+            observed.loc[indices, "installation_year"].astype(int)
+            + signs * scenario.year_step
+        )
+
+        observed.loc[indices, "installation_year"] = (
+            _clip_numeric("installation_year", new_years)
+            .round()
+            .astype(int)
+        )
+
+        # Maintain the installation_year / asset_age relationship.
+        observed["asset_age"] = (
+            snapshot_year - observed["installation_year"]
+        )
+
+        changed["installation_year"] = len(indices)
+        changed["asset_age"] = len(indices)
+
+
+def _apply_random_mixed_all(
+    observed: pd.DataFrame,
+    scenario: NoiseScenario,
+    rng: np.random.Generator,
+    changed: dict[str, int],
+    snapshot_year: int,
+) -> None:
+    numeric_columns = {
+        "installation_year",
+        "distance_to_sea_km",
+        "length_km",
+    }
+
+    supported_columns = numeric_columns | set(CATEGORICAL_VALUES)
+
+    unsupported = [
+        column
+        for column in scenario.columns
+        if column not in supported_columns
+        or column in PROTECTED_COLUMNS
+    ]
+
+    if unsupported:
+        raise ValueError(
+            f"Unsupported mixed-noise columns: {unsupported}"
+        )
+
+    for column in scenario.columns:
+        indices = _sample_indices(
+            rng,
+            observed.index[observed[column].notna()],
+            scenario.noise_level,
+        )
+
+        if column == "installation_year":
+            # Use realistic integer year shifts.
+            signs = rng.choice(
+                np.array([-1, 1]),
+                size=len(indices),
+            )
+
+            new_years = (
+                observed.loc[indices, column].astype(int)
+                + signs * scenario.year_step
+            )
+
+            observed.loc[indices, column] = (
+                _clip_numeric(column, new_years)
+                .round()
+                .astype(int)
+            )
+
+        elif column in {
+            "distance_to_sea_km",
+            "length_km",
+        }:
+            # Existing relative numerical perturbation.
+            relative_error = rng.uniform(
+                -scenario.noise_level,
+                scenario.noise_level,
+                size=len(indices),
+            )
+
+            new_values = (
+                observed.loc[indices, column].astype(float)
+                * (1.0 + relative_error)
+            )
+
+            observed.loc[indices, column] = (
+                _clip_numeric(column, new_values)
+            )
+
+        else:
+            # Replace with another valid category.
+            values = observed[column].copy()
+
+            _replace_categories(
+                values,
+                indices,
+                rng,
+            )
+
+            observed[column] = values
+
+        changed[column] = int(len(indices))
+
+    # Keep the derived asset_age consistent.
+    if "installation_year" in scenario.columns:
+        observed["asset_age"] = (
+            snapshot_year - observed["installation_year"]
+        )
+
+        changed["asset_age"] = changed["installation_year"]
 
 
 def _apply_group_numeric(
@@ -348,7 +520,7 @@ def apply_noise(
     elif scenario.strategy == "random_numeric":
         _apply_random_numeric(observed, scenario, changed)
     elif scenario.strategy == "random_mixed":
-        _apply_random_mixed(observed, scenario, changed)
+        _apply_random_mixed(observed, scenario, changed, snapshot_year)
     elif scenario.strategy == "systematic_numeric":
         _apply_systematic_numeric(observed, scenario, changed)
     elif scenario.strategy == "installation_year_error":

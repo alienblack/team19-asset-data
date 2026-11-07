@@ -124,21 +124,64 @@ scenarios:
     seed: 328
 
   # Mixed errors: same proportion of numerical + categorical corruption.
+
+  N06_mixed_10:
+    name: "Combined numeric and categorical noise - 10 percent"
+    strategy: random_mixed
+    columns: [installation_year, distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, material, covering]
+    noise_level: 0.10
+    seed: 329
+
   N06_mixed_30:
     name: "Combined numeric and categorical noise - 30 percent"
     strategy: random_mixed
-    columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+    columns: [installation_year, distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, material, covering]
     noise_level: 0.30
     seed: 329
+
   N06_mixed_50:
     name: "Combined numeric and categorical noise - 50 percent"
     strategy: random_mixed
-    columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+    columns: [installation_year, distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, material, covering]
     noise_level: 0.50
     seed: 329
+
   N06_mixed_100:
     name: "Combined numeric and categorical noise - 100 percent extreme stress"
     strategy: random_mixed
-    columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+    columns: [installation_year, distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, material, covering]
     noise_level: 1.00
     seed: 329
+
+
+  # N06_mixed_10:
+  #   name: "Combined numeric and categorical noise - 10 percent"
+  #   strategy: "random_mixed"
+  #   columns:
+  #     - distance_to_sea_km
+  #     - length_km
+  #     - voltage_category
+  #     - location_group
+  #     - corrosion_zone
+  #     - covering
+  #   noise_level: 0.10
+  #   seed: 329
+
+  # N06_mixed_30:
+  #   name: "Combined numeric and categorical noise - 30 percent"
+  #   strategy: random_mixed
+  #   columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+  #   noise_level: 0.30
+  #   seed: 329
+  # N06_mixed_50:
+  #   name: "Combined numeric and categorical noise - 50 percent"
+  #   strategy: random_mixed
+  #   columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+  #   noise_level: 0.50
+  #   seed: 329
+  # N06_mixed_100:
+  #   name: "Combined numeric and categorical noise - 100 percent extreme stress"
+  #   strategy: random_mixed
+  #   columns: [distance_to_sea_km, length_km, voltage_category, location_group, corrosion_zone, covering]
+  #   noise_level: 1.00
+  #   seed: 329

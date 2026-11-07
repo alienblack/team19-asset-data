@@ -1,0 +1,10 @@
+scenario_id,strategy,seed,column,requested_noise_level,changed_count,realized_rate,validation_passed
+N06_mixed_50,random_mixed,329,distance_to_sea_km,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,length_km,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,voltage_category,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,location_group,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,corrosion_zone,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,material,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,covering,0.5,5000,0.5,True
+N06_mixed_50,random_mixed,329,installation_year,0.5,4989,0.4989,True
+N06_mixed_50,random_mixed,329,asset_age,0.5,4989,0.4989,True
