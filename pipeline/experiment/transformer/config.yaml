@@ -1,0 +1,140 @@
+# Transformer synthetic-data benchmark configuration.
+# Only experiment code reads this file; the existing asset pipeline YAML is unchanged.
+version: 1
+asset_class: transformers
+
+columns:
+  numeric:
+    - x
+    - y
+    - install_date
+    - altitude
+    - measured_humid
+    - measured_salt
+    - measured_overgrowth
+    - life
+    - random_placebo
+    - measured_gas_a
+    - measured_gas_b
+    - measured_gas_c
+    - total_gas
+    - leakage
+  categorical: [model_id]
+  excluded: []
+
+methods:
+  simple:
+    numeric_strategy: mean
+    categorical_strategy: mode
+
+  median_mode:
+    numeric_strategy: median
+    categorical_strategy: mode
+
+  missforest:
+    n_estimators: 100
+    max_iter: 20
+    random_state: 219
+    n_jobs: 1
+    max_features: sqrt
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null
+
+  predictive_missforest:
+    n_estimators: 100
+    n_passes: 5
+    random_state: 219
+    n_jobs: 1
+    max_features: sqrt
+    max_depth: null
+    min_samples_leaf: 1
+    class_weight: null
+    numeric_init: mean
+    unknown_category_policy: ignore
+    min_observed_target: 2
+
+# Selected using preliminary transformer-specific validation.
+# These settings override the defaults in methods.
+selected_hyperparameters:
+  predictive_missforest:
+    n_estimators: 100
+    max_depth: null
+    min_samples_leaf: 10
+
+  # Same forest parameters used for comparison.
+  # MissForest was not independently tuned.
+  missforest:
+    n_estimators: 100
+    max_depth: null
+    min_samples_leaf: 10
+
+tuning_provenance:
+  dataset: transformer_synthetic
+  method_tuned: predictive_missforest
+
+  implementation: src/imputation/predictive_missforest/predictive_tuning.py
+
+  input: experiment/transformer/dataset/completion0.8-noise0.05-measured.csv
+
+  objective: all_attributes
+  numeric_weight: 0.5
+
+  grid:
+    n_estimators: [30, 100]
+    max_depth: [8, null]
+    min_samples_leaf: [1, 10]
+
+  total_configurations: 8
+
+  validation:
+    strategy: spatial_train_validation
+    split_seed: 617
+    mask_seed: 219
+    mask_rate: 0.20
+    repeats: 1
+    fit_rows: 6400
+    validation_rows: 1600
+
+  selected:
+    n_estimators: 100
+    max_depth: null
+    min_samples_leaf: 10
+    n_passes: 5
+    objective_mean: 0.151043
+
+  limitations:
+    - Single validation masking seed
+    - Single noise and masking scenario
+    - Random placebo included in tuning objective
+    - Only Predictive MissForest independently tuned
+
+experiment_notes:
+  provenance_scope: transformer_preliminary_tuning
+
+  interpretation: >
+    Predictive MissForest hyperparameters were selected using
+    preliminary validation on synthetic transformer data.
+    The selected configuration has not been established as
+    globally optimal.
+
+  missforest_parameter_policy: >
+    MissForest uses the same selected forest hyperparameters
+    for a consistent comparison. These parameters were not
+    independently tuned for MissForest.
+
+  evaluation_methods:
+    - median_mode
+    - missforest
+    - predictive_missforest
+
+  excluded_baseline: simple
+
+  previous_results: >
+    outputs/full_grid_seed617 uses 30 trees and
+    3 passes/iterations.
+
+  final_evaluation:
+    masking_rates: [0.10, 0.20, 0.30]
+    noise_levels: [0.00, 0.05, 0.10]
+    split_seed: 617

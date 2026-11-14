@@ -241,12 +241,15 @@ writes to `config/overhead_conductors/approvals.json`.
 
 ## 9. Hyperparameters
 
-The pipeline never tunes. `config/overhead_conductors/imputation.yaml` holds method defaults and
-a `selected_hyperparameters` block written by
-`experiments/hyperparameter_tuning/run_tuning.py` (see `docs/EXPERIMENTS.md`).
-To change a value for one run use `--set key=value` (development only; the
-value is recorded in `run_metadata.json`). Changing `imputation.yaml`
-requires re-approval.
+By default the pipeline does not tune. `config/<asset>/imputation.yaml` holds
+method defaults and `selected_hyperparameters`. Set `tuning.enabled: true` to
+search a grid on fit/validation records; setting `tuning.update_selected: true`
+also writes selected values and provenance to the YAML in development mode.
+The same file has `model.mode: train_new | use_saved` and `model.path` for
+frozen-model reuse. See [model execution / tuning](MODEL_EXECUTION_AND_TUNING.md).
+To change a value for one run use `--set key=value` (development only, with
+tuning disabled). Any change to `imputation.yaml` requires re-approval before
+release-mode execution.
 
 ## 10. Settings reference (`config/overhead_conductors/pipeline.yaml`)
 

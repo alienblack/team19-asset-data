@@ -1,5 +1,24 @@
 # Capstone Asset Imputation Pipeline
 
+Team 19 · University of Adelaide · SA Power Networks collaboration
+
+This repository contains the synthetic-data imputation research pipeline, including the transformer experiments and shared imputation implementations.
+
+**Transformer study:** [Experimental methodology and reproducibility guide](TRANSFORMER_EXPERIMENT_GUIDE.md). Run `experiment/transformer/notebook/transformer_imputation_experiments.ipynb` for data exploration, T2–T6 experiments, relationship analyses, model comparison and visualisation. The TabPFN investigation is in its own notebook under `experiment/transformer/tabpfn_separate/`.
+
+**Fresh installation (Python 3.12):**
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[notebook,test]"
+python -m jupyter lab experiment/transformer/notebook/transformer_imputation_experiments.ipynb
+```
+
+The main notebook defaults to a quick fresh run. Choose `MODE='full'` in its settings cell to reproduce the research-scale experiments. Set `EXECUTE_EXPERIMENTS=False` and select `RESULTS_SOURCE_DIR` to analyse an existing run without refitting. See the guide for configurations, output descriptions, method-protocol distinctions and scientific limitations.
+
+---
+
 University of Adelaide / SA Power Networks capstone prototype for configurable
 asset-data quality checking, profiling, missing-value imputation, and paired
 ground-truth evaluation. The included data are **synthetic examples**, not
@@ -86,7 +105,9 @@ validation logs, `evaluation/summary.csv`, `evaluation/scored_cells.csv`,
 
 The reported imputation errors score **originally missing test cells only**.
 Observed-data differences from truth are a separate analysis. The true values
-are never provided to model fitting. See [paired-input protocol](docs/PAIRED_INPUTS.md).
+are never provided to model fitting. See [paired-input protocol](docs/PAIRED_INPUTS.md)
+and [model execution / tuning](docs/MODEL_EXECUTION_AND_TUNING.md) for the
+`train_new` versus `use_saved` switch and optional validation-only tuning.
 
 ## Asset profiles
 

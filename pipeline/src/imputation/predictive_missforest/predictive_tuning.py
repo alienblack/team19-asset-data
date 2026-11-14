@@ -161,9 +161,10 @@ class TuningObjective:
         """Columns that must receive an additional validation mask."""
         if self.mode == "all_attributes":
             # Hide the original two targets FIRST so their holdout positions
-            # remain identical to year_material mode for the same seed.
-            all_targets = (self.year_column, self.material_column,
-                           *base.numeric_columns, *base.categorical_columns)
+            # remain identical to year_material mode for the same seed when
+            # present. Other asset types need no conductor-specific fields.
+            legacy = tuple(c for c in (self.year_column, self.material_column) if c in base.model_columns)
+            all_targets = (*legacy, *base.numeric_columns, *base.categorical_columns)
             return tuple(dict.fromkeys(all_targets))
         return (self.year_column, self.material_column)
 
@@ -345,9 +346,10 @@ def score_configuration(
         categorical_columns=base.categorical_columns,
     ).set_index("variable").reindex(base.model_columns)
 
-    year_mae = float(metrics.loc[objective.year_column, "mae"])
-    macro_f1 = float(metrics.loc[objective.material_column, "macro_f1"])
-    year_scale = _year_scale(X_fit, objective.year_column)
+    has_legacy = objective.year_column in base.numeric_columns and objective.material_column in base.categorical_columns
+    year_mae = float(metrics.loc[objective.year_column, "mae"]) if has_legacy else np.nan
+    macro_f1 = float(metrics.loc[objective.material_column, "macro_f1"]) if has_legacy else np.nan
+    year_scale = _year_scale(X_fit, objective.year_column) if has_legacy else np.nan
 
     # Preserve every legacy diagnostic field, including both original targets.
     row: dict[str, Any] = dict(overrides)
@@ -355,11 +357,9 @@ def score_configuration(
         {
             "objective_mode": objective.mode,
             "year_mae": year_mae,
-            "year_rmse": float(metrics.loc[objective.year_column, "rmse"]),
+            "year_rmse": float(metrics.loc[objective.year_column, "rmse"]) if has_legacy else np.nan,
             "material_macro_f1": macro_f1,
-            "material_balanced_accuracy": float(
-                metrics.loc[objective.material_column, "balanced_accuracy"]
-            ),
+            "material_balanced_accuracy": float(metrics.loc[objective.material_column, "balanced_accuracy"]) if has_legacy else np.nan,
             "year_scale_iqr": year_scale,
             "fit_seconds": fit_seconds,
             "transform_seconds": transform_seconds,
@@ -398,12 +398,9 @@ def score_configuration(
         row.update(components)
         row["objective"] = score
 
-    row.update(
-        _distribution_diagnostics(
-            tune_truth, imputed, tune_mask,
-            objective.year_column, objective.material_column,
-        )
-    )
+    if has_legacy:
+        row.update(_distribution_diagnostics(tune_truth, imputed, tune_mask,
+                                             objective.year_column, objective.material_column))
     return row
 
 
@@ -427,16 +424,17 @@ def _baseline_scores(
     metrics = evaluate_imputation(
         tune_truth, filled, tune_mask, base.numeric_columns, base.categorical_columns
     ).set_index("variable").reindex(base.model_columns)
-    year_mae = float(metrics.loc[objective.year_column, "mae"])
-    macro_f1 = float(metrics.loc[objective.material_column, "macro_f1"])
-    year_scale = _year_scale(X_fit, objective.year_column)
+    has_legacy = objective.year_column in base.numeric_columns and objective.material_column in base.categorical_columns
+    year_mae = float(metrics.loc[objective.year_column, "mae"]) if has_legacy else np.nan
+    macro_f1 = float(metrics.loc[objective.material_column, "macro_f1"]) if has_legacy else np.nan
+    year_scale = _year_scale(X_fit, objective.year_column) if has_legacy else np.nan
     row: dict[str, Any] = {
         "candidate": "median_mode_baseline",
         "objective_mode": objective.mode,
         "year_mae": year_mae,
-        "year_rmse": float(metrics.loc[objective.year_column, "rmse"]),
+        "year_rmse": float(metrics.loc[objective.year_column, "rmse"]) if has_legacy else np.nan,
         "material_macro_f1": macro_f1,
-        "material_balanced_accuracy": float(metrics.loc[objective.material_column, "balanced_accuracy"]),
+        "material_balanced_accuracy": float(metrics.loc[objective.material_column, "balanced_accuracy"]) if has_legacy else np.nan,
         "year_scale_iqr": year_scale,
     }
     for column in base.numeric_columns:

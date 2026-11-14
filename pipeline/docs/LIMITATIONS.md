@@ -97,8 +97,10 @@ are quoted.
   run so the source can be fixed.
 - It does not fill values during cleaning. Values that fail a rule become
   missing and are then imputed; the cleaning log says which.
-- It does not run hyperparameter tuning; tuning is an experiment whose
-  result is committed to `config/overhead_conductors/imputation.yaml`.
+- It runs hyperparameter tuning only when explicitly enabled in the asset's
+  `imputation.yaml`. The search uses a measured-data validation partition,
+  not independent test truth; only Predictive MissForest has an integrated
+  tuning strategy. See `MODEL_EXECUTION_AND_TUNING.md`.
 - It does not fill columns outside the seven model attributes. Gaps in
   `length_km` (or any carried-through column) are counted as *unresolved* in
   `provenance_summary.csv` and the report; filling them would need an

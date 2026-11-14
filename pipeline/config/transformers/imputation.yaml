@@ -1,5 +1,19 @@
 version: 2
 asset_class: synthetic_benchmark
+model:
+  mode: train_new
+  path: outputs/models/transformers/median_mode.joblib
+  save_after_training: true
+tuning:
+  enabled: false
+  update_selected: false
+  objective: all_attributes
+  repeats: 3
+  mask_rate: 0.25
+  mask_seed: 219
+  grid:
+    max_depth: [8, 16, null]
+    min_samples_leaf: [5, 10, 20]
 columns:
   numeric: [x, y, install_date, altitude, measured_humid, measured_salt, measured_overgrowth]
   categorical: [model_id]

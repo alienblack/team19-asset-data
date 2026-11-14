@@ -12,13 +12,34 @@
 #   missforest             original transductive MissForest (whole-table, iterates to convergence)
 #   predictive_missforest  fit/transform adaptation with frozen sequential replay
 #
-# selected_hyperparameters overrides the method defaults below. It is written
-# by experiments/hyperparameter_tuning/run_tuning.py and read by the pipeline;
-# the pipeline itself never tunes.
+# selected_hyperparameters overrides method defaults. With tuning enabled,
+# the pipeline can optionally update it after a validation-only grid search.
 
 version: 2
 
 asset_class: "overhead_conductors"
+
+# Change only this block to train a new model or reuse a fitted one.
+# Paths are relative to the pipeline project directory, or absolute.
+model:
+  mode: train_new                  # train_new | use_saved
+  path: outputs/models/overhead_conductors/predictive_missforest.joblib
+  save_after_training: true       # save/overwrite this model after train_new
+
+# Disabled by default: ordinary imputation uses selected_hyperparameters.
+# Enable to search on disjoint fit/validation partitions (never the test set).
+# Set update_selected: true in development mode to write chosen values back
+# to this file and generate tuning_provenance; re-approve before release use.
+tuning:
+  enabled: false
+  update_selected: false
+  objective: all_attributes
+  repeats: 3
+  mask_rate: 0.25
+  mask_seed: 219
+  grid:
+    max_depth: [8, 16, null]
+    min_samples_leaf: [5, 10, 20]
 
 columns:
 
@@ -88,8 +109,7 @@ methods:
 
 # Overrides the matching methods.<name> defaults when the pipeline builds a
 # method. Remove a method key to fall back to the defaults above. Everything
-# below the marker line is rewritten by run_tuning.py --write-config.
-# >>> managed by experiments/hyperparameter_tuning/run_tuning.py >>>
+# The tuning runner may rewrite this YAML when update_selected is true.
 selected_hyperparameters:
   predictive_missforest:
     max_depth: 8

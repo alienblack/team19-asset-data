@@ -173,7 +173,7 @@
   {% else %}<p class="small">Validation stage not run.</p>{% endif %}
 </section>
 
-{% if evaluation %}
+{% if evaluation and evaluation.get("partitions") %}
 <section id="evaluation">
   <h2>Evaluation against known truth (evaluation mode)</h2>
   <p class="lead">Records were partitioned by identifier{% if evaluation.partition_strategy == 'group' %}, using the configured group column,{% endif %} into fit ({{ evaluation.partitions.fit }}), validation ({{ evaluation.partitions.validation }}, reserved for tuning, not scored) and test ({{ evaluation.partitions.test }}). Missing cells of the test partition were scored against the reference{% if evaluation.mask_source == 'masked_input' %} (the gaps come from the measured input, which may also contain observation noise){% else %} (masks drawn here at rate {{ '%.0f%%'|format(100 * evaluation.mask_rate) }}, seed {{ evaluation.mask_seed }}, {{ evaluation.repeats }} repeat(s)){% endif %}. Split seed {{ evaluation.split_seed }}.</p>

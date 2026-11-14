@@ -1,0 +1,21 @@
+version: 1
+experiment: transformer_model_comparison
+seed: 219
+include_saved_t2_pmf: true
+methods:
+  chained_ridge:
+    passes: 3
+    alpha: 10.0
+  lightgbm_chained:
+    passes: 3
+    n_estimators: 100
+    learning_rate: 0.07
+    num_leaves: 31
+  tabpfn_unsupervised:
+    device: mps
+    model_version: v3.5-fast
+    max_context_rows: 2000
+    n_permutations: 1
+    n_estimators: 1
+    mps_force_float32: true
+    mps_batch_rows: 16

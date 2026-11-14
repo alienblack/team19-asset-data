@@ -32,9 +32,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import platform
+import re
 import shutil
 import sys
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,11 +47,12 @@ from typing import Any, Sequence
 import numpy as np
 import pandas as pd
 import sklearn
+import yaml
 
 from . import __version__
 from .evaluation.confidence import low_confidence_cells
 from .evaluation.distribution_analysis import compare_distributions, joint_distribution_shift
-from .evaluation.holdout import prepare_holdout
+from .evaluation.holdout import make_partitions, prepare_holdout, split_by_manifest
 from .evaluation.integrity_checks import check_integrity
 from .evaluation.metrics import evaluate_imputation, per_class_report
 from .evaluation.protocol import EvaluationSettings, build_evaluation_inputs, run_protocols
@@ -64,7 +68,7 @@ from .profiling.profiler import profile_records
 from .profiling.visualization import render_imputation_figures, render_profile_figures, render_reconstruction_figure
 from .quality.cleaner import clean_records, load_cleaning_rules
 from .quality.validator import validate_records
-from .settings import PipelineSettings
+from .settings import PipelineSettings, REPO_ROOT
 
 LOGGER_NAME = "overhead_conductors"
 
@@ -369,6 +373,110 @@ def _build_methods(settings: PipelineSettings, config: ImputationConfig, method:
     return imputer, reference, resolved
 
 
+def _configured_model_path(config: ImputationConfig) -> Path | None:
+    configured = config.model_execution.path
+    if configured is None:
+        return None
+    path = Path(configured).expanduser()
+    return (path if path.is_absolute() else REPO_ROOT / path).resolve()
+
+
+def _tune_predictive_for_run(
+    X: pd.DataFrame, schema: DataSchema, config: ImputationConfig,
+    settings: PipelineSettings, run: RunPaths, method: str,
+    overrides: dict[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Tune on disjoint fit/validation records and leave test records unseen."""
+    from .imputation.predictive_missforest.predictive_tuning import TuningObjective, tune_predictive_missforest
+
+    workflow = config.workflow_config
+    if workflow is None or not workflow.tuning_enabled:
+        return {}, {}
+    if method != "predictive_missforest":
+        raise PipelineError("tuning.enabled currently supports only predictive_missforest.")
+    if workflow.tuning_update_selected and settings.execution_mode != "development":
+        raise PipelineError(
+            "tuning.update_selected changes imputation.yaml and invalidates its approval. "
+            "Use execution.mode: development, then re-approve the updated configuration."
+        )
+    if workflow.tuning_objective == "year_material" and not {"installation_year", "material"}.issubset(config.model_columns):
+        raise PipelineError("tuning.objective=year_material requires installation_year and material; use all_attributes for this asset.")
+    if overrides or settings.overrides:
+        raise PipelineError("Remove run-time hyperparameter overrides during tuning to keep the selection reproducible.")
+
+    ev = settings.evaluation
+    manifest = make_partitions(
+        X, ev.fractions, ev.split_seed, schema.id_column, ev.strategy, ev.group_column
+    )
+    parts = split_by_manifest(X, manifest, schema.id_column)
+    if not len(parts.get("fit", ())) or not len(parts.get("validation", ())):
+        raise PipelineError("Tuning requires nonempty fit and validation partitions.")
+    fitting = parts["fit"].loc[:, list(config.model_columns)].reset_index(drop=True)
+    validation = parts["validation"].loc[:, list(config.model_columns)].reset_index(drop=True)
+    base = build_imputer(method, config)
+    results, best_config = tune_predictive_missforest(
+        base, fitting, validation, grid=workflow.tuning_grid,
+        objective=TuningObjective(mode=workflow.tuning_objective),
+        mask_rate=workflow.tuning_mask_rate, mask_seed=workflow.tuning_mask_seed,
+        n_repeats=workflow.tuning_repeats,
+    )
+    selected = results.loc[results["selected"]].iloc[0]
+    chosen = {key: getattr(best_config, key) for key in workflow.tuning_grid}
+    run.evaluation_dir.mkdir(parents=True, exist_ok=True)
+    results.to_csv(run.evaluation_dir / "tuning_candidates.csv", index=False)
+    results.attrs["per_repeat"].to_csv(run.evaluation_dir / "tuning_repeats.csv", index=False)
+    results.attrs["baseline"].to_csv(run.evaluation_dir / "tuning_baseline.csv", index=False)
+    manifest.to_csv(run.evaluation_dir / "tuning_partition_manifest.csv", index=False)
+    provenance = {
+        "script": "src/pipeline.py", "run": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+        "input": str(run.imputation_input), "objective": workflow.tuning_objective,
+        "grid": workflow.tuning_grid, "repeats": workflow.tuning_repeats,
+        "mask_rate": workflow.tuning_mask_rate, "mask_seed": workflow.tuning_mask_seed,
+        "fit_rows": len(fitting), "validation_rows": len(validation),
+        "test_rows_excluded": len(parts.get("test", ())),
+        "selected_objective_mean": float(selected["objective_mean"]),
+        "selected_objective_std": float(selected["objective_std"]),
+        "best_objective_mean": float(results["objective_mean"].min()),
+        "baseline_objective_mean": float(results.attrs["baseline"]["objective"].mean()),
+        "selected": chosen,
+    }
+    update_metadata(run, "tuning", {**provenance, "updated_selected": workflow.tuning_update_selected})
+    return (chosen if workflow.tuning_update_selected else {}), provenance
+
+
+def _write_tuned_parameters(config: ImputationConfig, run: RunPaths, selected: dict[str, Any], provenance: dict[str, Any]) -> None:
+    """Commit successful tuning without replacing the file's annotated header."""
+    if not config.source_path:
+        raise PipelineError("Cannot update selected_hyperparameters without a config file path.")
+    path = Path(config.source_path)
+    original = path.read_text(encoding="utf-8")
+    raw = yaml.safe_load(original)
+    raw.setdefault("selected_hyperparameters", {})["predictive_missforest"] = selected
+    raw["tuning_provenance"] = provenance
+    # Both managed sections belong at the end of our asset configs. Retain
+    # preceding comments, field formatting and hand-authored explanations.
+    headings = list(re.finditer(r"(?m)^([A-Za-z][A-Za-z0-9_]*):[^\n]*$", original))
+    managed = {"selected_hyperparameters", "tuning_provenance"}
+    first_managed = next((i for i, match in enumerate(headings) if match.group(1) in managed), None)
+    if first_managed is not None and any(match.group(1) not in managed for match in headings[first_managed:]):
+        raise PipelineError("Place selected_hyperparameters and tuning_provenance at the end of imputation.yaml to preserve earlier comments.")
+    prefix = original[:headings[first_managed].start()].rstrip() if first_managed is not None else original.rstrip()
+    managed_yaml = yaml.safe_dump(
+        {"selected_hyperparameters": raw["selected_hyperparameters"], "tuning_provenance": provenance},
+        sort_keys=False,
+    )
+    backup = run.evaluation_dir / "imputation_before_tuning.yaml"
+    shutil.copyfile(path, backup)
+    descriptor, temporary = tempfile.mkstemp(prefix=".imputation-tuning-", suffix=".yaml", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(prefix + "\n\n" + managed_yaml)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
 def run_impute(
     input_csv: Path,
     run: RunPaths,
@@ -378,12 +486,27 @@ def run_impute(
     frame: pd.DataFrame | None = None,
     model_path: Path | None = None,
 ) -> ImputationOutput:
-    """Fit the configured method on the input and fill its gaps (fit_transform)."""
+    """Train a new imputer or apply the configured saved model."""
     logger = get_logger(run)
     check_configuration(settings, run)
     started = perf_counter()
     schema = load_schema(settings.data_schema)
     config = load_imputation_config(settings.imputation, schema)
+    model_config = config.model_execution
+    configured_path = _configured_model_path(config)
+    if model_config.mode == "use_saved":
+        if overrides or settings.overrides:
+            raise PipelineError("Hyperparameter overrides are not used when applying a saved model.")
+        if (method or settings.method) == "missforest":
+            raise PipelineError("Original MissForest is transductive and cannot use a saved model.")
+        assert configured_path is not None
+        if not configured_path.is_file():
+            raise PipelineError(f"Configured saved model does not exist: {configured_path}")
+        saved_method = load_imputer(configured_path).name
+        if saved_method != (method or settings.method):
+            raise PipelineError(f"Saved model method '{saved_method}' differs from requested method '{method or settings.method}'.")
+        result = run_apply(input_csv, configured_path, run, settings)
+        return result
     if frame is None:
         frame = _load_typed(input_csv, schema)
     prepared = prepare_for_imputation(frame, schema, config)
@@ -398,7 +521,11 @@ def run_impute(
     if int(recovered_cells.to_numpy().sum()):
         logger.info("preparation: recovered %s", {k: v["n_recovered"] for k, v in prepared.recovery.summary.items()})
 
-    imputer, reference, resolved = _build_methods(settings, config, method, overrides)
+    selected, tuning_provenance = _tune_predictive_for_run(
+        X, schema, config, settings, run, method or settings.method, overrides
+    )
+    effective_overrides = {**(overrides or {}), **selected}
+    imputer, reference, resolved = _build_methods(settings, config, method, effective_overrides)
     logger.info("imputation: method=%s hyperparameters=%s on %d rows", imputer.name, resolved, len(X))
     fit_started = perf_counter()
     output = imputer.fit_transform(X)
@@ -419,6 +546,9 @@ def run_impute(
     diagnostics.to_csv(run.diagnostics, index=False)
     derived.log.to_csv(run.derived_log, index=False)
     logger.info("postprocessing: %s; integrity %s", {k: v for k, v in final.provenance.totals.items() if k != "n_cells"}, "passed" if final.integrity.passed else "FAILED")
+    if not final.integrity.passed:
+        failed = final.integrity.checks[final.integrity.checks["status"] == "fail"]
+        raise PipelineError("Postprocessing integrity checks failed: " + "; ".join(f"{r.check}({r.column}) x{r.count}" for r in failed.itertuples()))
     convergence = getattr(imputer, "convergence_", None)
     if convergence is None and "convergence" in output.metadata:
         convergence = pd.DataFrame(output.metadata["convergence"])
@@ -432,7 +562,12 @@ def run_impute(
         reference_meta = {k: v for k, v in ref_out.metadata.items() if k != "statistics"}
 
     saved_model: str | None = None
-    target_model = model_path or (run.model if settings.save_model else None)
+    target_model = model_path or (
+        configured_path if configured_path and settings.save_model and model_config.save_after_training
+        and (method or settings.method) == settings.method else None
+    )
+    if target_model is None and settings.save_model and model_config.save_after_training:
+        target_model = run.model
     if target_model is not None and imputer.supports_persistence:
         save_imputer(imputer, target_model, X, schema.id_column, extra={"input": str(input_csv.resolve())})
         saved_model = str(Path(target_model).resolve())
@@ -441,6 +576,7 @@ def run_impute(
 
     metadata = {
         "input": str(input_csv.resolve()),
+        "mode": "train_new",
         "asset": schema.asset_class,
         "id_column": schema.id_column,
         "method": imputer.name,
@@ -463,9 +599,8 @@ def run_impute(
         "seconds": perf_counter() - started,
     }
     update_metadata(run, "imputation", metadata)
-    if not final.integrity.passed:
-        failed = final.integrity.checks[final.integrity.checks["status"] == "fail"]
-        raise PipelineError("Postprocessing integrity checks failed: " + "; ".join(f"{r.check}({r.column}) x{r.count}" for r in failed.itertuples()))
+    if selected:
+        _write_tuned_parameters(config, run, selected, tuning_provenance)
     return output
 
 
@@ -829,6 +964,52 @@ def _evaluation_headline(summary: pd.DataFrame, schema: DataSchema) -> dict[str,
     return headline
 
 
+def run_score_saved(run: RunPaths, settings: PipelineSettings, truth_csv: Path) -> dict[str, Any]:
+    """Score a saved-model application; do not fit a benchmark model again.
+
+    The original measured gaps are the only cells scored. Truth is used only
+    here and never supplied to the model's transform() operation.
+    """
+    schema = load_schema(settings.data_schema)
+    config = load_imputation_config(settings.imputation, schema)
+    measured = _load_typed(run.imputation_input, schema)
+    imputed = _load_typed(run.imputed, schema)
+    truth = _load_typed(truth_csv, schema)
+    identifier = schema.id_column
+    for label, data in (("measured", measured), ("imputed", imputed), ("truth", truth)):
+        if data[identifier].isna().any() or not data[identifier].astype(str).is_unique:
+            raise PipelineError(f"{label} must have nonmissing, unique {identifier} values.")
+    ids = measured[identifier].astype(str).tolist()
+    if set(ids) != set(truth[identifier].astype(str)) or set(ids) != set(imputed[identifier].astype(str)):
+        raise PipelineError("Saved-model evaluation requires identical record IDs in measured, imputed and truth files.")
+    columns = list(config.model_columns)
+    truth_indexed = truth.set_index(truth[identifier].astype(str)).loc[ids, columns].reset_index(drop=True)
+    imputed_indexed = imputed.set_index(imputed[identifier].astype(str)).loc[ids, columns].reset_index(drop=True)
+    measured_indexed = measured.set_index(measured[identifier].astype(str)).loc[ids, columns].reset_index(drop=True)
+    mask = measured_indexed.isna()
+    if (truth_indexed.isna() & mask).any().any():
+        raise PipelineError("Ground truth is missing for measured cells being scored.")
+    metrics = evaluate_imputation(
+        truth_indexed, imputed_indexed, mask, config.numeric_columns, config.categorical_columns
+    )
+    metrics.insert(0, "method", read_metadata(run)["imputation"]["method"])
+    metrics.insert(0, "protocol", "saved_model_application")
+    run.evaluation_dir.mkdir(parents=True, exist_ok=True)
+    metrics.to_csv(run.evaluation_dir / "metrics.csv", index=False)
+    metrics.to_csv(run.evaluation_dir / "summary.csv", index=False)
+    mask.insert(0, identifier, ids)
+    mask.to_csv(run.evaluation_dir / "saved_model_mask.csv", index=False)
+    payload = {
+        "protocol": "saved_model_application", "truth": str(truth_csv.resolve()),
+        "model_path": read_metadata(run)["imputation"]["model_path"],
+        "n_rows": len(ids), "n_scored_cells": int(mask[columns].to_numpy().sum()),
+        "metrics": str(run.evaluation_dir / "metrics.csv"),
+        "note": "Scores observed missing cells only; no retraining, no independent test split.",
+    }
+    update_metadata(run, "evaluation", payload)
+    return payload
+
+
 def run_report(run: RunPaths, settings: PipelineSettings) -> Path:
     from .reporting.report_generator import generate_report
 
@@ -884,8 +1065,12 @@ def run_all(
         if not stages["imputation"]:
             raise PipelineError("Paired ground-truth evaluation requires stages.imputation to be enabled.")
         chosen = tuple(dict.fromkeys(m for m in (method or settings.method, settings.reference_method) if m))
-        run_evaluate(run, settings, truth_csv=truth_csv, input_csv=impute_input,
-                     methods=chosen, overrides=overrides)
+        config = load_imputation_config(settings.imputation, schema)
+        if config.model_execution.mode == "use_saved":
+            run_score_saved(run, settings, truth_csv)
+        else:
+            run_evaluate(run, settings, truth_csv=truth_csv, input_csv=impute_input,
+                         methods=chosen, overrides=overrides)
     if stages["reporting"]:
         run_report(run, settings)
 

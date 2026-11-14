@@ -40,6 +40,17 @@ class WorkflowConfig:
     data_split: DataSplitConfig
     # Default retains original two-target selection for older callers.
     tuning_objective: str = "year_material"
+    tuning_repeats: int = 1
+    tuning_update_selected: bool = False
+
+
+@dataclass(frozen=True)
+class ModelExecutionConfig:
+    """How a regular pipeline imputation obtains its fitted model."""
+
+    mode: str = "train_new"  # train_new | use_saved
+    path: str | None = None
+    save_after_training: bool = True
 
 
 def _strict_bool(section: dict[str, Any], name: str, default: bool) -> bool:
@@ -152,6 +163,8 @@ def _parse_workflow(raw: dict[str, Any]) -> WorkflowConfig | None:
         tuning_mask_seed=_strict_seed(tuning, "mask_seed", 219),
         tuning_grid={"max_depth": list(depths), "min_samples_leaf": list(leaves)},
         tuning_objective=tuning_objective,
+        tuning_repeats=_strict_positive_int(tuning, "repeats", 1),
+        tuning_update_selected=_strict_bool(tuning, "update_selected", False),
         evaluation_enabled=eval_enabled,
         evaluation_mask_rate=_strict_rate(evaluation, "mask_rate", 0.10),
         evaluation_mask_seed=_strict_seed(evaluation, "mask_seed", 319),
@@ -161,6 +174,32 @@ def _parse_workflow(raw: dict[str, Any]) -> WorkflowConfig | None:
             strategy=strategy,
             group_column=group_column,
         ),
+    )
+
+
+def _strict_positive_int(section: dict[str, Any], name: str, default: int) -> int:
+    value = section.get(name, default)
+    if type(value) is not int or value < 1:
+        raise ValueError(f"{name} must be a positive integer.")
+    return value
+
+
+def _parse_model(raw: dict[str, Any]) -> ModelExecutionConfig:
+    section = _optional_mapping(raw, "model")
+    mode = section.get("mode", "train_new")
+    if mode not in ("train_new", "use_saved"):
+        raise ValueError("model.mode must be 'train_new' or 'use_saved'.")
+    path = section.get("path")
+    if path is not None and (not isinstance(path, str) or not path.strip()):
+        raise ValueError("model.path must be a nonempty path string or null.")
+    if mode == "use_saved" and not path:
+        raise ValueError("model.path is required when model.mode is use_saved.")
+    tuning = _optional_mapping(raw, "tuning")
+    if mode == "use_saved" and _strict_bool(tuning, "enabled", False):
+        raise ValueError("tuning.enabled must be false when model.mode is use_saved.")
+    return ModelExecutionConfig(
+        mode=mode, path=path,
+        save_after_training=_strict_bool(section, "save_after_training", True),
     )
 
 
@@ -192,6 +231,7 @@ class ImputationConfig:
     selected_hyperparameters: dict[str, dict[str, Any]] = field(default_factory=dict)
     method_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
     source_path: str | None = None
+    model_execution: ModelExecutionConfig = field(default_factory=ModelExecutionConfig)
 
     @property
     def model_columns(self) -> tuple[str, ...]:
@@ -638,4 +678,5 @@ def load_imputation_config(
         selected_hyperparameters=selected_hyperparameters,
         method_configs={name: dict(section) for name, section in methods.items()},
         source_path=str(path.resolve()),
+        model_execution=_parse_model(raw),
     )
