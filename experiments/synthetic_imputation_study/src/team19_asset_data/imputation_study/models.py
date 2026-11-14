@@ -157,42 +157,6 @@ class CatBoostModel(EstimatorModel):
                     verbose=False, allow_writing_files=False)
 
 
-class MiceforestModel(SingleTargetModel):
-    """Donor-matched draws for one target, from miceforest's default forest.
-
-    The forest suits donor matching here: each tree leaves out part of the rows, so
-    predictions for training rows do not sit too close to their own values. Only one
-    iteration runs, because the training rows of a single target have nothing to fill.
-    """
-
-    def __init__(self, target, config, settings, seed, draws, drop=()):
-        super().__init__(target, config, settings, seed, drop)
-        self.draws = draws
-
-    def _fit(self, matrix, labels, target):
-        settings = dict(self.settings)
-        self.iterations = settings.pop("iterations")
-        rounds = settings.pop("rounds")
-        self.names = [f"f{i}" for i in range(matrix.shape[1])]
-        data = pd.DataFrame(matrix[self.known], columns=self.names)
-        data["target"] = labels.astype(float)
-        self.kernel = CorrectedKernel(
-            data, num_datasets=self.draws, variable_schema={"target": self.names},
-            mean_match_candidates=self.config.pmm_candidates,
-            random_state=self.seed, save_all_iterations_data=True,
-        )
-        self.kernel.mice(self.iterations, num_iterations=rounds, num_threads=THREADS, verbosity=-1, **settings)
-
-    def draw(self, frame):
-        """Donor-matched draws: one column per completed dataset."""
-        data = pd.DataFrame(self._matrix(frame), columns=self.names)
-        data["target"] = np.nan
-        result = self.kernel.impute_new_data(data, iterations=self.iterations, random_state=self.seed + 1000)
-        return np.column_stack([
-            result.complete_data(dataset=d).target.to_numpy() for d in result.datasets
-        ])
-
-
 MODEL_CLASSES = {
     "Median": BaselineModel,
     "Mode": BaselineModel,
@@ -273,6 +237,8 @@ class ChainedColumns:
         self.passes = self.settings.pop("passes")
         self.linear_alpha = self.settings.pop("linear_alpha")
         self.curve_alpha = self.settings.pop("curve_alpha")
+        # "none" leaves the local model alone in every pass, to measure what the ridge base adds.
+        self.base = self.settings.pop("base", "ridge")
 
     def _regressor(self, columns, seed):
         raise NotImplementedError
@@ -285,7 +251,7 @@ class ChainedColumns:
         if target == CATEGORY_TARGET:
             return self._classifier(columns, seed)
         local = self._regressor(columns, seed)
-        if step == 0 or CATEGORY_TARGET not in columns:
+        if step == 0 or self.base == "none" or CATEGORY_TARGET not in columns:
             return local
         return RidgeThenLocal(local, columns.index(CATEGORY_TARGET), self.linear_alpha, self.curve_alpha)
 
@@ -495,7 +461,8 @@ class MiceforestKernel:
     """Every column in one miceforest kernel, updated in turn by chained equations.
 
     The first pass starts from the gaps, which LightGBM handles natively. The
-    default random start would feed the first models with noise.
+    default random start would feed the first models with noise. Predictions are
+    used directly, with no donor matching, and one completed dataset is produced.
     """
 
     candidates, datasets = 0, 1
@@ -601,29 +568,6 @@ class ChainedRidgeImputer:
         numeric = self.features.numeric
         values = filled[:, : len(numeric)] * self.features.spread.to_numpy() + self.features.center.to_numpy()
         return pd.DataFrame(values, index=frame.index, columns=numeric)
-
-
-class JointModel(MiceforestKernel):
-    """All incomplete columns imputed together, with donor matching and several completed datasets."""
-
-    def __init__(self, config, settings, seed):
-        self.settings, self.seed = dict(settings), seed
-        self.candidates, self.datasets = config.pmm_candidates, config.pmm_draws
-
-    def fit(self, measured):
-        self._fit_kernel(measured, self.settings, self.seed)
-        return self
-
-    def predict(self, frame):
-        """One completed copy of ``frame`` per draw, observed cells unchanged."""
-        result = self._impute(frame, self.seed + 1000)
-        completed = []
-        for dataset in result.datasets:
-            filled = result.complete_data(dataset=dataset)
-            filled[CATEGORY_TARGET] = filled[CATEGORY_TARGET].astype(object).astype(float)
-            filled.index = frame.index
-            completed.append(filled.where(frame.isna(), frame))
-        return completed
 
 
 class CalibratedForest:

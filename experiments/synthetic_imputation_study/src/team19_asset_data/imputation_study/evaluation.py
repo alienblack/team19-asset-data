@@ -5,11 +5,9 @@ import re
 
 import numpy as np
 import pandas as pd
-from scipy.stats import wasserstein_distance
 
-from .columns import (
-    ABSOLUTE, BY_NAME, CATEGORY_TARGET, COMPANIONS, GAS_READINGS, NUMERIC_TARGETS, TARGETS,
-)
+from .columns import ABSOLUTE, BY_NAME, CATEGORY_TARGET, NUMERIC_TARGETS, TARGETS
+from .data import RANDOM
 from .models import NUMERIC_METHODS
 from .runner import ALL_COLUMNS, ALL_NUMERIC, ITERATIVE, PROBABILITY_COLUMNS
 
@@ -101,6 +99,7 @@ def add_scenario_levels(table, scenarios):
     table = table.copy()
     table["completion"] = table.scenario.map(lambda s: scenarios[s].completion)
     table["noise"] = table.scenario.map(lambda s: scenarios[s].noise)
+    table["mechanism"] = table.scenario.map(lambda s: scenarios[s].mechanism)
     return table
 
 
@@ -157,7 +156,7 @@ def scenario_effects(scored, scenarios, config):
     For completeness, the cells are those hidden at both levels.
     """
     main = scored[scored.experiment.eq("main") & ~scored.method.isin(BASELINES)]
-    items = list(scenarios.values())
+    items = [s for s in scenarios.values() if s.mechanism == RANDOM]
     comparisons = []
     for a in items:
         for b in items:
@@ -174,6 +173,9 @@ def scenario_effects(scored, scenarios, config):
         second = tables[b.name].assign(loss=_loss_any)[["target", "method", "row_id", "loss"]]
         joined = first.merge(second, on=["target", "method", "row_id"], suffixes=("_a", "_b"))
         for (target, method), block in joined.groupby(["target", "method"], sort=False):
+            # Rows are put in a fixed order first: the bootstrap resamples positions, and tasks
+            # finish in a different order in every run.
+            block = block.sort_values("row_id")
             difference = (block.loss_b - block.loss_a).to_numpy()
             low, high = _bootstrap(difference, config.bootstrap_draws, config.seed)
             before = block.loss_a.mean()
@@ -208,194 +210,11 @@ def _loss_any(frame):
     return (frame.prediction - frame.truth).abs().where(frame.target.ne(CATEGORY_TARGET), miss)
 
 
-def visible_group(target, frame):
-    """Label each cell by which of the target's generator companions could be seen."""
-    companions = COMPANIONS[target]
-    if not companions:
-        return np.repeat("all cells", len(frame))
-    if len(companions) > 2:
-        seen = frame[list(companions)].notna().sum(axis=1).to_numpy()
-        return np.array([f"{count} of {len(companions)} gas readings seen" for count in seen])
-    parts = [np.where(frame[c].notna(), f"{c} seen", f"{c} missing") for c in companions]
-    return np.array([" · ".join(items) for items in zip(*parts)])
-
-
-def group_table(scored, measured, config):
-    """Error by which inputs a cell could see, using measured data only to form groups."""
-    rows = []
-    selected = scored[scored.experiment.eq("main") & scored.scenario.isin(config.noise_series)]
-    for (scenario, target, method), block in selected.groupby(["scenario", "target", "method"], sort=False):
-        labels = visible_group(target, measured[scenario].loc[block.row_id])
-        for group, values in _cell_loss(block).groupby(labels):
-            rows.append({
-                "scenario": scenario, "target": target, "method": method, "group": group,
-                "n": len(values), "error": values.mean(), "small group": len(values) < config.small_group,
-            })
-    table = pd.DataFrame(rows)
-    baseline = table[table.method.isin(BASELINES)][["scenario", "target", "group", "error"]]
-    table = table.merge(baseline.rename(columns={"error": "baseline error"}), on=["scenario", "target", "group"])
-    table["skill"] = 1 - table.error / table["baseline error"]
-    return table
-
-
-def tail_table(scored, config):
-    """Error by true value, after the fact: this explains failures and sets no rule."""
-    rows = []
-    selected = scored[scored.experiment.eq("main") & scored.scenario.eq(config.representative)
-                      & scored.target.ne(CATEGORY_TARGET)]
-    for (target, method), block in selected.groupby(["target", "method"], sort=False):
-        y = block.truth
-        if BY_NAME[target].zero_inflated:
-            middle = y[y > 0].median()
-            bands = {"true zero": y.eq(0), "positive, lower half": y.gt(0) & y.le(middle),
-                     "positive, upper half": y.gt(middle)}
-        else:
-            low, high = y.quantile([0.1, 0.9])
-            bands = {"lowest 10%": y.le(low), "middle 80%": y.gt(low) & y.lt(high), "highest 10%": y.ge(high)}
-        for band, mask in bands.items():
-            part = block[mask]
-            rows.append({
-                "target": target, "method": method, "band": band, "n": len(part),
-                "MAE": (part.prediction - part.truth).abs().mean(), "bias": (part.prediction - part.truth).mean(),
-            })
-    return pd.DataFrame(rows)
-
-
-def _distribution(y, p):
-    y, p = np.asarray(y, float), np.asarray(p, float)
-    return {
-        "Wasserstein": wasserstein_distance(y, p), "mean shift": p.mean() - y.mean(),
-        "SD ratio": p.std() / y.std() if y.std() > 0 else np.nan,
-        "q10 shift": np.quantile(p, 0.1) - np.quantile(y, 0.1),
-        "q50 shift": np.quantile(p, 0.5) - np.quantile(y, 0.5),
-        "q90 shift": np.quantile(p, 0.9) - np.quantile(y, 0.9),
-    }
-
-
-def distribution_table(scored, draws, measured, truth, config):
-    """Whether imputed values keep the shape of the truth.
-
-    Repeated imputations are judged one completed dataset at a time and then
-    averaged. Averaging the draws first would remove the spread they exist to keep.
-    """
-    rows = []
-
-    def add(target, method, row_ids, values):
-        results = {"missing cells": _distribution(truth.loc[row_ids, target], values)}
-        filled = measured[target].copy()
-        filled.loc[row_ids] = values
-        results["completed column"] = _distribution(truth[target], filled)
-        return {scope: {"target": target, "method": method, "scope": scope, **result}
-                for scope, result in results.items()}
-
-    point = scored[scored.scenario.eq(config.representative) & scored.experiment.eq("main")
-                   & scored.target.ne(CATEGORY_TARGET)]
-    for (target, method), block in point.groupby(["target", "method"], sort=False):
-        rows.extend(add(target, method, block.row_id.to_numpy(), block.prediction.to_numpy()).values())
-    numeric_draws = draws[draws.target.ne(CATEGORY_TARGET)]
-    for (target, method), block in numeric_draws.groupby(["target", "method"], sort=False):
-        per_draw = [add(target, method, part.row_id.to_numpy(), part.value.to_numpy())
-                    for _, part in block.groupby("draw")]
-        for scope in ("missing cells", "completed column"):
-            frame = pd.DataFrame([item[scope] for item in per_draw])
-            rows.append({"target": target, "method": f"{method} (per draw)", "scope": scope,
-                         **frame.drop(columns=["target", "method", "scope"]).mean().to_dict()})
-    return pd.DataFrame(rows)
-
-
-def class_share_table(scored, config):
-    """Predicted class shares against the truth on missing model_id cells."""
-    rows = []
-    selected = scored[scored.scenario.eq(config.representative) & scored.experiment.isin(["main", "joint"])
-                      & scored.target.eq(CATEGORY_TARGET)]
-    for method, block in selected.groupby("method", sort=False):
-        truth = block.truth.value_counts(normalize=True)
-        predicted = block.prediction.value_counts(normalize=True)
-        levels = truth.index.union(predicted.index)
-        gap = predicted.reindex(levels, fill_value=0) - truth.reindex(levels, fill_value=0)
-        rows.append({"method": method, "total variation": 0.5 * gap.abs().sum(),
-                     **{f"share gap {int(k)}": v for k, v in gap.sort_index().items()}})
-    return pd.DataFrame(rows)
-
-
-def range_table(scored):
-    """How often raw predictions fell outside a column's valid range."""
-    rows = []
-    selected = scored[scored.experiment.eq("main") & scored.target.ne(CATEGORY_TARGET)]
-    for (target, method), block in selected.groupby(["target", "method"], sort=False):
-        column = BY_NAME[target]
-        low = -np.inf if column.lower is None else column.lower
-        high = np.inf if column.upper is None else column.upper
-        rows.append({"target": target, "method": method, "n": len(block),
-                     "outside valid range": float(((block.raw < low) | (block.raw > high)).mean())})
-    return pd.DataFrame(rows)
-
-
 def complete_table(measured, cells):
     frame = measured.copy()
     for target, block in cells.groupby("target"):
         frame.loc[block.row_id.to_numpy(), target] = block.value.to_numpy()
     return frame
-
-
-def coherence_table(scored, draws, measured, config):
-    """Whether completed rows still obey the generator's definitions.
-
-    Single-target methods fill each cell on its own, so a completed row can
-    contradict itself even when every cell looks accurate. The reference column
-    is the residual in rows with nothing imputed, which is what noise alone gives.
-    """
-    sources = {}
-    selected = scored[scored.scenario.eq(config.representative) & scored.target.ne(CATEGORY_TARGET)]
-    point = selected[selected.experiment.eq("main")]
-    for method in NUMERIC_METHODS:
-        block = point[point.method.eq(method)]
-        sources[method] = block[["row_id", "target"]].assign(value=block.prediction.to_numpy())
-    joint = selected[selected.experiment.eq("joint")]
-    if len(joint):
-        sources["Joint miceforest PMM (mean of draws)"] = joint[["row_id", "target"]].assign(value=joint.prediction.to_numpy())
-    if len(draws):
-        first = draws[draws.method.eq("Joint miceforest PMM") & draws.draw.eq(0) & draws.target.ne(CATEGORY_TARGET)]
-        sources["Joint miceforest PMM (one draw)"] = first[["row_id", "target", "value"]]
-    relations = {
-        "altitude = x + y + 100": (("x", "y", "altitude"), lambda f: (f.altitude - f.x - f.y - 100).abs()),
-        "overgrowth = max(2 humid - salt, 0)": (
-            ("measured_humid", "measured_salt", "measured_overgrowth"),
-            lambda f: (f.measured_overgrowth - (2 * f.measured_humid - f.measured_salt).clip(lower=0)).abs()),
-        "total_gas = gas a + b + c": (
-            GAS_READINGS + ("total_gas",),
-            lambda f: (f.total_gas - f.measured_gas_a - f.measured_gas_b - f.measured_gas_c).abs()),
-    }
-    rows = []
-    for relation, (fields, residual) in relations.items():
-        involved = measured[list(fields)].isna().any(axis=1)
-        reference = residual(measured[list(fields)].dropna())
-        for method, cells in sources.items():
-            frame = complete_table(measured, cells)
-            values = residual(frame.loc[involved, list(fields)].dropna())
-            rows.append({"relation": relation, "method": method, "rows": len(values),
-                         "mean residual": values.mean(), "residual in fully observed rows": reference.mean()})
-    return pd.DataFrame(rows)
-
-
-def draw_table(scored, draws, config):
-    """Spread of repeated imputations and whether the truth falls inside it."""
-    rows = []
-    selected = scored[scored.experiment.isin(["pmm", "joint"])]
-    for (target, method), block in selected.groupby(["target", "method"], sort=False):
-        part = draws[draws.target.eq(target) & draws.method.eq(method)]
-        wide = part.pivot(index="row_id", columns="draw", values="value").reindex(block.row_id)
-        y = block.set_index("row_id").truth
-        entry = {"target": target, "method": method, "n": len(block), "draws": wide.shape[1],
-                 "distinct draws per cell": wide.nunique(axis=1).mean()}
-        if target == CATEGORY_TARGET:
-            entry["truth among draws"] = wide.eq(y, axis=0).any(axis=1).mean()
-        else:
-            low, high = wide.quantile(config.interval[0], axis=1), wide.quantile(config.interval[1], axis=1)
-            entry["truth in band"] = (y.ge(low) & y.le(high)).mean()
-            entry["mean band width"] = (high - low).mean()
-        rows.append(entry)
-    return pd.DataFrame(rows)
 
 
 def probability_table(scored, config):
@@ -460,24 +279,11 @@ def stability_table(numeric, category, config):
     return table, classes
 
 
-def ablation_table(numeric, category):
-    """Change in error when a predictor block is removed, per scenario, target and method."""
-    keys = ["scenario", "target", "method"]
-    base = numeric[numeric.experiment.eq("main")][keys + ["MAE"]].rename(columns={"MAE": "full"})
-    table = numeric[numeric.experiment.eq("ablation")].merge(base, on=keys)
-    table["relative change"] = table.MAE / table.full - 1
-    table = table[keys + ["variant", "full", "MAE", "relative change"]].rename(columns={"MAE": "without"})
-    base = category[category.experiment.eq("main")][keys + ["accuracy"]].rename(columns={"accuracy": "full"})
-    labels = category[category.experiment.eq("ablation")].merge(base, on=keys)
-    labels = labels[keys + ["variant", "full", "accuracy"]].rename(columns={"accuracy": "without"})
-    return table, labels
-
-
 def export_completions(scored, measured, scenario, folder):
     """Write one completed table per method, with no truth columns.
 
     Every filled value is out-of-fold. model_id is filled by the classifier of the
-    same family; IterativeImputer has no classifier, so its model_id stays missing.
+    same model; IterativeImputer reports no model_id, so its model_id stays missing.
     """
     partner = {"Median": "Mode"}
     block = scored[scored.experiment.eq("main") & scored.scenario.eq(scenario)]
@@ -497,9 +303,9 @@ def export_completions(scored, measured, scenario, folder):
 def cost_table(log):
     """Fit and predict time per method. Parallel workers share the machine, so times are indicative."""
     selected = log[log.status.eq("success")].copy()
-    # One chained or joint task covers many targets, so its time is shared between them.
+    # One chained task covers many targets, so its time is shared between them.
     selected["targets covered"] = selected.target.map(
-        {ALL_NUMERIC: len(NUMERIC_TARGETS), ALL_COLUMNS: len(TARGETS), "all": len(TARGETS)}).fillna(1)
+        {ALL_NUMERIC: len(NUMERIC_TARGETS), ALL_COLUMNS: len(TARGETS)}).fillna(1)
     table = selected.groupby(["experiment", "method"], sort=False).agg(
         tasks=("task_id", "size"), targets=("targets covered", "sum"),
         **{"fit seconds": ("fit_seconds", "sum"), "predict seconds": ("predict_seconds", "sum")}
@@ -570,68 +376,3 @@ def target_table(numeric, pairs, effects, config):
     return pd.DataFrame(rows)
 
 
-def _top_effects(effects, control, method, config, count=3):
-    """The targets a control moves most for one method, on the same cells."""
-    held = "held completion" if control == "noise" else "held noise"
-    kind = "completion" if control == "noise" else "noise"
-    part = effects[effects.control.eq(control) & effects.method.eq(method)
-                   & effects[held].eq(_representative_level(config, kind)) & effects.target.ne(CATEGORY_TARGET)]
-    part = part[part["from"].eq(part["from"].min()) & part.to.eq(part.to.max())]
-    return part.reindex(part["relative change"].abs().sort_values(ascending=False).index).head(count)
-
-
-def findings(numeric, category, pairs, effects, relations, links, visibility, config):
-    """A summary written from this run's tables, organised by the study's three aims."""
-    main = numeric[numeric.experiment.eq("main") & numeric.seed.eq(config.seed)]
-    rep = main[main.scenario.eq(config.representative) & main.method.ne("Median") & main.target.ne("random_placebo")]
-    ranking = rep.groupby("method").skill.mean().sort_values(ascending=False)
-    leader = ranking.index[0]
-    tied = ranking[ranking >= ranking.iloc[0] - 0.01]
-    best_two = pairs[pairs.scenario.eq(config.representative) & pairs.comparison.eq("best two")
-                     & ~pairs.target.isin([CATEGORY_TARGET, "random_placebo"])]
-    unclear = int(((best_two.low <= 0) & (best_two.high >= 0)).sum())
-    labels = category[category.experiment.eq("main") & category.scenario.eq(config.representative) & category.seed.eq(config.seed)]
-    trained = labels[labels.method.ne("Mode")]
-    compare = [
-        f"- Highest mean skill in the representative scenario: {', '.join(f'{m} {s:.3f}' for m, s in tied.items())}. "
-        "Methods within 0.01 of the top are treated as tied.",
-        f"- The best two methods cannot be separated on {unclear} of {len(best_two)} numeric targets.",
-        f"- `model_id` accuracy ranges from {trained.accuracy.min():.1%} to {trained.accuracy.max():.1%} across methods, "
-        f"against {labels[labels.method.eq('Mode')].accuracy.iloc[0]:.1%} for the mode.",
-    ]
-
-    exact = relations[relations.scenario.eq(config.noise_series[0])]
-    learned = []
-    for relation, block in exact.groupby("relation", sort=False):
-        fitted = block[~block.method.isin(["Median", "Formula"])].sort_values("MAE")
-        median = block[block.method.eq("Median")].MAE.iloc[0]
-        if len(fitted):
-            learned.append(f"  - {relation}: {fitted.iloc[0].method}, MAE {fitted.iloc[0].MAE:.3g} against {median:.3g} for the median.")
-    found = links[links.scenario.eq(config.noise_series[0])]
-    control = pairs[pairs.target.eq("random_placebo") & pairs.comparison.eq("versus baseline")]
-    better, worse = int(control.high.lt(0).sum()), int(control.low.gt(0).sum())
-    largest = main[main.target.eq("random_placebo") & main.method.ne("Median")].skill.max()
-    relationships = [
-        "- With all defining inputs visible and no noise, the lowest errors are:", *learned,
-        f"- Importance finds {found['direct links found'].min():.0%} to {found['direct links found'].max():.0%} of direct links, "
-        f"and {found['relied on: unrelated'].max():.0%} or less of relied-on columns have no link within two steps.",
-        f"- Negative control: {better} of {len(control)} comparisons with the median favour a method and {worse} favour the median. "
-        f"The largest placebo skill is {largest:.1%}.",
-    ]
-
-    seen = visibility[visibility.method.eq(leader)].pivot(index="target", columns="level", values="skill")
-    failure = []
-    if {"all linked columns seen", "few seen"} <= set(seen.columns):
-        drop = (seen["all linked columns seen"] - seen["few seen"]).dropna().sort_values(ascending=False).head(3)
-        text = ", ".join(f"`{t}` ({seen.loc[t, 'all linked columns seen']:.2f} to {seen.loc[t, 'few seen']:.2f})" for t in drop.index)
-        failure.append(f"- Hidden inputs: for {leader}, skill falls most on {text} when few linked columns are visible.")
-    for control_name, label in (("noise", "Noise from lowest to highest"), ("completeness", "Completion from lowest to highest")):
-        top = _top_effects(effects, control_name, leader, config)
-        text = ", ".join(f"`{t}` {c:+.0%}" for t, c in zip(top.target, top["relative change"]))
-        failure.append(f"- {label}: largest MAE changes for {leader} are {text}.")
-
-    return "\n\n".join([
-        "**Model comparison**\n\n" + "\n".join(compare),
-        "**Relationships**\n\n" + "\n".join(relationships),
-        "**Failure conditions**\n\n" + "\n".join(failure),
-    ])

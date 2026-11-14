@@ -1,6 +1,6 @@
 """Experiment plan and parallel execution with resumable per-task checkpoints.
 
-Truth is never read here. Predictions are written to disk per task, so an
+Truth values are never read here. Predictions are written to disk per task, so an
 interrupted run continues from the tasks that have not finished.
 """
 
@@ -25,7 +25,7 @@ from .columns import CATEGORY_TARGET, GAS_READINGS, NUMERIC_TARGETS, TARGETS, fi
 from .data import discover, file_hash, read_measured
 from .models import (
     CATEGORY_METHODS, CHAINED_CLASSES, CLASS_COUNT, NUMERIC_METHODS,
-    CalibratedForest, ChainedRidgeImputer, JointModel, MiceforestModel, make_model,
+    CalibratedForest, ChainedRidgeImputer, make_model,
 )
 
 PROBABILITY_COLUMNS = [f"prob_{i}" for i in range(CLASS_COUNT)]
@@ -34,7 +34,9 @@ CHAIN_SETTINGS = ("passes", "linear_alpha", "curve_alpha")
 ALL_NUMERIC = "all numeric"
 ALL_COLUMNS = "all columns"
 ITERATIVE = "IterativeImputer"
-ABLATION_CHAINS = ("KNN imputer", "Random Forest", "CatBoost")
+ABLATION_CHAINS = ("KNN imputer", "Random Forest", "HistGradientBoosting", "CatBoost")
+STRUCTURE_CHAINS = ABLATION_CHAINS  # the models that use the ridge base
+NO_BASE = "no ridge base"
 IMPORTANCE_METHODS = ("Random Forest", "CatBoost")
 
 
@@ -56,12 +58,6 @@ def default_parameters():
                      "learning_rate": 0.1, "patience": 30, "classifier_rounds": 500},
         "miceforest direct": {"iterations": 3, "rounds": 200, "learning_rate": 0.05, "num_leaves": 31,
                               "min_data_in_leaf": 20, "feature_fraction": 0.7},
-        # Donor matching compares predictions for rows the model trained on. A model that
-        # fits those rows closely finds donors too similar to the prediction, and the draws
-        # lose their spread, so the two donor-matched models stay deliberately weak.
-        "miceforest PMM": {"iterations": 1, "rounds": 100, "num_leaves": 31, "min_data_in_leaf": 20},
-        "Joint miceforest PMM": {"iterations": 3, "rounds": 100, "learning_rate": 0.05, "num_leaves": 7,
-                                 "min_data_in_leaf": 50, "feature_fraction": 0.7},
     }
 
 
@@ -81,12 +77,15 @@ def default_blocks():
         "without gas columns": GAS_READINGS + ("total_gas",),
         "without life": ("life",),
         "without location": ("x", "y", "altitude"),
+        "without install_date": ("install_date",),
     }
 
 
 @dataclass
 class StudyConfig:
     data_directory: str = "data/datasets"
+    mechanism_directory: str = "data/datasets_mechanisms"
+    mechanisms: tuple = ("age", "value")  # see mechanisms.py
     output_directory: str = "outputs/imputation-study/runs"
     representative: str = "completion0.8-noise0.05"
     noise_series: tuple = ("completion0.8-noise0.0", "completion0.8-noise0.05", "completion0.8-noise0.1")
@@ -96,9 +95,6 @@ class StudyConfig:
     folds: int = 5
     rows: int | None = None  # a smaller sample, for quick checks only
     iterative_budgets: tuple = (5, 30)
-    pmm_draws: int = 20
-    pmm_candidates: int = 5
-    interval: tuple = (0.1, 0.9)
     bootstrap_draws: int = 1000
     small_group: int = 30
     material_gap: float = 0.05  # a smaller relative MAE gap is reported as practically tied
@@ -110,7 +106,7 @@ class StudyConfig:
 def quick_config(**changes):
     """Every stage on a small sample with small models. Results are not findings."""
     config = StudyConfig(
-        rows=600, pmm_draws=3, bootstrap_draws=50,
+        rows=600, bootstrap_draws=50,
         scenarios=("completion0.7-noise0.05", "completion0.8-noise0.0", "completion0.8-noise0.05",
                    "completion0.8-noise0.1", "completion0.9-noise0.05"),
     )
@@ -121,8 +117,6 @@ def quick_config(**changes):
     config.parameters["CatBoost"].update(iterations=10, classifier_rounds=10, passes=2)
     config.explanation["CatBoost"]["iterations"] = 10
     config.parameters["miceforest direct"].update(rounds=10, iterations=2)
-    config.parameters["miceforest PMM"].update(rounds=10, min_data_in_leaf=10)
-    config.parameters["Joint miceforest PMM"].update(rounds=10, iterations=2, min_data_in_leaf=10)
     config.parameters[ITERATIVE]["max_iter"] = 3
     return replace(config, **changes)
 
@@ -142,7 +136,7 @@ class Task:
         return hashlib.sha256(json.dumps(asdict(self), sort_keys=True).encode()).hexdigest()[:20]
 
 
-def build_plan(names, config):
+def build_plan(names, config, mechanism_names=()):
     """Every planned fit. The folds of a seed are shared by all methods and scenarios."""
     plan = []
     folds = range(config.folds)
@@ -172,9 +166,8 @@ def build_plan(names, config):
     for fold in folds:
         for budget in config.iterative_budgets:
             add(representative, "budget", str(budget), config.seed, fold, ALL_NUMERIC, f"{ITERATIVE} ({budget})")
-        for target in NUMERIC_TARGETS:
-            add(representative, "pmm", "all predictors", config.seed, fold, target, "miceforest PMM")
-        add(representative, "joint", "all predictors", config.seed, fold, "all", "Joint miceforest PMM")
+        for method in STRUCTURE_CHAINS:
+            add(representative, "structure", NO_BASE, config.seed, fold, ALL_COLUMNS, method)
         for variant in ("all predictors", "without gas columns"):
             add(representative, "calibration", variant, config.seed, fold, CATEGORY_TARGET,
                 "Random Forest calibrated")
@@ -186,7 +179,11 @@ def build_plan(names, config):
                     add(name, "ablation", variant, config.seed, fold, ALL_COLUMNS, method)
         for target in TARGETS:
             for method in IMPORTANCE_METHODS:
-                add(name, "importance", "all predictors", config.seed, 0, target, method)
+                for fold in folds:
+                    add(name, "importance", "all predictors", config.seed, fold, target, method)
+    for name in mechanism_names:
+        for fold in folds:
+            add_full_set(name, "mechanism", config.seed, fold)
     return plan
 
 
@@ -205,9 +202,13 @@ def fold_ids(rows, folds, seed):
     return assignment
 
 
+def data_folders(root, config):
+    return Path(root) / config.data_directory, Path(root) / config.mechanism_directory
+
+
 @lru_cache(maxsize=4)
-def _measured(directory, name, rows, sample_seed):
-    frame = read_measured(discover(directory)[name])
+def _measured(folders, name, rows, sample_seed):
+    frame = read_measured(discover(*folders)[name])
     if rows is not None:
         chosen = np.random.default_rng(sample_seed).choice(len(frame), rows, replace=False)
         frame = frame.iloc[np.sort(chosen)]
@@ -215,7 +216,7 @@ def _measured(directory, name, rows, sample_seed):
 
 
 def load_measured(root, name, config):
-    return _measured(str(Path(root) / config.data_directory), name, config.rows, config.seed)
+    return _measured(tuple(str(f) for f in data_folders(root, config)), name, config.rows, config.seed)
 
 
 def _rows(target, row_ids, raw, prediction=None, probabilities=None):
@@ -249,7 +250,7 @@ def _point_task(task, config, train, test, drop):
     else:
         raw = model.predict(test.loc[hidden])
         frame = _rows(task.target, test.index[hidden], raw)
-    return frame, None, fitted - started, time.perf_counter() - fitted, {}
+    return frame, fitted - started, time.perf_counter() - fitted, {}
 
 
 def _iterative_task(task, config, train, test, drop):
@@ -265,12 +266,15 @@ def _iterative_task(task, config, train, test, drop):
         hidden = test[target].isna()
         frames.append(_rows(target, test.index[hidden], filled.loc[hidden, target]))
     frame = pd.concat(frames, ignore_index=True)
-    return frame, None, fitted - started, time.perf_counter() - fitted, {"n_iter": int(model.n_iter_)}
+    return frame, fitted - started, time.perf_counter() - fitted, {"n_iter": int(model.n_iter_)}
 
 
 def _chained_task(task, config, train, test, drop):
     """One chained fit supplies every column for this fold."""
-    model = CHAINED_CLASSES[task.method](config.parameters[task.method], task.seed + task.fold, drop)
+    settings = dict(config.parameters[task.method])
+    if task.variant == NO_BASE:
+        settings["base"] = "none"
+    model = CHAINED_CLASSES[task.method](settings, task.seed + task.fold, drop)
     started = time.perf_counter()
     model.fit(train)
     fitted = time.perf_counter()
@@ -283,46 +287,7 @@ def _chained_task(task, config, train, test, drop):
     shares = _full_probabilities(model.classes_, probabilities[hidden])
     labels = shares.argmax(axis=1).astype(float)
     frames.append(_rows(CATEGORY_TARGET, test.index[hidden], labels, labels, shares))
-    return pd.concat(frames, ignore_index=True), None, fitted - started, time.perf_counter() - fitted, {}
-
-
-def _pmm_task(task, config, train, test):
-    settings = config.parameters["miceforest PMM"]
-    model = MiceforestModel(task.target, config, settings, task.seed + task.fold, config.pmm_draws)
-    hidden = test[task.target].isna()
-    started = time.perf_counter()
-    model.fit(train)
-    fitted = time.perf_counter()
-    draws = model.draw(test.loc[hidden])
-    frame = _rows(task.target, test.index[hidden], draws.mean(axis=1))
-    long = pd.DataFrame({
-        "row_id": np.repeat(test.index[hidden], draws.shape[1]), "target": task.target,
-        "draw": np.tile(np.arange(draws.shape[1]), draws.shape[0]), "value": draws.ravel(),
-    })
-    return frame, long, fitted - started, time.perf_counter() - fitted, {}
-
-
-def _joint_task(task, config, train, test):
-    model = JointModel(config, config.parameters["Joint miceforest PMM"], task.seed + task.fold)
-    started = time.perf_counter()
-    model.fit(train)
-    fitted = time.perf_counter()
-    copies = model.predict(test)
-    frames, long = [], []
-    for target in TARGETS:
-        hidden = test[target].isna()
-        values = np.column_stack([copy.loc[hidden, target] for copy in copies])
-        if target == CATEGORY_TARGET:
-            votes = pd.DataFrame(values).mode(axis=1).iloc[:, 0].to_numpy()
-            frames.append(_rows(target, test.index[hidden], votes, votes))
-        else:
-            frames.append(_rows(target, test.index[hidden], values.mean(axis=1)))
-        long.append(pd.DataFrame({
-            "row_id": np.repeat(test.index[hidden], values.shape[1]), "target": target,
-            "draw": np.tile(np.arange(values.shape[1]), values.shape[0]), "value": values.ravel(),
-        }))
-    return (pd.concat(frames, ignore_index=True), pd.concat(long, ignore_index=True),
-            fitted - started, time.perf_counter() - fitted, {})
+    return pd.concat(frames, ignore_index=True), fitted - started, time.perf_counter() - fitted, {}
 
 
 def _calibration_task(task, config, train, test, drop):
@@ -336,7 +301,7 @@ def _calibration_task(task, config, train, test, drop):
     probabilities = _full_probabilities(model.classes_, model.predict_proba(test.loc[hidden]))
     raw = probabilities.argmax(axis=1).astype(float)
     frame = _rows(CATEGORY_TARGET, test.index[hidden], raw, raw, probabilities)
-    return frame, None, fitted - started, time.perf_counter() - fitted, {}
+    return frame, fitted - started, time.perf_counter() - fitted, {}
 
 
 def _importance_task(task, config, train, test):
@@ -363,7 +328,7 @@ def _importance_task(task, config, train, test):
         shuffled[predictor] = generator.permutation(shuffled[predictor].to_numpy())
         entries.append({"target": task.target, "predictor": predictor,
                         "importance": (loss(shuffled) - base) / constant if constant else np.nan})
-    return pd.DataFrame(entries), None, fitted - started, time.perf_counter() - fitted, {}
+    return pd.DataFrame(entries), fitted - started, time.perf_counter() - fitted, {}
 
 
 def execute_task(task, config, root, run_directory):
@@ -377,7 +342,7 @@ def execute_task(task, config, root, run_directory):
     train, test = measured[assignment != task.fold], measured[assignment == task.fold]
     drop = config.blocks.get(task.variant, ())
     status, error, fit_seconds, predict_seconds, extra = "success", "", np.nan, np.nan, {}
-    frame = draws = None
+    frame = None
     with threadpool_limits(limits=1), warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         try:
@@ -385,23 +350,17 @@ def execute_task(task, config, root, run_directory):
                 outcome = _iterative_task(task, config, train, test, drop)
             elif task.target == ALL_COLUMNS:
                 outcome = _chained_task(task, config, train, test, drop)
-            elif task.experiment == "pmm":
-                outcome = _pmm_task(task, config, train, test)
-            elif task.experiment == "joint":
-                outcome = _joint_task(task, config, train, test)
             elif task.experiment == "calibration":
                 outcome = _calibration_task(task, config, train, test, drop)
             elif task.experiment == "importance":
                 outcome = _importance_task(task, config, train, test)
             else:
                 outcome = _point_task(task, config, train, test, drop)
-            frame, draws, fit_seconds, predict_seconds, extra = outcome
+            frame, fit_seconds, predict_seconds, extra = outcome
         except Exception as exception:
             status, error = "failed", f"{type(exception).__name__}: {exception}"
     if frame is not None:
         frame.to_parquet(folder / f"{task.task_id}.parquet", index=False)
-    if draws is not None:
-        draws.to_parquet(folder / f"{task.task_id}.draws.parquet", index=False)
     meta = {
         **asdict(task), "task_id": task.task_id, "status": status, "error": error,
         "fit_seconds": fit_seconds, "predict_seconds": predict_seconds, "warnings": len(caught),
@@ -422,7 +381,7 @@ def run_contract(root, config, names):
     figures can change without invalidating a finished run.
     """
     source = Path(__file__).parent
-    scenarios = discover(Path(root) / config.data_directory)
+    scenarios = discover(*data_folders(root, config))
     return {
         "config": json.loads(json.dumps(asdict(config), default=str)),
         "inputs": {s: [file_hash(scenarios[s].measured), file_hash(scenarios[s].truth)] for s in names},
@@ -461,7 +420,7 @@ def run_plan(plan, config, root, run_directory, workers=None, log_name="task_log
     if source not in current.split(os.pathsep):
         os.environ["PYTHONPATH"] = os.pathsep.join(filter(None, [source, current]))
     # Slowest kinds of work go first so that no long task is left running alone at the end.
-    weight = {"joint": 0, "pmm": 1, "importance": 2, "calibration": 3}
+    weight = {"importance": 2, "calibration": 3}
     ordered = sorted(plan, key=lambda t: (weight.get(t.experiment, 4), not t.method.startswith(ITERATIVE),
                                           t.method != "Random Forest"))
     started = time.perf_counter()

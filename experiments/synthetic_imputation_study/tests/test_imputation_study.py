@@ -10,11 +10,10 @@ from team19_asset_data.imputation_study.columns import (
 )
 from team19_asset_data.imputation_study.data import FILE_PATTERN, relationship_residuals
 from team19_asset_data.imputation_study.evaluation import (
-    class_scores, cost_table, numeric_scores, visible_group,
+    class_scores, cost_table, numeric_scores,
 )
 from team19_asset_data.imputation_study.models import (
-    CHAINED_CLASSES, MODEL_CLASSES, BaselineModel, BlockRidge, ChainedRidgeImputer, Features, JointModel,
-    MiceforestModel, make_model,
+    CHAINED_CLASSES, MODEL_CLASSES, BaselineModel, BlockRidge, ChainedRidgeImputer, Features, make_model,
 )
 from team19_asset_data.imputation_study import relationships as rel
 from team19_asset_data.imputation_study.study import MODEL_FAMILIES
@@ -116,30 +115,11 @@ def test_classifiers_return_class_probabilities_with_missing_predictors():
         assert probabilities.shape == (5, 2) and np.allclose(probabilities.sum(axis=1), 1)
 
 
-def test_pmm_returns_one_column_per_draw():
-    config = quick_config()
-    frame = small_frame(300).drop(columns="model_id")
-    model = MiceforestModel("target", config, config.parameters["miceforest PMM"], 0, config.pmm_draws).fit(frame)
-    hidden = frame[frame.target.isna()]
-    assert model.draw(hidden).shape == (len(hidden), config.pmm_draws)
-
-
 def test_miceforest_runs_as_gradient_boosting():
     config = quick_config()
     model = CHAINED_CLASSES["miceforest direct"](config.parameters["miceforest direct"], 0).fit(chained_frame())
     text = model.kernel.get_model("total", 0).model_to_string()
     assert "[boosting: gbdt]" in text
-
-
-def test_joint_model_returns_completed_copies_with_observed_cells_unchanged():
-    config = quick_config()
-    frame = chained_frame()
-    train, test = frame.iloc[:400], frame.iloc[400:]
-    copies = JointModel(config, config.parameters["Joint miceforest PMM"], 0).fit(train).predict(test)
-    assert len(copies) == config.pmm_draws
-    for copy in copies:
-        assert copy.notna().all().all()
-        assert np.allclose(copy.where(test.notna()).fillna(0), test.fillna(0))
 
 
 def test_every_planned_method_belongs_to_one_notebook_section():
@@ -318,11 +298,6 @@ def test_file_pattern_reads_both_controls():
     assert (match["completion"], match["noise"], match["kind"]) == ("0.8", "0.05", "measured")
 
 
-def test_groups_use_visibility_of_companions():
-    frame = pd.DataFrame({"x": [1.0, np.nan], "y": [np.nan, np.nan]})
-    assert visible_group("altitude", frame).tolist() == ["x seen · y missing", "x missing · y missing"]
-
-
 def test_only_prediction_code_decides_whether_a_run_can_be_reused():
     assert set(MODEL_SOURCES) == {"columns.py", "data.py", "models.py", "runner.py"}
 
@@ -330,11 +305,6 @@ def test_only_prediction_code_decides_whether_a_run_can_be_reused():
 def test_calibration_uses_the_forest_of_the_raw_result():
     settings = {k: v for k, v in default_parameters()["Random Forest"].items() if k not in CHAIN_SETTINGS}
     assert not set(settings) & set(CHAIN_SETTINGS) and "n_estimators" in settings
-
-
-def test_total_gas_groups_count_the_visible_gas_readings():
-    frame = pd.DataFrame({"measured_gas_a": [1.0, np.nan], "measured_gas_b": [1.0, np.nan], "measured_gas_c": [1.0, 2.0]})
-    assert visible_group("total_gas", frame).tolist() == ["3 of 3 gas readings seen", "1 of 3 gas readings seen"]
 
 
 def test_life_definition_matches_each_model():
@@ -376,26 +346,140 @@ def test_relation_table_uses_only_cells_with_every_input_visible():
     assert altitude.MAE[rel.FORMULA] == 0
 
 
-def test_links_are_sorted_into_direct_two_steps_and_unrelated():
-    importance = pd.DataFrame({
-        "method": "M", "scenario": "s", "target": "altitude", "predictor": ["x", "install_date", "random_placebo"],
-        "importance": [0.5, 0.1, 0.0],
-    })
-    table = rel.classify_links(importance).set_index("predictor")
-    assert table.direct["x"] and table["two steps"]["install_date"] and table.unrelated["random_placebo"]
-    row = rel.link_table(importance).iloc[0]
-    assert row["direct links found"] == 1 and row["relied on: direct"] == 0.5
-
-
-def test_perfect_imputation_keeps_every_correlation():
+def test_mechanism_files_hide_the_same_share_in_a_different_pattern(tmp_path):
+    from team19_asset_data.imputation_study.mechanisms import write_mechanism_files
     generator = np.random.default_rng(0)
-    truth = pd.DataFrame(generator.normal(size=(200, len(TARGETS))), columns=list(TARGETS))
+    truth = pd.DataFrame(generator.random((4000, len(NAMES))), columns=list(NAMES))
+    truth["install_date"] = np.arange(4000.0)
+    truth["model_id"] = generator.integers(0, 4, 4000).astype(float)
+    folder = tmp_path / "data/datasets"
+    folder.mkdir(parents=True)
+    for completion in (0.8, 0.9):
+        measured = truth.mask(generator.random(truth.shape) > completion)
+        measured.to_csv(folder / f"completion{completion}-noise0.05-measured.csv", index=False)
+        truth.to_csv(folder / f"completion{completion}-noise0.05-truth.csv", index=False)
+    config = quick_config()
+    scenarios = write_mechanism_files(tmp_path, config)
+    first = {name: s.measured.read_bytes() for name, s in scenarios.items()}
+    assert {name: s.measured.read_bytes() for name, s in write_mechanism_files(tmp_path, config).items()} == first
+    base = pd.read_csv(folder / "completion0.9-noise0.05-measured.csv").isna()
+    age = pd.read_csv(scenarios["completion0.8-noise0.05-age"].measured).isna()
+    value = pd.read_csv(scenarios["completion0.8-noise0.05-value"].measured).isna()
+    for hidden in (age, value):
+        assert (hidden | ~base).all().all()  # nothing hidden in the base file is revealed
+        assert abs(hidden.to_numpy().mean() - 0.2) < 0.01
+    assert age.iloc[:1000].to_numpy().mean() > age.iloc[-1000:].to_numpy().mean() + 0.1
+    high = truth.x > truth.x.quantile(0.8)
+    assert value.x[high].mean() > value.x[~high].mean() + 0.05
+    assert scenarios["completion0.8-noise0.05-age"].mechanism == "age"
+
+
+def test_a_chain_without_the_ridge_base_uses_only_the_local_model():
+    from team19_asset_data.imputation_study.models import ChainedForest, RidgeThenLocal
+    frame = chained_frame(200)
+    settings = {"passes": 2, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_estimators": 5}
+    plain = ChainedForest({**settings, "base": "none"}, 0).fit(frame)
+    based = ChainedForest(settings, 0).fit(frame)
+    assert not any(isinstance(model, RidgeThenLocal) for _, _, model in plain.sequence)
+    assert any(isinstance(model, RidgeThenLocal) for _, _, model in based.sequence)
+
+
+def test_plan_covers_mechanisms_structure_and_every_importance_fold():
+    config = quick_config()
+    plan = pd.DataFrame([vars(t) for t in build_plan(["completion0.8-noise0.05"], config, ["completion0.8-noise0.05-age"])])
+    assert set(plan.experiment) == {"main", "stability", "budget", "structure", "calibration", "ablation", "importance",
+                                    "mechanism"}
+    assert plan[plan.experiment.eq("importance")].fold.nunique() == config.folds
+    assert set(plan[plan.experiment.eq("mechanism")].scenario) == {"completion0.8-noise0.05-age"}
+    assert not plan.method.str.contains("PMM").any()
+
+
+def failure_inputs():
+    """Two methods and the baseline on four hidden altitude cells, with x and y partly visible."""
+    from team19_asset_data.imputation_study import failure as fl
+    measured = pd.DataFrame(np.nan, index=range(4), columns=list(NAMES))
+    measured["x"] = [1.0, 2.0, np.nan, np.nan]
+    measured["y"] = [1.0, np.nan, 3.0, np.nan]
+    truth = pd.DataFrame(1.0, index=range(4), columns=list(NAMES))
+    truth["altitude"] = [102.0, 104.0, 106.0, 108.0]
+    rows = []
+    for method, predictions in (("Median", [105.0] * 4), ("A", [102.0, 104.0, 107.0, 105.0])):
+        for row, value in enumerate(predictions):
+            rows.append({"scenario": "s", "experiment": "main", "variant": "all predictors", "seed": 219, "fold": 0,
+                         "method": method, "target": "altitude", "row_id": row, "raw": value, "prediction": value,
+                         "truth": truth.altitude[row]})
+    return fl, fl.cell_table(pd.DataFrame(rows), {"s": measured}, {"s": truth})
+
+
+def test_cells_carry_the_baseline_error_and_the_visible_links():
+    fl, cells = failure_inputs()
+    model = cells[cells.method.eq("A")].set_index("row_id")
+    assert model.base_error.tolist() == [3.0, 1.0, 1.0, 3.0]
+    assert model.seen.tolist() == [2, 1, 1, 0] and model.links.eq(3).all()  # x, y and measured_humid
+    assert model.error.tolist() == [0.0, 0.0, 1.0, 3.0]
+
+
+def test_skill_is_measured_against_the_baseline_on_the_same_cells():
+    fl, cells = failure_inputs()
+    table = fl.skill_by(cells, ["method"], minimum=1).set_index("method")
+    assert table.skill["Median"] == 0
+    assert table.skill["A"] == pytest.approx(1 - 4 / 8)
+    by_seen = fl.skill_by(cells[cells.method.eq("A")], ["seen"], minimum=1).set_index("seen").skill
+    assert by_seen[2] == 1 and by_seen[0] == 0
+
+
+def test_failure_standard_has_three_states():
+    from team19_asset_data.imputation_study import failure as fl
+    assert [fl.state(v) for v in (0.9, 0.5, 0.3, 0.05, -0.2, np.nan)] == ["works", "works", "weak", "fails", "fails", "not measured"]
+
+
+def test_links_follow_the_generator_definition():
+    from team19_asset_data.imputation_study import failure as fl
+    assert fl.link_class("altitude", "x") == fl.DIRECT
+    assert fl.link_class("x", "y") == fl.TOGETHER  # they define altitude together
+    assert fl.link_class("altitude", "install_date") == fl.THROUGH  # both are computed from x and y
+    assert fl.link_class("leakage", "x") == fl.STAND_IN  # x is a near copy of install_date
+    assert fl.link_class("altitude", "random_placebo") == fl.NO_LINK
+    assert fl.link_class("leakage", "measured_humid") == fl.NO_LINK
+
+
+def test_downstream_values_of_the_truth_have_no_error():
+    from team19_asset_data.imputation_study import failure as fl
+    generator = np.random.default_rng(0)
+    truth = pd.DataFrame(generator.random((300, len(NAMES))), columns=list(NAMES))
+    truth["model_id"] = generator.integers(0, 4, 300).astype(float)
     measured = truth.mask(generator.random(truth.shape) < 0.2)
     rows = []
     for target in truth:
         hidden = measured.index[measured[target].isna()]
-        rows.append(pd.DataFrame({"row_id": hidden, "target": target, "prediction": truth.loc[hidden, target].to_numpy()}))
-    scored = pd.concat(rows, ignore_index=True).assign(scenario="s", experiment="main", seed=219, method="A")
+        method = "Mode" if target == "model_id" else "Median"
+        for name in (method, "A"):
+            rows.append(pd.DataFrame({"row_id": hidden, "target": target, "method": name,
+                                      "prediction": truth.loc[hidden, target].to_numpy()}))
+    scored = pd.concat(rows, ignore_index=True).assign(scenario="s", experiment="main", variant="all predictors", seed=219,
+                                                         fold=0, raw=np.nan)
+    scored["truth"] = scored.prediction
     config = quick_config(representative="s")
-    table = rel.correlation_table(scored, pd.DataFrame(), measured, truth, config)
-    assert table["mean Pearson gap"].iloc[0] == pytest.approx(0, abs=1e-12)
+    cells = fl.cell_table(scored, {"s": measured}, {"s": truth})
+    table = fl.downstream_table(cells, {"s": measured}, {"s": truth}, config)
+    perfect = table[table.source.eq("A")]
+    assert perfect["relative error"].abs().max() < 1e-12
+    assert table[table.source.eq("rows with no missing cell")]["rows used"].iloc[0] < 300
+
+
+def test_scenario_effects_do_not_depend_on_the_order_of_rows():
+    from team19_asset_data.imputation_study.data import Scenario
+    from team19_asset_data.imputation_study.evaluation import scenario_effects
+    generator = np.random.default_rng(0)
+    scenarios = {name: Scenario(name, 0.8, noise, None, None) for name, noise in (("completion0.8-noise0.0", 0.0), ("completion0.8-noise0.1", 0.1))}
+    rows = []
+    for name in scenarios:
+        truth = generator.normal(size=200)
+        rows.append(pd.DataFrame({"scenario": name, "experiment": "main", "method": "A", "target": "altitude",
+                                  "row_id": np.arange(200), "truth": truth, "prediction": truth + generator.normal(size=200)}))
+    scored = pd.concat(rows, ignore_index=True)
+    config = quick_config()
+    first = scenario_effects(scored, scenarios, config)
+    second = scenario_effects(scored.sample(frac=1, random_state=1), scenarios, config)
+    assert first[["low", "high"]].to_numpy() == pytest.approx(second[["low", "high"]].to_numpy(), abs=1e-12)
+

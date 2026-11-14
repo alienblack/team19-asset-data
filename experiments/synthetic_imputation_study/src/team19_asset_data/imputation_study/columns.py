@@ -152,25 +152,43 @@ COMPANIONS = {
     "random_placebo": (),
 }
 
-# Columns linked to each target by the generator's definition, shown beside
-# learned importance. These links are read from the definition, not estimated.
-GENERATOR_LINKS = {
-    "x": ("altitude", "install_date"),
-    "y": ("altitude", "install_date", "measured_salt"),
-    "install_date": ("x", "y", "model_id", "life", "total_gas", "leakage") + GAS_READINGS,
-    "altitude": ("x", "y", "measured_humid"),
-    "measured_humid": ("altitude", "measured_overgrowth", "life"),
-    "measured_salt": ("y", "measured_overgrowth", "life"),
-    "measured_overgrowth": ("measured_humid", "measured_salt", "life"),
-    "model_id": ("install_date", "life") + GAS_READINGS,
+# The generator's definition as a graph: each column and the columns it is computed from.
+# Used only after fitting, to check what the models relied on. No model receives it.
+PARENTS = {
+    "x": (),
+    "y": (),
+    "install_date": ("x", "y"),  # the day counter rises along the grid order
+    "model_id": ("install_date",),
+    "altitude": ("x", "y"),
+    "measured_humid": ("altitude",),
+    "measured_salt": ("y",),
+    "measured_overgrowth": ("measured_humid", "measured_salt"),
+    "leakage": (),
+    "measured_gas_a": ("model_id", "install_date", "leakage"),
+    "measured_gas_b": ("model_id", "install_date", "leakage"),
+    "measured_gas_c": ("model_id", "install_date", "leakage"),
+    "total_gas": GAS_READINGS,
     "life": ("install_date", "model_id", "measured_humid", "measured_salt", "measured_overgrowth", "total_gas"),
-    "measured_gas_a": ("model_id", "install_date", "leakage", "total_gas"),
-    "measured_gas_b": ("model_id", "install_date", "leakage", "total_gas"),
-    "measured_gas_c": ("model_id", "install_date", "leakage", "total_gas"),
-    "total_gas": ("install_date", "leakage", "life") + GAS_READINGS,
-    "leakage": ("install_date", "total_gas") + GAS_READINGS,
     "random_placebo": (),
 }
+
+
+def _children(name):
+    return tuple(c for c in NAMES if name in PARENTS[c])
+
+
+# Direct links: the columns a target is computed from, and the columns computed from it.
+GENERATOR_LINKS = {
+    t: tuple(c for c in NAMES if c in PARENTS[t] or c in _children(t)) for t in NAMES
+}
+# Columns that define a third column together with the target. Given that third column they
+# carry information about the target: x and y through altitude, for example.
+CO_DEFINING = {
+    t: tuple(c for c in NAMES if c != t and c not in GENERATOR_LINKS[t]
+             and any(c in PARENTS[child] for child in _children(t)))
+    for t in NAMES
+}
+RELATED = {t: GENERATOR_LINKS[t] + CO_DEFINING[t] for t in NAMES}
 
 
 def column_table():

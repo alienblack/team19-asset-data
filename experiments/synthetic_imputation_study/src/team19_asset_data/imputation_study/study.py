@@ -14,10 +14,12 @@ from IPython.display import Markdown, display
 import pandas as pd
 
 from . import evaluation as ev
+from . import failure as fl
 from . import figures as fg
 from . import relationships as rel
 from .columns import NUMERIC_TARGETS
 from .data import read_truth
+from .mechanisms import write_mechanism_files
 from .runner import (
     build_plan, load_measured, load_outputs, open_run, run_plan,
 )
@@ -31,11 +33,9 @@ MODEL_FAMILIES = {
     "HistGradientBoosting": ("HistGradientBoosting",),
     "CatBoost": ("CatBoost",),
     "miceforest direct": ("miceforest direct",),
-    "miceforest PMM": ("miceforest PMM",),
-    "Joint miceforest PMM": ("Joint miceforest PMM",),
 }
-POINT_EXPERIMENTS = ("main", "stability", "budget", "ablation", "pmm", "joint", "calibration")
-SHOWN_EXPERIMENTS = ("main", "pmm", "joint")
+POINT_EXPERIMENTS = ("main", "stability", "budget", "ablation", "calibration", "structure", "mechanism")
+SHOWN_EXPERIMENTS = ("main",)
 RESULT_COLUMNS = ["target", "MAE", "RMSE", "R2", "bias", "skill", "within tight", "within loose", "exact"]
 
 
@@ -47,16 +47,19 @@ class Study:
     def __init__(self, root, config, scenarios, workers, resume_run_id=None, evaluation_run_id=None):
         if resume_run_id and evaluation_run_id:
             raise ValueError("Set RESUME_RUN_ID or EVALUATION_RUN_ID, not both")
-        self.root, self.config, self.scenarios, self.workers = root, config, scenarios, workers
+        self.root, self.config, self.workers = root, config, workers
         self.names = list(scenarios)
+        # Scenarios with other missingness mechanisms are built from the generator's files.
+        self.mechanisms = write_mechanism_files(root, config)
+        self.scenarios = {**scenarios, **self.mechanisms}
         self.saved = evaluation_run_id is not None
-        self.directory = open_run(root, config, self.names, evaluation_run_id or resume_run_id)
+        self.directory = open_run(root, config, list(self.scenarios), evaluation_run_id or resume_run_id)
         self.figures = Path(self.directory) / "figures"
-        self.plan = build_plan(self.names, config)
-        self.measured = {name: load_measured(root, name, config) for name in self.names}
+        self.plan = build_plan(self.names, config, list(self.mechanisms))
+        self.measured = {name: load_measured(root, name, config) for name in self.scenarios}
         self.truth = None
         self.logs = {}
-        self.scored, self.draws, self.importance = {}, {}, {}
+        self.scored, self.importance = {}, {}
 
     def _load_saved(self, family):
         """Read a finished model's task log and predictions. Nothing is fitted."""
@@ -85,11 +88,10 @@ class Study:
     def _collect(self, family):
         """The first point where truth is read: after this model's tasks have finished."""
         if self.truth is None:
-            self.truth = {n: read_truth(self.scenarios[n]).loc[self.measured[n].index] for n in self.names}
+            self.truth = {n: read_truth(s).loc[self.measured[n].index] for n, s in self.scenarios.items()}
         log = self.logs[family]
         outputs = load_outputs(log, self.directory, experiments=list(POINT_EXPERIMENTS))
         self.scored[family] = ev.attach_truth(outputs, self.truth)
-        self.draws[family] = load_outputs(log, self.directory, ".draws.parquet")
         self.importance[family] = load_outputs(log, self.directory, experiments=["importance"])
 
     def _scores(self, family):
@@ -142,7 +144,7 @@ class Study:
         return self._scores(family)
 
     def finish(self):
-        """Combine every model's results for the evaluation chapters."""
+        """Combine every model's results and build the tables of the evaluation chapters."""
         missing = [family for family in MODEL_FAMILIES if family not in self.logs]
         if self.saved:
             for family in missing:
@@ -150,30 +152,52 @@ class Study:
             missing = []
         if missing:
             raise RuntimeError(f"These model sections have not run: {missing}")
+        config = self.config
         self.log = pd.concat(self.logs.values(), ignore_index=True)
         self.all_scored = pd.concat(self.scored.values(), ignore_index=True)
-        self.all_draws = pd.concat(self.draws.values(), ignore_index=True)
         self.all_importance = pd.concat(self.importance.values(), ignore_index=True)
         numeric, category = ev.score_tables(self.all_scored)
         self.numeric = ev.add_scenario_levels(numeric, self.scenarios)
         self.category = ev.add_scenario_levels(category, self.scenarios)
-        self.pairs = ev.paired_intervals(self.all_scored, self.config)
-        self.effects = ev.scenario_effects(self.all_scored, self.scenarios, self.config)
-        self.groups = ev.group_table(self.all_scored, self.measured, self.config)
-        self.ablation, self.ablation_labels = ev.ablation_table(self.numeric, self.category)
+        self.pairs = ev.paired_intervals(self.all_scored, config)
+        self.effects = ev.scenario_effects(self.all_scored, self.scenarios, config)
         self.cost = ev.cost_table(self.log)
-        representative = self.config.representative
-        self.relations = rel.relation_table(self.all_scored, self.measured, self.config)
-        self.links = rel.link_table(self.all_importance)
-        self.visibility = rel.visibility_table(self.all_scored, self.measured[representative], self.config)
-        self.correlations = rel.correlation_table(self.all_scored, self.all_draws, self.measured[representative],
-                                                  self.truth[representative], self.config)
-        self.targets = ev.target_table(self.numeric, self.pairs, self.effects, self.config)
+        self.targets = ev.target_table(self.numeric, self.pairs, self.effects, config)
+        self.relations = rel.relation_table(self.all_scored, self.measured, config)
+        # One row per predicted cell, with the baseline's error on the same cell and the cell's conditions.
+        self.cells = fl.cell_table(self.all_scored, self.measured, self.truth)
+        self.overall = fl.overall_table(self.cells, config)
+        self.by_scenario = ev.add_scenario_levels(fl.scenario_table(self.cells, config), self.scenarios)
+        self.visibility = fl.visibility_table(self.cells, config)
+        self.ablation = fl.ablation_scores(self.cells, config)
+        self.failure_map = fl.failure_map(self.cells, self.ablation, config)
+        self.bands = fl.band_table(self.cells, config)
+        self.mechanism_scores = fl.mechanism_table(self.cells, self.scenarios, config)
+        self.kinds = fl.kind_table(self.cells, config)
+        self.shrinkage = fl.shrinkage_table(self.cells, config)
+        self.correlations = fl.correlation_table(self.cells, self.measured, self.truth, config)
+        self.consistency = fl.consistency_table(self.cells, self.measured, config)
+        self.structure = fl.structure_table(self.cells, config)
+        self.information = fl.information_table(self.cells, config)
+        self.noise, _ = fl.noise_table(self.cells, self.measured, self.truth, self.by_scenario, config)
+        self.links = fl.link_table(self.all_importance)
+        self.downstream = fl.downstream_table(self.cells, self.measured, self.truth, config)
+        # Mean absolute error of the summary values, for the representative scenario and each mechanism.
+        by_scenario = {config.representative: self.downstream}
+        by_scenario.update({name: fl.downstream_table(self.cells, self.measured, self.truth, config, name) for name in self.mechanisms})
+        self.downstream_by_scenario = pd.DataFrame({
+            name: table.assign(size=table["relative error"].abs()).groupby("source", sort=False)["size"].mean()
+            for name, table in by_scenario.items()})
         tables = {"numeric_scores": self.numeric, "category_scores": self.category, "paired_intervals": self.pairs,
-                  "scenario_effects": self.effects, "visible_input_groups": self.groups,
-                  "ablation_numeric": self.ablation, "ablation_model_id": self.ablation_labels,
-                  "cost": self.cost, "relations": self.relations, "links": self.links,
-                  "visibility": self.visibility, "correlations": self.correlations, "targets": self.targets}
+                  "scenario_effects": self.effects, "cost": self.cost, "targets": self.targets,
+                  "relations": self.relations, "overall": self.overall.reset_index(),
+                  "skill_by_scenario": self.by_scenario, "skill_by_visible_links": self.visibility,
+                  "ablation": self.ablation, "failure_map": self.failure_map.reset_index(),
+                  "value_bands": self.bands, "mechanisms": self.mechanism_scores, "relationship_kinds": self.kinds,
+                  "shrinkage": self.shrinkage, "correlations": self.correlations, "consistency": self.consistency,
+                  "structure": self.structure.reset_index(), "information": self.information.reset_index(),
+                  "noise": self.noise, "links": self.links, "downstream": self.downstream,
+                  "downstream_by_scenario": self.downstream_by_scenario.reset_index()}
         for name, table in tables.items():
             table.to_csv(Path(self.directory) / f"{name}.csv", index=False)
         return self

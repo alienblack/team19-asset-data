@@ -11,8 +11,10 @@ import pandas as pd
 from .columns import BY_NAME, NAMES
 
 FILE_PATTERN = re.compile(
-    r"^(completion(?P<completion>[\d.]+)-noise(?P<noise>[\d.]+?))-(?P<kind>measured|truth)\.csv$"
+    r"^(completion(?P<completion>[\d.]+)-noise(?P<noise>[\d.]+?)(?:-(?P<mechanism>[a-z]+))?)"
+    r"-(?P<kind>measured|truth)\.csv$"
 )
+RANDOM = "random"  # cells hidden completely at random, as the generator writes them
 
 
 @dataclass(frozen=True)
@@ -22,29 +24,33 @@ class Scenario:
     noise: float
     measured: Path
     truth: Path
+    mechanism: str = RANDOM  # how cells were chosen for hiding
 
 
 def file_hash(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def discover(directory):
-    """Pair measured and truth files by name; unpaired files are an error."""
+def discover(*directories):
+    """Pair measured and truth files by name; unpaired files are an error. Missing folders are skipped."""
     found = {}
-    for path in sorted(Path(directory).glob("*.csv")):
-        match = FILE_PATTERN.match(path.name)
-        if match is None:
-            raise ValueError(f"Unrecognised file name: {path.name}")
-        entry = found.setdefault(match[1], {"completion": match["completion"], "noise": match["noise"]})
-        entry[match["kind"]] = path
+    for directory in directories:
+        for path in sorted(Path(directory).glob("*.csv")):
+            match = FILE_PATTERN.match(path.name)
+            if match is None:
+                raise ValueError(f"Unrecognised file name: {path.name}")
+            entry = found.setdefault(match[1], {"completion": match["completion"], "noise": match["noise"],
+                                                "mechanism": match["mechanism"] or RANDOM})
+            entry[match["kind"]] = path
     if not found:
-        raise FileNotFoundError(f"No scenario files in {directory}")
+        raise FileNotFoundError(f"No scenario files in {directories}")
     result = {}
     for name, entry in found.items():
         if not {"measured", "truth"} <= entry.keys():
             raise ValueError(f"Unpaired scenario: {name}")
         result[name] = Scenario(
-            name, float(entry["completion"]), float(entry["noise"]), entry["measured"], entry["truth"]
+            name, float(entry["completion"]), float(entry["noise"]), entry["measured"], entry["truth"],
+            entry["mechanism"],
         )
     return result
 

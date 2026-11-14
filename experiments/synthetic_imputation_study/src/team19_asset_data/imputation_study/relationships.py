@@ -4,26 +4,15 @@ The generator's definitions appear here and are used only after fitting, to judg
 what the models learned. Nothing in this module feeds back to a model.
 """
 
-from itertools import combinations
-import json
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import KFold, cross_val_predict
 
-from .columns import CATEGORY_TARGET, GAS_READINGS, GENERATOR_LINKS, NUMERIC_TARGETS, TARGETS, finalise
-from .evaluation import complete_table
+from .columns import GAS_READINGS, NUMERIC_TARGETS, finalise
 from .models import NUMERIC_METHODS
 
-LINK_THRESHOLD = 0.02  # importance above this counts as the model relying on a column
-SIGNAL_TARGETS = [t for t in NUMERIC_TARGETS if t != "random_placebo"]
 FORMULA = "Formula"
-V1_SCORES = Path("outputs/imputation-study/baselines/v1/run_tables/numeric_scores.csv")
-SELECTION = Path("outputs/imputation-study/optimisation/clean_selection")
-SELECTION_FILES = {"KNN imputer": "knn", "Random Forest": "forest", "HistGradientBoosting": "hgb", "CatBoost": "cat"}
 
 
 def _life(frame):
@@ -106,114 +95,6 @@ def relation_matrix(relations, scenario):
     return matrix.reindex(sorted(matrix.index, key=lambda key: list(block.relation.unique()).index(key[0])))[order]
 
 
-def _two_steps(target):
-    direct = set(GENERATOR_LINKS.get(target, ()))
-    return {q for p in direct for q in GENERATOR_LINKS.get(p, ())} - direct - {target}
-
-
-def _area_under_curve(score, positive):
-    """Chance that a linked pair outranks an unlinked one."""
-    ranks = rankdata(score)
-    linked, other = positive.sum(), (~positive).sum()
-    return (ranks[positive].sum() - linked * (linked + 1) / 2) / (linked * other) if linked and other else np.nan
-
-
-def classify_links(importance):
-    """Label each target and predictor pair as direct, two steps apart, or unrelated."""
-    table = importance[importance.target.ne("random_placebo")].copy()
-    table["direct"] = [p in GENERATOR_LINKS.get(t, ()) for t, p in zip(table.target, table.predictor)]
-    table["two steps"] = [(not d) and p in _two_steps(t) for t, p, d in zip(table.target, table.predictor, table.direct)]
-    table["unrelated"] = ~table.direct & ~table["two steps"]
-    table["relied on"] = table.importance > LINK_THRESHOLD
-    return table
-
-
-def link_table(importance):
-    """How far permutation importance matches the links in the generator's definition."""
-    rows = []
-    table = classify_links(importance)
-    for (method, scenario), block in table.groupby(["method", "scenario"], sort=False):
-        relied = block["relied on"].to_numpy()
-        direct = block.direct.to_numpy()
-        share = max(relied.sum(), 1)
-        rows.append({
-            "method": method, "scenario": scenario, "direct links": int(direct.sum()),
-            "ranking score": _area_under_curve(block.importance.to_numpy(), direct),
-            "direct links found": (relied & direct).sum() / max(direct.sum(), 1),
-            "relied on: direct": (relied & direct).sum() / share,
-            "relied on: two steps": (relied & block["two steps"].to_numpy()).sum() / share,
-            "relied on: unrelated": (relied & block.unrelated.to_numpy()).sum() / share,
-        })
-    return pd.DataFrame(rows)
-
-
-def missed_links(importance, scenario, method):
-    """Direct links below the threshold, strongest first."""
-    table = classify_links(importance)
-    block = table[table.scenario.eq(scenario) & table.method.eq(method) & table.direct & ~table["relied on"]]
-    return block.sort_values("importance", ascending=False)[["target", "predictor", "importance"]].reset_index(drop=True)
-
-
-def _pair_correlations(frame, rows_by_pair):
-    pearson, spearman = [], []
-    for (a, b), rows in rows_by_pair.items():
-        x, y = frame[a].to_numpy()[rows], frame[b].to_numpy()[rows]
-        pearson.append(np.corrcoef(x, y)[0, 1])
-        spearman.append(np.corrcoef(rankdata(x), rankdata(y))[0, 1])
-    return np.array(pearson), np.array(spearman)
-
-
-def correlation_table(scored, draws, measured, truth, config, draw_count=5):
-    """Whether correlations survive on the rows that contain an imputed cell of each pair.
-
-    Rows with both cells observed are left out, because they would hide any change.
-    Repeated imputations are judged one completed dataset at a time and then averaged.
-    """
-    columns = list(NUMERIC_TARGETS)
-    missing = measured[columns].isna()
-    rows_by_pair = {(a, b): (missing[a] | missing[b]).to_numpy() for a, b in combinations(columns, 2)}
-    labels = [" ~ ".join(pair) for pair in rows_by_pair]
-    true_pearson, true_spearman = _pair_correlations(truth, rows_by_pair)
-
-    def gaps(frame):
-        pearson, spearman = _pair_correlations(frame, rows_by_pair)
-        return np.abs(pearson - true_pearson), np.abs(spearman - true_spearman)
-
-    rows = []
-    selected = scored[scored.scenario.eq(config.representative) & scored.experiment.eq("main")
-                      & scored.target.ne(CATEGORY_TARGET) & scored.seed.eq(config.seed)]
-    for method, block in selected.groupby("method", sort=False):
-        pearson, spearman = gaps(complete_table(measured, block[["row_id", "target"]].assign(value=block.prediction.to_numpy())))
-        rows.append({"method": method, "mean Pearson gap": pearson.mean(), "largest Pearson gap": pearson.max(),
-                     "mean Spearman gap": spearman.mean(), "largest gap pair": labels[int(pearson.argmax())]})
-    numeric_draws = draws[draws.target.isin(columns) & draws.method.eq("Joint miceforest PMM")] if len(draws) else draws
-    if len(numeric_draws):
-        results = [gaps(complete_table(measured, part)) for draw, part in numeric_draws.groupby("draw") if draw < draw_count]
-        pearson = np.mean([r[0] for r in results], axis=0)
-        spearman = np.mean([r[1] for r in results], axis=0)
-        rows.append({"method": "Joint miceforest PMM (per draw)", "mean Pearson gap": pearson.mean(),
-                     "largest Pearson gap": pearson.max(), "mean Spearman gap": spearman.mean(),
-                     "largest gap pair": labels[int(pearson.argmax())]})
-    return pd.DataFrame(rows).sort_values("mean Pearson gap").reset_index(drop=True)
-
-
-def visibility_table(scored, measured, config):
-    """Skill by the share of a target's linked columns that were visible in the row."""
-    block = scored[scored.experiment.eq("main") & scored.scenario.eq(config.representative) & scored.seed.eq(config.seed)
-                   & scored.target.isin(SIGNAL_TARGETS)]
-    rows = []
-    for target, part in block.groupby("target", sort=False):
-        links = list(GENERATOR_LINKS[target])
-        share = measured.loc[part.row_id, links].notna().mean(axis=1).to_numpy()
-        level = np.select([share == 1, share >= 0.6], ["all linked columns seen", "most seen"], default="few seen")
-        table = part.assign(level=level, error=(part.prediction - part.truth).abs())
-        errors = table.groupby(["method", "level"]).error.agg(["mean", "size"]).reset_index()
-        baseline = errors[errors.method.eq("Median")].set_index("level")["mean"]
-        errors["skill"] = 1 - errors["mean"] / errors.level.map(baseline)
-        rows.append(errors[errors.method.ne("Median")].assign(target=target).rename(columns={"size": "n"}))
-    return pd.concat(rows, ignore_index=True)[["target", "method", "level", "n", "skill"]]
-
-
 def recoverable_table(truth, numeric, config):
     """How much of each column the other true columns could explain, against what was reached.
 
@@ -238,43 +119,3 @@ def recoverable_table(truth, numeric, config):
     return pd.DataFrame(rows)
 
 
-def progress_table(numeric, root, config):
-    """Mean skill of the earlier study against this run, on the same cells."""
-    path = Path(root) / V1_SCORES
-    if config.rows is not None or not path.exists():
-        return None
-
-    def mean_skill(table):
-        block = table[table.scenario.eq(config.representative) & table.seed.eq(config.seed)
-                      & table.experiment.isin(["main", "pmm", "joint"]) & table.target.isin(SIGNAL_TARGETS)]
-        return block.groupby("method").skill.mean()
-
-    table = pd.DataFrame({"earlier study": mean_skill(pd.read_csv(path)), "this run": mean_skill(numeric)}).dropna()
-    table = table.drop(index="Median", errors="ignore")
-    table["change"] = table["this run"] - table["earlier study"]
-    return table.sort_values("this run", ascending=False)
-
-
-def base_table(root):
-    """Selection score of each model with no base, a straight-line base and a second-order base.
-
-    Scores are error relative to the median on selection cells, so lower is better.
-    Only candidates that differ in nothing but the base are compared.
-    """
-    rows = []
-    for method, name in SELECTION_FILES.items():
-        path = Path(root) / SELECTION / f"{name}.csv"
-        if not path.exists():
-            continue
-        table = pd.read_csv(path)
-        scores = table.assign(score=table[SIGNAL_TARGETS].mean(axis=1)).groupby("settings").score.mean()
-        settings = {text: json.loads(text) for text in scores.index}
-        plain = next(text for text, values in settings.items() if values["base"] == "none")
-
-        def match(base):
-            wanted = {**settings[plain], "base": base}
-            return next(scores[t] for t, values in settings.items() if values == wanted)
-
-        rows.append({"method": method, "no base": match("none"), "straight-line base": match("linear"),
-                     "second-order base": match("block")})
-    return pd.DataFrame(rows)
