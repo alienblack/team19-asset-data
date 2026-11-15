@@ -33,8 +33,13 @@ MODEL_FAMILIES = {
     "HistGradientBoosting": ("HistGradientBoosting",),
     "CatBoost": ("CatBoost",),
     "miceforest direct": ("miceforest direct",),
+    "Gaussian EM": ("Gaussian EM",),
+    "Masked MLP": ("Masked MLP",),
+    "LightGBM chained": ("LightGBM chained",),
+    "Predictive MissForest": ("Predictive MissForest",),
+    "MICE-PMM": ("MICE-PMM",),
 }
-POINT_EXPERIMENTS = ("main", "stability", "budget", "ablation", "calibration", "structure", "mechanism")
+POINT_EXPERIMENTS = ("main", "stability", "budget", "ablation", "calibration", "structure", "mechanism", "spatial")
 SHOWN_EXPERIMENTS = ("main",)
 RESULT_COLUMNS = ["target", "MAE", "RMSE", "R2", "bias", "skill", "within tight", "within loose", "exact"]
 
@@ -166,20 +171,28 @@ class Study:
         self.relations = rel.relation_table(self.all_scored, self.measured, config)
         # One row per predicted cell, with the baseline's error on the same cell and the cell's conditions.
         self.cells = fl.cell_table(self.all_scored, self.measured, self.truth)
+        # The strongest model of each branch is followed in the line charts; this study's leads the failure map.
+        self.leads = fl.branch_leads(self.cells, config)
+        fl.LEAD_METHOD = self.leads["this study"]
         self.overall = fl.overall_table(self.cells, config)
         self.by_scenario = ev.add_scenario_levels(fl.scenario_table(self.cells, config), self.scenarios)
         self.visibility = fl.visibility_table(self.cells, config)
         self.ablation = fl.ablation_scores(self.cells, config)
-        self.failure_map = fl.failure_map(self.cells, self.ablation, config)
+        self.failure_map = fl.failure_map(self.cells, self.ablation, config, fl.LEAD_METHOD)
+        self.failure_maps = {m: fl.failure_map(self.cells, self.ablation, config, m) for m in fl.SHOWN_METHODS}
+        self.branches = fl.branch_table(self.failure_maps)
+        self.completion = fl.completion_table(self.cells, self.scenarios, config)
+        self.splits = fl.split_table(self.cells, config)
+        self.wrong_values = fl.wrong_value_table(self.cells, self.measured, config)
         self.bands = fl.band_table(self.cells, config)
         self.mechanism_scores = fl.mechanism_table(self.cells, self.scenarios, config)
-        self.kinds = fl.kind_table(self.cells, config)
+        self.kinds = fl.kind_table(self.cells, config, fl.LEAD_METHOD)
         self.shrinkage = fl.shrinkage_table(self.cells, config)
         self.correlations = fl.correlation_table(self.cells, self.measured, self.truth, config)
         self.consistency = fl.consistency_table(self.cells, self.measured, config)
         self.structure = fl.structure_table(self.cells, config)
-        self.information = fl.information_table(self.cells, config)
-        self.noise, _ = fl.noise_table(self.cells, self.measured, self.truth, self.by_scenario, config)
+        self.information = fl.information_table(self.cells, config, fl.LEAD_METHOD)
+        self.noise, _ = fl.noise_table(self.cells, self.measured, self.truth, self.by_scenario, config, fl.LEAD_METHOD)
         self.links = fl.link_table(self.all_importance)
         self.downstream = fl.downstream_table(self.cells, self.measured, self.truth, config)
         # Mean absolute error of the summary values, for the representative scenario and each mechanism.
@@ -197,7 +210,9 @@ class Study:
                   "shrinkage": self.shrinkage, "correlations": self.correlations, "consistency": self.consistency,
                   "structure": self.structure.reset_index(), "information": self.information.reset_index(),
                   "noise": self.noise, "links": self.links, "downstream": self.downstream,
-                  "downstream_by_scenario": self.downstream_by_scenario.reset_index()}
+                  "downstream_by_scenario": self.downstream_by_scenario.reset_index(),
+                  "branches": self.branches.reset_index(), "skill_by_completion": self.completion,
+                  "fold_design": self.splits, "wrong_values": self.wrong_values}
         for name, table in tables.items():
             table.to_csv(Path(self.directory) / f"{name}.csv", index=False)
         return self

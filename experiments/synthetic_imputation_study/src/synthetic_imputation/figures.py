@@ -10,7 +10,8 @@ from .columns import CATEGORY_TARGET, GENERATOR_LINKS, NAMES, NUMERIC_TARGETS, T
 from .models import NUMERIC_METHODS
 
 INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e6e5e0", "#fcfcfb"
-SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948")
+SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948",
+          "#8a5a2b", "#0f9fb5", "#9a9a2e")
 METHOD_COLORS = dict(zip(NUMERIC_METHODS[1:], SERIES))
 SEQUENTIAL = LinearSegmentedColormap.from_list("blue", ["#f4f7fb", "#a9c9ef", "#2a78d6", "#123f75"])
 DIVERGING = LinearSegmentedColormap.from_list("polarity", ["#2a78d6", "#efeeea", "#eb6834"])

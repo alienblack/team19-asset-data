@@ -57,7 +57,7 @@ COLUMNS = (
         integer=True, lower=0, tolerance=(7, 30), tolerance_kind=ABSOLUTE,
     ),
     Column(
-        "model_id", "Transformer model", ASSET, "category", NOMINAL, False,
+        "model_id", "Equipment model", ASSET, "category", NOMINAL, False,
         "Nominal label: the numbers 0-3 have no order. One-hot encoded as a predictor, with "
         "missing as its own level, and classified as a target. Never regressed or rounded.",
     ),

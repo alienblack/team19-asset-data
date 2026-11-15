@@ -13,6 +13,14 @@ from .runner import ALL_COLUMNS, ALL_NUMERIC, ITERATIVE, PROBABILITY_COLUMNS
 
 KEYS = ["scenario", "experiment", "variant", "seed", "target", "method"]
 BASELINES = ("Median", "Mode")
+# Experiments that fit the baseline themselves. The others (ablation, structure, budget,
+# calibration) reuse the baseline of the main experiment, which has the same folds.
+BASELINE_EXPERIMENTS = ("main", "stability", "mechanism", "spatial")
+
+
+def fold_design(experiments):
+    """Whole-block folds for the spatial experiment, random row folds for every other."""
+    return pd.Series(experiments).eq("spatial").map({True: "blocks", False: "rows"}).to_numpy()
 
 
 def attach_truth(predictions, truths):
@@ -88,9 +96,12 @@ def score_tables(scored):
         else:
             numeric.append({**entry, **numeric_scores(entry["target"], block.truth, block.prediction)})
     numeric, category = pd.DataFrame(numeric), pd.DataFrame(category)
-    baseline = numeric[numeric.method.eq("Median") & numeric.variant.eq("all predictors")]
-    baseline = baseline[["scenario", "seed", "target", "MAE"]].rename(columns={"MAE": "median MAE"})
-    numeric = numeric.merge(baseline, on=["scenario", "seed", "target"], how="left")
+    # The baseline comes from the same scenario, seed and kind of fold split, on the same cells.
+    numeric["split"] = fold_design(numeric.experiment)
+    baseline = numeric[numeric.method.eq("Median") & numeric.variant.eq("all predictors")
+                       & numeric.experiment.isin(BASELINE_EXPERIMENTS)]
+    baseline = baseline[["scenario", "seed", "split", "target", "MAE"]].rename(columns={"MAE": "median MAE"})
+    numeric = numeric.merge(baseline, on=["scenario", "seed", "split", "target"], how="left").drop(columns="split")
     numeric["skill"] = 1 - numeric.MAE / numeric["median MAE"]
     return numeric, category
 

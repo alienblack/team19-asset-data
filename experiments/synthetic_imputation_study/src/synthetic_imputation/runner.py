@@ -27,15 +27,23 @@ from .models import (
     CATEGORY_METHODS, CHAINED_CLASSES, CLASS_COUNT, NUMERIC_METHODS,
     CalibratedForest, ChainedRidgeImputer, make_model,
 )
+from .models_external import EXTERNAL_CLASSES
 
 PROBABILITY_COLUMNS = [f"prob_{i}" for i in range(CLASS_COUNT)]
-MODEL_SOURCES = ("columns.py", "data.py", "models.py", "runner.py")
+MODEL_SOURCES = ("columns.py", "data.py", "models.py", "runner.py", "models_external.py", "miceforest_compat.py",
+                 "vendor/subteam_a/data.py", "vendor/subteam_a/features.py", "vendor/subteam_a/mixture.py",
+                 "vendor/subteam_a/models.py", "vendor/pipeline/comparison_models.py",
+                 "vendor/pipeline/predictive_missforest.py", "vendor/pipeline/postprocess.py",
+                 "vendor/pipeline/simple_imputer.py", "vendor/pipeline/mice_pmm_logistic.py")
+# Every model that fills all columns of a fold in one fit: the study's chains and the other branches' models.
+ALL_CHAINS = {**CHAINED_CLASSES, **EXTERNAL_CLASSES}
 CHAIN_SETTINGS = ("passes", "linear_alpha", "curve_alpha")
 ALL_NUMERIC = "all numeric"
 ALL_COLUMNS = "all columns"
 ITERATIVE = "IterativeImputer"
-ABLATION_CHAINS = ("KNN imputer", "Random Forest", "HistGradientBoosting", "CatBoost")
-STRUCTURE_CHAINS = ABLATION_CHAINS  # the models that use the ridge base
+STRUCTURE_CHAINS = ("KNN imputer", "Random Forest", "HistGradientBoosting", "CatBoost")  # those with the ridge base
+ABLATION_CHAINS = STRUCTURE_CHAINS + tuple(EXTERNAL_CLASSES)
+SPATIAL = "spatial"  # folds made of whole blocks of the grid
 NO_BASE = "no ridge base"
 IMPORTANCE_METHODS = ("Random Forest", "CatBoost")
 
@@ -58,6 +66,16 @@ def default_parameters():
                      "learning_rate": 0.1, "patience": 30, "classifier_rounds": 500},
         "miceforest direct": {"iterations": 3, "rounds": 200, "learning_rate": 0.05, "num_leaves": 31,
                               "min_data_in_leaf": 20, "feature_fraction": 0.7},
+        # Subteam A's models. Their package does not record the settings their tuning selected, so these
+        # were chosen by the same fixed rule from their own search space: optimisation/merge_selection.
+        "Gaussian EM": {"clusters": 6, "steps": 8, "reg": 0.001, "class_weight": 1.8},
+        "Masked MLP": {"width": 256, "epochs": 60, "dropout": 0.0, "lr": 0.0015, "decay": 0.0001277, "remask": 0.4},
+        # The team pipeline's models, with the settings its guide and run manifest record.
+        "LightGBM chained": {"passes": 3, "lgbm_estimators": 100, "lgbm_learning_rate": 0.07, "lgbm_num_leaves": 31},
+        "Predictive MissForest": {"n_estimators": 100, "n_passes": 5, "min_samples_leaf": 10,
+                                  "max_features": "sqrt", "max_depth": None},
+        # The team's MICE with predictive mean matching, with the settings its methodology document records.
+        "MICE-PMM": {"chains": 5, "sweeps": 10, "donors": 5, "ridge": 1e-4, "logistic_C": 1.0, "logistic_max_iter": 500},
     }
 
 
@@ -85,7 +103,8 @@ def default_blocks():
 class StudyConfig:
     data_directory: str = "data/datasets"
     mechanism_directory: str = "data/datasets_mechanisms"
-    mechanisms: tuple = ("age", "value")  # see mechanisms.py
+    mechanisms: tuple = ("age", "value", "group", "errors")  # see mechanisms.py
+    sparse_completions: tuple = (0.5, 0.3)  # heavier random missingness than the generator files
     output_directory: str = "outputs/imputation-study/runs"
     representative: str = "completion0.8-noise0.05"
     noise_series: tuple = ("completion0.8-noise0.0", "completion0.8-noise0.05", "completion0.8-noise0.1")
@@ -118,6 +137,10 @@ def quick_config(**changes):
     config.explanation["CatBoost"]["iterations"] = 10
     config.parameters["miceforest direct"].update(rounds=10, iterations=2)
     config.parameters[ITERATIVE]["max_iter"] = 3
+    config.parameters["Masked MLP"].update(epochs=3, width=32)
+    config.parameters["LightGBM chained"].update(lgbm_estimators=10, passes=2)
+    config.parameters["Predictive MissForest"].update(n_estimators=10, n_passes=1)
+    config.parameters["MICE-PMM"].update(chains=2, sweeps=2)
     return replace(config, **changes)
 
 
@@ -147,13 +170,13 @@ def build_plan(names, config, mechanism_names=()):
     def add_full_set(scenario, experiment, seed, fold):
         for target in NUMERIC_TARGETS:
             for method in NUMERIC_METHODS:
-                if method != ITERATIVE and method not in CHAINED_CLASSES:
+                if method != ITERATIVE and method not in ALL_CHAINS:
                     add(scenario, experiment, "all predictors", seed, fold, target, method)
         for method in CATEGORY_METHODS:
-            if method not in CHAINED_CLASSES:
+            if method not in ALL_CHAINS:
                 add(scenario, experiment, "all predictors", seed, fold, CATEGORY_TARGET, method)
         add(scenario, experiment, "all predictors", seed, fold, ALL_NUMERIC, ITERATIVE)
-        for method in CHAINED_CLASSES:
+        for method in ALL_CHAINS:
             add(scenario, experiment, "all predictors", seed, fold, ALL_COLUMNS, method)
 
     representative = config.representative
@@ -163,6 +186,8 @@ def build_plan(names, config, mechanism_names=()):
     for seed in config.stability_seeds:
         for fold in folds:
             add_full_set(representative, "stability", seed, fold)
+    for fold in folds:
+        add_full_set(representative, SPATIAL, config.seed, fold)
     for fold in folds:
         for budget in config.iterative_budgets:
             add(representative, "budget", str(budget), config.seed, fold, ALL_NUMERIC, f"{ITERATIVE} ({budget})")
@@ -193,6 +218,21 @@ def plan_table(plan):
         tasks=("method", "size"), scenarios=("scenario", "nunique"), seeds=("seed", "nunique"),
         methods=("method", "nunique"),
     ).reset_index()
+
+
+def tile_fold_ids(row_ids, folds, seed, side=100, tile=10):
+    """Folds made of whole 10 x 10 blocks of the grid, so a held-out row has no training row beside it.
+
+    The generator writes rows in grid order (row = 100 x + y), so a row's position gives its block.
+    The position decides only the split; no model receives it.
+    """
+    rows = np.asarray(row_ids)
+    per_side = side // tile
+    blocks = (rows // side // tile) * per_side + (rows % side) // tile
+    order = np.random.default_rng(seed).permutation(per_side * per_side)
+    block_fold = np.empty(per_side * per_side, dtype=int)
+    block_fold[order] = np.arange(per_side * per_side) % folds
+    return block_fold[blocks]
 
 
 def fold_ids(rows, folds, seed):
@@ -274,7 +314,7 @@ def _chained_task(task, config, train, test, drop):
     settings = dict(config.parameters[task.method])
     if task.variant == NO_BASE:
         settings["base"] = "none"
-    model = CHAINED_CLASSES[task.method](settings, task.seed + task.fold, drop)
+    model = ALL_CHAINS[task.method](settings, task.seed + task.fold, drop)
     started = time.perf_counter()
     model.fit(train)
     fitted = time.perf_counter()
@@ -338,7 +378,10 @@ def execute_task(task, config, root, run_directory):
     if marker.exists():
         return json.loads(marker.read_text(encoding="utf-8"))
     measured = load_measured(root, task.scenario, config)
-    assignment = fold_ids(len(measured), config.folds, task.seed)
+    if task.experiment == SPATIAL:
+        assignment = tile_fold_ids(measured.index, config.folds, task.seed)
+    else:
+        assignment = fold_ids(len(measured), config.folds, task.seed)
     train, test = measured[assignment != task.fold], measured[assignment == task.fold]
     drop = config.blocks.get(task.variant, ())
     status, error, fit_seconds, predict_seconds, extra = "success", "", np.nan, np.nan, {}

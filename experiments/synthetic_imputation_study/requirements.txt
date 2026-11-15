@@ -11,6 +11,7 @@ threadpoolctl==3.7.0
 catboost==1.2.10
 lightgbm==4.5.0  # 4.6 and later break miceforest
 miceforest==6.0.5  # the compatibility patch in src is audited for this version only
+torch==2.9.1  # the Masked MLP; CPU build: pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
 
 # Running the notebook and the tests.
 ipykernel==7.4.0

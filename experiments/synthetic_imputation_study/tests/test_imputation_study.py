@@ -1,23 +1,25 @@
 """Checks for the imputation study code, using small frames and no dataset files."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
-from team19_asset_data.imputation_study.columns import (
+from synthetic_imputation.columns import (
     BY_NAME, COMPANIONS, GENERATOR_LINKS, NAMES, TARGETS, finalise,
 )
-from team19_asset_data.imputation_study.data import FILE_PATTERN, relationship_residuals
-from team19_asset_data.imputation_study.evaluation import (
+from synthetic_imputation.data import FILE_PATTERN, relationship_residuals
+from synthetic_imputation.evaluation import (
     class_scores, cost_table, numeric_scores,
 )
-from team19_asset_data.imputation_study.models import (
+from synthetic_imputation.models import (
     CHAINED_CLASSES, MODEL_CLASSES, BaselineModel, BlockRidge, ChainedRidgeImputer, Features, make_model,
 )
-from team19_asset_data.imputation_study import relationships as rel
-from team19_asset_data.imputation_study.study import MODEL_FAMILIES
-from team19_asset_data.imputation_study.runner import (
+from synthetic_imputation import relationships as rel
+from synthetic_imputation.study import MODEL_FAMILIES
+from synthetic_imputation.runner import (
     ALL_NUMERIC, CHAIN_SETTINGS, ITERATIVE, MODEL_SOURCES, Task, build_plan, default_parameters, fold_ids,
     quick_config,
 )
@@ -299,7 +301,12 @@ def test_file_pattern_reads_both_controls():
 
 
 def test_only_prediction_code_decides_whether_a_run_can_be_reused():
-    assert set(MODEL_SOURCES) == {"columns.py", "data.py", "models.py", "runner.py"}
+    sources = set(MODEL_SOURCES)
+    assert {"columns.py", "data.py", "models.py", "runner.py", "models_external.py"} <= sources
+    assert not sources & {"evaluation.py", "failure.py", "relationships.py", "figures.py", "study.py"}
+    assert {s for s in sources if s.startswith("vendor/")} == {
+        f"vendor/{p.parent.name}/{p.name}" for p in (Path(__file__).parents[1] / "src/synthetic_imputation/vendor").glob("*/*.py")
+        if p.name != "__init__.py"}
 
 
 def test_calibration_uses_the_forest_of_the_raw_result():
@@ -347,7 +354,7 @@ def test_relation_table_uses_only_cells_with_every_input_visible():
 
 
 def test_mechanism_files_hide_the_same_share_in_a_different_pattern(tmp_path):
-    from team19_asset_data.imputation_study.mechanisms import write_mechanism_files
+    from synthetic_imputation.mechanisms import write_mechanism_files
     generator = np.random.default_rng(0)
     truth = pd.DataFrame(generator.random((4000, len(NAMES))), columns=list(NAMES))
     truth["install_date"] = np.arange(4000.0)
@@ -375,7 +382,7 @@ def test_mechanism_files_hide_the_same_share_in_a_different_pattern(tmp_path):
 
 
 def test_a_chain_without_the_ridge_base_uses_only_the_local_model():
-    from team19_asset_data.imputation_study.models import ChainedForest, RidgeThenLocal
+    from synthetic_imputation.models import ChainedForest, RidgeThenLocal
     frame = chained_frame(200)
     settings = {"passes": 2, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_estimators": 5}
     plain = ChainedForest({**settings, "base": "none"}, 0).fit(frame)
@@ -388,15 +395,15 @@ def test_plan_covers_mechanisms_structure_and_every_importance_fold():
     config = quick_config()
     plan = pd.DataFrame([vars(t) for t in build_plan(["completion0.8-noise0.05"], config, ["completion0.8-noise0.05-age"])])
     assert set(plan.experiment) == {"main", "stability", "budget", "structure", "calibration", "ablation", "importance",
-                                    "mechanism"}
+                                    "mechanism", "spatial"}
     assert plan[plan.experiment.eq("importance")].fold.nunique() == config.folds
     assert set(plan[plan.experiment.eq("mechanism")].scenario) == {"completion0.8-noise0.05-age"}
-    assert not plan.method.str.contains("PMM").any()
+    assert not plan.method.isin(["miceforest PMM", "Joint miceforest PMM"]).any()
 
 
 def failure_inputs():
     """Two methods and the baseline on four hidden altitude cells, with x and y partly visible."""
-    from team19_asset_data.imputation_study import failure as fl
+    from synthetic_imputation import failure as fl
     measured = pd.DataFrame(np.nan, index=range(4), columns=list(NAMES))
     measured["x"] = [1.0, 2.0, np.nan, np.nan]
     measured["y"] = [1.0, np.nan, 3.0, np.nan]
@@ -429,12 +436,12 @@ def test_skill_is_measured_against_the_baseline_on_the_same_cells():
 
 
 def test_failure_standard_has_three_states():
-    from team19_asset_data.imputation_study import failure as fl
+    from synthetic_imputation import failure as fl
     assert [fl.state(v) for v in (0.9, 0.5, 0.3, 0.05, -0.2, np.nan)] == ["works", "works", "weak", "fails", "fails", "not measured"]
 
 
 def test_links_follow_the_generator_definition():
-    from team19_asset_data.imputation_study import failure as fl
+    from synthetic_imputation import failure as fl
     assert fl.link_class("altitude", "x") == fl.DIRECT
     assert fl.link_class("x", "y") == fl.TOGETHER  # they define altitude together
     assert fl.link_class("altitude", "install_date") == fl.THROUGH  # both are computed from x and y
@@ -444,7 +451,7 @@ def test_links_follow_the_generator_definition():
 
 
 def test_downstream_values_of_the_truth_have_no_error():
-    from team19_asset_data.imputation_study import failure as fl
+    from synthetic_imputation import failure as fl
     generator = np.random.default_rng(0)
     truth = pd.DataFrame(generator.random((300, len(NAMES))), columns=list(NAMES))
     truth["model_id"] = generator.integers(0, 4, 300).astype(float)
@@ -468,8 +475,8 @@ def test_downstream_values_of_the_truth_have_no_error():
 
 
 def test_scenario_effects_do_not_depend_on_the_order_of_rows():
-    from team19_asset_data.imputation_study.data import Scenario
-    from team19_asset_data.imputation_study.evaluation import scenario_effects
+    from synthetic_imputation.data import Scenario
+    from synthetic_imputation.evaluation import scenario_effects
     generator = np.random.default_rng(0)
     scenarios = {name: Scenario(name, 0.8, noise, None, None) for name, noise in (("completion0.8-noise0.0", 0.0), ("completion0.8-noise0.1", 0.1))}
     rows = []
@@ -483,3 +490,83 @@ def test_scenario_effects_do_not_depend_on_the_order_of_rows():
     second = scenario_effects(scored.sample(frac=1, random_state=1), scenarios, config)
     assert first[["low", "high"]].to_numpy() == pytest.approx(second[["low", "high"]].to_numpy(), abs=1e-12)
 
+
+
+@pytest.mark.parametrize("method", ["Gaussian EM", "Masked MLP", "LightGBM chained", "Predictive MissForest", "MICE-PMM"])
+def test_external_models_fill_every_numeric_column_and_give_class_probabilities(method):
+    from synthetic_imputation.models_external import EXTERNAL_CLASSES
+    from synthetic_imputation.runner import quick_config
+    generator = np.random.default_rng(4)
+    frame = pd.DataFrame(generator.random((300, len(NAMES))), columns=list(NAMES))
+    frame["model_id"] = generator.integers(0, 4, 300).astype(float)
+    frame = frame.mask(generator.random(frame.shape) < 0.2)
+    train, test = frame.iloc[:200], frame.iloc[200:]
+    model = EXTERNAL_CLASSES[method](quick_config().parameters[method], 0).fit(train)
+    numeric, shares = model.predict(test)
+    assert list(numeric.columns) == [c for c in NAMES if c != "model_id"]
+    assert numeric.notna().all().all() and numeric.index.equals(test.index)
+    assert shares.shape == (100, 4) and np.allclose(shares.sum(axis=1), 1)
+    observed = test.notna()
+    assert np.allclose(numeric[observed.drop(columns="model_id")].stack(), test.drop(columns="model_id")[observed.drop(columns="model_id")].stack())
+
+
+def test_external_models_accept_a_removed_predictor_block():
+    from synthetic_imputation.models_external import GaussianEM
+    generator = np.random.default_rng(5)
+    frame = pd.DataFrame(generator.random((200, len(NAMES))), columns=list(NAMES))
+    frame["model_id"] = generator.integers(0, 4, 200).astype(float)
+    frame = frame.mask(generator.random(frame.shape) < 0.2)
+    model = GaussianEM({"clusters": 2, "steps": 3, "reg": 0.01, "class_weight": 1.8}, 0, drop=("x", "y")).fit(frame.iloc[:150])
+    numeric, _ = model.predict(frame.iloc[150:])
+    assert "x" not in numeric and "y" not in numeric
+
+
+def test_tile_folds_keep_whole_blocks_together():
+    from synthetic_imputation.runner import tile_fold_ids
+    folds = tile_fold_ids(np.arange(10000), 5, 219)
+    blocks = (np.arange(10000) // 100 // 10) * 10 + (np.arange(10000) % 100) // 10
+    assert all(len(set(folds[blocks == b])) == 1 for b in range(100))
+    assert np.bincount(folds).tolist() == [2000] * 5
+
+
+def test_errors_scenario_changes_only_visible_dates_and_models():
+    from synthetic_imputation.mechanisms import _with_errors
+    generator = np.random.default_rng(0)
+    frame = pd.DataFrame(generator.random((2000, len(NAMES))), columns=list(NAMES))
+    frame["install_date"] = generator.integers(0, 2000, 2000).astype(float)
+    frame["model_id"] = generator.integers(0, 4, 2000).astype(float)
+    frame = frame.mask(generator.random(frame.shape) < 0.2)
+    wrong = _with_errors(frame, np.random.default_rng(1))
+    assert wrong.isna().equals(frame.isna())
+    assert wrong.drop(columns=["install_date", "model_id"]).equals(frame.drop(columns=["install_date", "model_id"]))
+    moved = (wrong.install_date - frame.install_date).dropna()
+    assert set(moved.abs().unique()) <= {0, 60} and (wrong.install_date.dropna() >= 0).all()
+    swapped = (wrong.model_id != frame.model_id) & frame.model_id.notna()
+    assert 0.005 < swapped.mean() < 0.04
+
+
+def test_mice_pmm_draws_test_gaps_only_from_training_rows():
+    from synthetic_imputation.models_external import MICEPMM
+    generator = np.random.default_rng(6)
+    frame = pd.DataFrame(generator.random((240, len(NAMES))), columns=list(NAMES))
+    frame["model_id"] = generator.integers(0, 4, 240).astype(float)
+    frame["life"] = np.round(frame["life"], 2) + 1000  # training values
+    frame = frame.mask(generator.random(frame.shape) < 0.2)
+    train, test = frame.iloc[:160].copy(), frame.iloc[160:].copy()
+    test["life"] = test["life"] + 5000  # visible test values that no donor may supply
+    settings = {"chains": 1, "sweeps": 2, "donors": 5, "ridge": 1e-4, "logistic_C": 1.0, "logistic_max_iter": 200}
+    numeric, _ = MICEPMM(settings, 0).fit(train).predict(test)
+    filled = numeric.loc[test["life"].isna(), "life"]
+    assert len(filled) and filled.isin(train["life"].dropna().to_numpy()).all()
+
+
+
+def test_chain_estimates_stay_inside_the_training_range():
+    from synthetic_imputation.models import ChainedForest
+    frame = chained_frame(300)
+    model = ChainedForest({"passes": 3, "linear_alpha": 30.0, "curve_alpha": 300.0, "n_estimators": 5}, 0).fit(frame)
+    shifted = frame.copy()
+    shifted[["a", "b"]] = shifted[["a", "b"]] * 50  # inputs far outside the training range
+    numeric, _ = model.predict(shifted)
+    for column in numeric:
+        assert numeric[column].between(frame[column].min(), frame[column].max()).all()

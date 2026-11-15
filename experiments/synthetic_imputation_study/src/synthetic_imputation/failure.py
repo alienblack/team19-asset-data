@@ -14,16 +14,24 @@ from .columns import (
     ABSOLUTE, BY_NAME, CATEGORY_TARGET, CO_DEFINING, GENERATOR_LINKS, NAMES, NUMERIC_TARGETS, PARENTS, TARGETS,
 )
 from .data import RANDOM
-from .evaluation import complete_table
-from .runner import NO_BASE, PROBABILITY_COLUMNS
+from .evaluation import BASELINE_EXPERIMENTS, complete_table, fold_design
+from .models import NUMERIC_METHODS
+from .runner import NO_BASE, PROBABILITY_COLUMNS, SPATIAL
 
-# The models followed in detail differ in how they correct the shared ridge base. Two
-# reference models separate that base from the rest: one is the ridge alone, and one is
-# a boosted chain with no ridge.
-MAIN_METHODS = ("CatBoost", "Random Forest", "KNN imputer")
+# The project has three branches. Each comparison of models shows every model; the line charts
+# follow the strongest model of each branch, chosen by ``branch_leads`` from the results.
+BRANCHES = {
+    "this study": ("KNN imputer", "IterativeImputer", "Random Forest", "HistGradientBoosting", "CatBoost",
+                   "miceforest direct"),
+    "Subteam A": ("Gaussian EM", "Masked MLP"),
+    "team pipeline": ("LightGBM chained", "Predictive MissForest", "MICE-PMM"),
+}
+BRANCH_OF = {method: branch for branch, methods in BRANCHES.items() for method in methods}
+# Two of this study's models separate the shared ridge base from the rest: one is the ridge
+# alone, and one is a boosted chain with no ridge.
 REFERENCE_METHODS = {"IterativeImputer": "ridge only", "miceforest direct": "boosted chain without the ridge"}
-SHOWN_METHODS = MAIN_METHODS + tuple(REFERENCE_METHODS)
-LEAD_METHOD = MAIN_METHODS[0]
+SHOWN_METHODS = tuple(m for m in NUMERIC_METHODS if m != "Median")
+LEAD_METHOD = "CatBoost"  # replaced by the strongest model of this study in ``branch_leads``
 BASELINE_OF = {True: "Mode", False: "Median"}
 
 # Skill below FAILED means that a model removes less than a tenth of the baseline's
@@ -66,9 +74,12 @@ def cell_table(scored, measured, truth):
     categorical = table.target.eq(CATEGORY_TARGET)
     table["signed"] = (table.prediction - table.truth).where(~categorical)
     table["error"] = (table.prediction - table.truth).abs().where(~categorical, table.prediction.ne(table.truth).astype(float))
-    baseline = table[table.method.isin(BASELINE_OF.values()) & table.variant.eq("all predictors")]
-    baseline = baseline[["scenario", "seed", "target", "row_id", "error"]].rename(columns={"error": "base_error"})
-    table = table.merge(baseline, on=["scenario", "seed", "target", "row_id"], how="left")
+    # The baseline comes from the same scenario, seed and kind of fold split, on the same cell.
+    table["split"] = fold_design(table.experiment)
+    baseline = table[table.method.isin(BASELINE_OF.values()) & table.variant.eq("all predictors")
+                     & table.experiment.isin(BASELINE_EXPERIMENTS)]
+    baseline = baseline[["scenario", "seed", "split", "target", "row_id", "error"]].rename(columns={"error": "base_error"})
+    table = table.merge(baseline, on=["scenario", "seed", "split", "target", "row_id"], how="left").drop(columns="split")
     table["seen"], table["links"], table["rank"], table["within"] = 0, 0, np.nan, np.nan
     for (scenario, target), index in table.groupby(["scenario", "target"], sort=False).groups.items():
         rows = table.loc[index, "row_id"].to_numpy()
@@ -105,6 +116,14 @@ def main_cells(cells, config, scenario=None):
 
 
 # ----------------------------------------------------------------- overview
+
+
+def branch_leads(cells, config):
+    """The model with the highest mean skill in the reference scenario within each branch."""
+    table = skill_by(main_cells(cells, config, config.representative), ["target", "method"])
+    table = table[table.target.isin(SIGNAL_TARGETS) & table.target.ne(CATEGORY_TARGET) & table.method.isin(BRANCH_OF)]
+    means = table.groupby("method").skill.mean()
+    return {branch: means.reindex(methods).idxmax() for branch, methods in BRANCHES.items() if means.reindex(methods).notna().any()}
 
 
 def overall_table(cells, config):
@@ -159,16 +178,34 @@ def failure_map(cells, ablation, config, method=LEAD_METHOD):
         "both together": main[main.scenario.eq(both)],
         "few linked columns visible": low_visibility(main[main.scenario.eq(representative)]),
     }
-    for scenario in sorted(set(block[block.experiment.eq("mechanism")].scenario)):
-        mechanism = scenario.rsplit("-", 1)[1]
-        label = {"age": "older assets hidden more", "value": "higher values hidden more"}.get(mechanism, mechanism)
-        columns[label] = block[block.scenario.eq(scenario)]
+    for scenario in sorted(set(block[block.experiment.eq("mechanism")].scenario), key=_mechanism_order):
+        columns[mechanism_label(scenario)] = block[block.scenario.eq(scenario)]
+    spatial = block[block.experiment.eq(SPATIAL)]
+    if len(spatial):
+        columns["held out by location"] = spatial
     result = pd.DataFrame({label: skill_by(part, ["target"]).set_index("target").skill for label, part in columns.items()})
     removed = ablation[ablation.method.eq(method) & ablation.scenario.eq(representative)]
     if len(removed):
         worst = removed.assign(skill=1 - removed.without / removed["baseline"]).groupby("target").skill.min()
         result["most harmful block removed"] = worst
     return result.reindex(list(TARGETS))
+
+
+MECHANISM_LABELS = {"age": "older assets hidden more", "value": "higher values hidden more",
+                    "group": "related columns hidden together", "errors": "wrong recorded values"}
+
+
+def mechanism_label(scenario):
+    mechanism = scenario.rsplit("-", 1)[1]
+    if mechanism == "sparse":
+        return f"completion {_levels(scenario)[0]:g}"
+    return MECHANISM_LABELS.get(mechanism, mechanism)
+
+
+def _mechanism_order(scenario):
+    mechanism = scenario.rsplit("-", 1)[1]
+    order = ["age", "value", "group", "errors", "sparse"]
+    return (order.index(mechanism) if mechanism in order else len(order), -_levels(scenario)[0])
 
 
 def _levels(name):
@@ -203,9 +240,15 @@ def band_table(cells, config):
     return table
 
 
+def _same_completion(scenarios, config):
+    """Added scenarios with the representative share of hidden cells: age, value, group and errors."""
+    completion = scenarios[config.representative].completion
+    return [n for n, s in scenarios.items() if s.mechanism != RANDOM and s.completion == completion]
+
+
 def mechanism_table(cells, scenarios, config):
     """Skill and bias when cells are hidden at random, by age or by value, at the same overall share."""
-    names = [config.representative] + [n for n, s in scenarios.items() if s.mechanism != RANDOM]
+    names = [config.representative] + _same_completion(scenarios, config)
     block = cells[cells.scenario.isin(names) & cells.experiment.isin(["main", "mechanism"]) & cells.seed.eq(config.seed)]
     table = skill_by(block, ["scenario", "target", "method"])
     spread = block[block.target.ne(CATEGORY_TARGET)].groupby("target").truth.std()
@@ -216,7 +259,7 @@ def mechanism_table(cells, scenarios, config):
 
 def mechanism_groups(cells, truth, scenarios, config):
     """Skill by age third, to see whether the assets that lose more cells are also filled worse."""
-    names = [config.representative] + [n for n, s in scenarios.items() if s.mechanism != RANDOM]
+    names = [config.representative] + _same_completion(scenarios, config)
     block = cells[cells.scenario.isin(names) & cells.experiment.isin(["main", "mechanism"]) & cells.seed.eq(config.seed)].copy()
     age = truth[config.representative].install_date.rank(pct=True)
     block["age third"] = pd.cut(age.reindex(block.row_id).to_numpy(), [0, 1 / 3, 2 / 3, 1],
@@ -543,17 +586,19 @@ def unexplained_links(importance, scenario, method, threshold=0.02, count=10):
 
 
 def integrity_table(cells, measured, config):
-    """Checks that rule out leakage through the evaluation itself."""
-    from .runner import fold_ids
-    block = main_cells(cells, config)
+    """Checks that rule out leakage through the evaluation itself, for every experiment that fills all cells."""
+    from .runner import fold_ids, tile_fold_ids
+    block = cells[cells.experiment.isin(["main", "stability", "mechanism", SPATIAL])]
     predicted_observed, wrong_fold = 0, 0
     for (scenario, target), part in block.groupby(["scenario", "target"], sort=False):
         predicted_observed += int(measured[scenario][target].reindex(part.row_id).notna().sum())
-    for scenario, part in block.groupby("scenario", sort=False):
+    for (scenario, experiment, seed), part in block.groupby(["scenario", "experiment", "seed"], sort=False):
         frame = measured[scenario]
-        assignment = pd.Series(fold_ids(len(frame), config.folds, config.seed), index=frame.index)
+        folds = tile_fold_ids(frame.index, config.folds, seed) if experiment == SPATIAL \
+            else fold_ids(len(frame), config.folds, seed)
+        assignment = pd.Series(folds, index=frame.index)
         wrong_fold += int((assignment.reindex(part.row_id).to_numpy() != part.fold.to_numpy()).sum())
-    counts = block.groupby(["scenario", "method", "target"]).row_id.agg(["size", "nunique"]).reset_index()
+    counts = block.groupby(["scenario", "experiment", "seed", "method", "target"]).row_id.agg(["size", "nunique"]).reset_index()
     hidden = pd.concat({s: measured[s].isna().sum() for s in set(block.scenario)}).rename("hidden")
     hidden.index.names = ["scenario", "target"]
     counts = counts.merge(hidden.reset_index(), on=["scenario", "target"])
@@ -563,6 +608,79 @@ def integrity_table(cells, measured, config):
         {"check": "Cells predicted more than once by a method", "count": int((counts["size"] != counts["nunique"]).sum()), "expected": 0},
         {"check": "Method and target groups that do not cover every hidden cell", "count": int((counts["size"] != counts.hidden).sum()), "expected": 0},
     ])
+
+
+# ---------------------------------------------------- conditions added in the merge
+
+
+def completion_table(cells, scenarios, config):
+    """Skill at every completion level at the reference noise, from the generator files and the sparse files."""
+    noise = scenarios[config.representative].noise
+    names = [n for n, s in scenarios.items() if s.noise == noise and s.mechanism in (RANDOM, "sparse")]
+    block = cells[cells.scenario.isin(names) & cells.experiment.isin(["main", "mechanism"]) & cells.seed.eq(config.seed)]
+    table = skill_by(block, ["scenario", "target", "method"])
+    table["completion"] = table.scenario.map(lambda n: scenarios[n].completion)
+    return table[~table.method.isin(BASELINE_OF.values())]
+
+
+def split_table(cells, config):
+    """Skill with random row folds and with folds of whole grid blocks, on the representative scenario."""
+    block = cells[cells.scenario.eq(config.representative) & cells.seed.eq(config.seed)
+                  & cells.experiment.isin(["main", SPATIAL])]
+    table = skill_by(block, ["experiment", "target", "method"])
+    table = table[~table.method.isin(BASELINE_OF.values())]
+    wide = table.pivot_table(index=["target", "method"], columns="experiment", values="skill").reset_index()
+    wide = wide.rename(columns={"main": "random rows", SPATIAL: "whole blocks"})
+    wide["change"] = wide["whole blocks"] - wide["random rows"]
+    return wide
+
+
+def wrong_rows(measured, config):
+    """Rows of the errors scenario in which a visible value differs from the representative scenario."""
+    name = f"{config.representative}-errors"
+    if name not in measured:
+        return pd.Series(dtype=bool)
+    wrong, right = measured[name], measured[config.representative]
+    differs = (wrong != right) & wrong.notna() & right.notna()
+    return differs.any(axis=1)
+
+
+def wrong_value_table(cells, measured, config):
+    """Change in error on the same hidden cells when some visible values are wrong.
+
+    The errors scenario keeps the representative mask, so every hidden cell is the same in both.
+    Rows are split by whether a visible value in the row was made wrong.
+    """
+    flagged = wrong_rows(measured, config)
+    if flagged.empty:
+        return pd.DataFrame()
+    name = f"{config.representative}-errors"
+    keys = ["target", "method", "row_id"]
+    base = cells[cells.scenario.eq(config.representative) & cells.experiment.eq("main") & cells.seed.eq(config.seed)]
+    wrong = cells[cells.scenario.eq(name) & cells.seed.eq(config.seed)]
+    joined = base[keys + ["error", "base_error"]].merge(wrong[keys + ["error"]], on=keys, suffixes=("", "_wrong"))
+    joined["row"] = np.where(flagged.reindex(joined.row_id).to_numpy(), "row with a wrong value", "row without")
+    table = joined.groupby(["row", "target", "method"]).agg(
+        n=("error", "size"), error=("error", "mean"), error_wrong=("error_wrong", "mean"),
+        baseline=("base_error", "mean")).reset_index()
+    table["skill"] = 1 - table.error / table.baseline.where(table.baseline > 0)
+    table["skill with wrong values"] = 1 - table.error_wrong / table.baseline.where(table.baseline > 0)
+    table["relative change in error"] = table.error_wrong / table.error.where(table.error > 0) - 1
+    return table[(table.n >= SMALL) & ~table.method.isin(BASELINE_OF.values())]
+
+
+def branch_table(failure_maps):
+    """Mean skill over the columns with a relationship, for every model and condition.
+
+    ``failure_maps`` maps each model to its failure map.
+    """
+    rows = {}
+    for method, table in failure_maps.items():
+        rows[method] = table.drop(index=["random_placebo"], errors="ignore").mean()
+    order = list(dict.fromkeys(c for table in failure_maps.values() for c in table.columns))
+    result = pd.DataFrame(rows).T.reindex(columns=order)
+    result.insert(0, "branch", [BRANCH_OF.get(m, "") for m in result.index])
+    return result
 
 
 # ------------------------------------------------------------------- value
@@ -586,7 +704,8 @@ def _quantities(frame, threshold):
         values[f"mean life, model {model}"] = frame.life[frame.model_id.eq(model)].mean()
     values["share of assets with life below the lowest tenth"] = (frame.life < threshold).mean()
     pair = frame[["install_date", "life"]].dropna()
-    values["life lost per day installed"] = -np.polyfit(pair.install_date, pair.life, 1)[0]
+    # At 0.3 completion no row is complete, so a source can hold too few rows for the slope.
+    values["life lost per day installed"] = -np.polyfit(pair.install_date, pair.life, 1)[0] if len(pair) >= 2 else np.nan
     values["90th percentile of overgrowth"] = frame.measured_overgrowth.quantile(0.9)
     values["spread of total gas (SD)"] = frame.total_gas.std()
     return values

@@ -2,9 +2,11 @@
 import json
 from pathlib import Path
 
-ROOT = Path(r"C:\Users\Morgan\Desktop\Capstone Project\gh\team19-asset-data")
-SOURCE = ROOT / "outputs/imputation-study/baselines/v4-before-reshape/imputation.ipynb"
+ROOT = Path(__file__).resolve().parents[3]  # the version folder
+SOURCE = Path(__file__).with_name("base_notebook.ipynb")  # the version 3 notebook, whose chapters 1 to 4 are adapted
 TARGET = ROOT / "notebooks/imputation.ipynb"
+RUN_ID = "20261115-121714"
+RUN_TIME = "2 hours 20 minutes"
 old = json.loads(SOURCE.read_text(encoding="utf-8"))
 kept = [("md" if c["cell_type"] == "markdown" else "code", "".join(c["source"])) for c in old["cells"][:35]]
 
@@ -26,13 +28,15 @@ This notebook fills missing cells in a synthetic asset dataset with several impu
 2. The form the failure takes.
 3. The causes of the failure.
 
+The project has three branches. This notebook is the main line, and it also runs the main models of the other two, Subteam A's benchmark and the team pipeline with its MICE notebook, under the same folds, data and scoring, together with experiments adopted from their designs.
+
 Models receive measured data only, with no description of the relationships. Truth is read only after fitting, for scoring. Every comparison keeps a baseline that uses no other column: the median for numeric columns and the mode for `model_id`. The results describe this synthetic dataset and do not establish performance on real SA Power Networks assets.
 
 **How the notebook is organised.** It goes from the whole to the detail.
 
 | Chapters | Content |
 |---|---|
-| 2 to 4 | The data, the experimental design and the models |
+| 2 to 4 | The data, the experimental design and the models of all three branches |
 | 5 | Overview: the standard for failure, the overall level and a map of every condition |
 | 6 to 8 | One chapter for each question: conditions, form and causes |
 | 9 | What imputation gives a later analysis |
@@ -56,8 +60,8 @@ edit(21, "**Reading the results:** the penalties trade exact recovery of sums fo
 edit(23, "More passes help some columns and hurt others, and ten passes gave the best overall score when the settings were chosen.",
      "Ten passes gave the best overall score when the settings were chosen.")
 kept[1] = (kept[1][0], kept[1][1].rstrip("\n") + "\n\nThis copy is saved with `EVALUATION_RUN_ID` set to the latest full run, so Run All repeats the evaluation only. "
-           "Set it to `None` to fit every model again, which takes about 1 hour 45 minutes on the machine used here.\n")
-edit(2, "EVALUATION_RUN_ID = None", 'EVALUATION_RUN_ID = "20261114-114941"')
+           f"Set it to `None` to fit every model again, which takes about {RUN_TIME} on the machine used here.\n")
+edit(2, "EVALUATION_RUN_ID = None", f'EVALUATION_RUN_ID = "{RUN_ID}"')
 edit(2, "from team19_asset_data.imputation_study import evaluation as ev\n",
      "from team19_asset_data.imputation_study import evaluation as ev\nfrom team19_asset_data.imputation_study import failure as fl\n")
 edit(2, "from team19_asset_data.imputation_study.models import CATEGORY_METHODS, NUMERIC_METHODS\n",
@@ -69,7 +73,8 @@ edit(13, "| Missing indicators | Not used | Masks are random, so an indicator ca
 edit(13, "- **Donor-matched models:** candidates within 0.01 of the best band coverage are kept, and the one with the lowest point error is chosen.\n", "")
 edit(13, "- **Point models:** candidates", "- **Choice:** candidates")
 edit(13, "The second-order base scored best for every model. The rule and all scores are kept in `outputs/imputation-study/optimisation/clean_selection`.",
-     "The second-order base scored best for every model. The rule and all scores are kept in `outputs/imputation-study/optimisation/clean_selection`. Section 7.6 measures the effect of the base again, against the truth.")
+     "The second-order base scored best for every model. The rule and all scores are kept in `outputs/imputation-study/optimisation/clean_selection`. Section 7.6 measures the effect of the base again, against the truth.\n\n"
+     "**Models from the other branches.** Subteam A's package records the default settings of its models and their search space, but not the settings its tuning chose. Its two models were therefore chosen with the same rule, from their default and seven candidates drawn from their own search space. The rule kept choosing values at the edge of that space, so two further rounds added candidates beyond the edges. Each round was declared before it was scored, and selection stopped after the second. The team pipeline records every setting of its two models, and the team's MICE methodology document every setting of MICE-PMM, so these three are used as written. The rule, the candidates and all scores are kept in `outputs/imputation-study/optimisation/merge_selection`.")
 edit(13, "| Skill | Share of the median's MAE removed: 0 matches the median, 1 is perfect, below 0 is worse |",
      "| Skill | Share of the baseline's error removed on the same cells: 0 matches the baseline, 1 is perfect, below 0 is worse. The baseline is the median, or the mode for `model_id` |")
 edit(13, "MAE values are never averaged across columns because their units differ.",
@@ -81,40 +86,101 @@ kept[15] = ("md", """- **main**: every method in each of the nine generator scen
 - **calibration**: the same forest with calibrated probabilities for `model_id`, with all predictors and without the gas columns.
 - **ablation**: refits without a block of predictors, across the three noise levels at 0.8 completion. Targets inside the removed block are skipped.
 - **importance**: permutation importance on held-out observed labels, from single-target forest and CatBoost models on all five folds, because a chain covers every column at once.
-- **mechanism**: every method in the two scenarios of section 2.5, where cells are not hidden completely at random.
+- **mechanism**: every method in the six scenarios of section 2.5: cells hidden by age, by value or in related blocks, wrong visible values, and two heavier levels of random missingness.
+- **spatial**: every method in the representative scenario with folds made of whole 10 × 10 blocks of the grid, so a held-out asset has no training asset beside it. Both other branches split their data this way.
 """)
 edit(16, "**How the chained models work.** Sections 4.2 to 4.7 and 4.9 use chained imputation, and most of them add a ridge base:",
      "**How the chained models work.** Sections 4.2 and 4.4 to 4.6 use chained imputation with a ridge base:")
+edit(16, "4. The local model (trees or neighbours) fits only what the ridge leaves. The prediction is the sum of the two.",
+     "4. The local model (trees or neighbours) fits only what the ridge leaves. The prediction is the sum of the two.\n"
+     "5. Every estimate stays inside its column's observed training range. With few visible cells, the ridge base can otherwise extrapolate, feed on its own estimates from pass to pass and diverge.")
 edit(16, "One fit covers every column, so settings are shared by all columns.",
-     "One fit covers every column, so settings are shared by all columns.\n\nFour models therefore share most of their structure. Two sections act as references for it: section 4.3 uses the ridge alone, and section 4.7 uses a boosted chain with no ridge. Section 7.6 compares them.")
+     "One fit covers every column, so settings are shared by all columns.\n\nFour models therefore share most of their structure. Two sections act as references for it: section 4.3 uses the ridge alone, and section 4.7 uses a boosted chain with no ridge. Section 7.6 compares them.\n\n"
+     "**Models from the other branches.** Sections 4.8 to 4.12 run the main models of the project's two other branches. Their code is used as written, from `src/team19_asset_data/imputation_study/vendor`, through an adapter that gives them the same folds, inputs and outputs as every other model here (`models_external.py`). Parts of their code that encode the generator's relationships are switched off, as each section states, so their results here can differ from those in their own reports.")
 edit(33, "**Reading the results:** this section is the reference for sections 4.8 and 4.9, which share this engine and add donor matching.",
      "**Reading the results:** this model shares nothing with the ridge base of the other chained models, so it shows what a boosted chain reaches without it.")
 
 cells = kept[:13]
 cells += [
-    ("md", """### 2.5 Other ways cells can go missing
+    ("md", """### 2.5 Scenarios added to the generator's files
 
-The generator hides every cell with the same chance. Gaps in real asset data often depend on the asset, so two more scenarios are built from the generator's own files. Each hides the same overall share of cells as the representative scenario, and differs only in which cells are hidden:
+The generator hides every cell with the same chance and stops at 0.7 completion. Six more scenarios are built from its files. Each differs from a generator scenario in one respect only, the truth file is the generator's, and every visible cell keeps the value the generator wrote unless the scenario is about wrong values. Four of them adopt designs from the other two branches.
 
-- **age**: older assets lose more cells.
-- **value**: higher values are hidden more often, in every numeric column.
+| Scenario | Built from | Change | Adopted from |
+|---|---|---|---|
+| age | 0.9 file, to 0.8 completion | Older assets lose more cells | — |
+| value | 0.9 file, to 0.8 completion | Higher values are hidden more often | — |
+| group | 0.9 file, to 0.8 completion | Related columns are hidden together: location, gas readings, environment readings, and date with model | Subteam A's grouped gaps; the pipeline's hidden supporting predictors |
+| errors | 0.8 file, same mask | 5% of visible installation days move by 60 days and 2% of visible `model_id` values become another model | Subteam A's structural errors; the pipeline's corrupted predictors |
+| completion 0.5 and 0.3 | 0.7 file | Further cells hidden at random, nested | Subteam A's 50% and 70% missingness |
 
-They are built from the file with 0.9 completion by hiding further cells, so every visible cell keeps the value the generator wrote. The table shows the hidden share in each age third and in the lowest and highest fifth of `life`."""),
+The table shows, for each scenario, the hidden share, the hidden share in each age third and in the lowest and highest fifth of `life`, the share of rows in which `x`, `y` and `altitude` are all hidden, and the number of visible values that differ from the representative scenario."""),
     ("code", """rows = []
 age_third = pd.qcut(read_truth(ALL_SCENARIOS[REPRESENTATIVE]).install_date.rank(method="first"), 3,
                     labels=["oldest third", "middle third", "newest third"])
 life = read_truth(ALL_SCENARIOS[REPRESENTATIVE]).life
-for name, frame in {REPRESENTATIVE: STUDY.measured[REPRESENTATIVE], **{n: STUDY.measured[n] for n in STUDY.mechanisms}}.items():
+reference = STUDY.measured[REPRESENTATIVE]
+for name, frame in {REPRESENTATIVE: reference, **{n: STUDY.measured[n] for n in STUDY.mechanisms}}.items():
     hidden = frame.isna()
     by_age = hidden.mean(axis=1).groupby(age_third.reindex(frame.index), observed=True).mean()
+    changed = (frame != reference) & frame.notna() & reference.reindex(frame.index).notna()
     rows.append({"scenario": name, "mechanism": STUDY.scenarios[name].mechanism, "hidden share": hidden.to_numpy().mean(),
                  **by_age.to_dict(), "life: lowest fifth": hidden.life[life.reindex(frame.index) <= life.quantile(0.2)].mean(),
-                 "life: highest fifth": hidden.life[life.reindex(frame.index) >= life.quantile(0.8)].mean()})
+                 "life: highest fifth": hidden.life[life.reindex(frame.index) >= life.quantile(0.8)].mean(),
+                 "x, y and altitude all hidden": (hidden.x & hidden.y & hidden.altitude).mean(),
+                 "visible values changed": int(changed.to_numpy().sum())})
 display(pd.DataFrame(rows).round(3))
 for name, text in DESCRIPTIONS.items():
     print(f"{name}: {text}")"""),
 ]
 cells += kept[13:35]
+cells += [
+    ("md", """### 4.8 Gaussian EM (Subteam A)
+
+The Gaussian mixture treats each row as drawn from one of several groups. Each group is a multivariate normal distribution with its own mean, and all groups share one covariance. The mixture is fitted by expectation–maximisation on incomplete rows, using only the cells each row shows. A hidden cell is estimated by its expected value given the visible cells of its row, weighted over the groups by how likely each group is for that row. `model_id` enters as one-hot columns, and its class probabilities come from the group weights.
+
+**Setup:** six groups, eight EM steps, a covariance penalty of 0.001 and a weight of 1.8 on the `model_id` columns, chosen as section 3.3 describes. Numeric columns are centred on the training median and scaled by the training spread. Subteam A's gas-decay feature is off, because it is built from the generator's gas formula.
+
+**Reading the results:** within one group the estimate is a straight-line function of the visible cells, so thresholds and products are approximated by the mix of groups."""),
+    ("code", """STUDY.run_model("Gaussian EM")
+STUDY.show_model("Gaussian EM")"""),
+    ("md", """### 4.9 Masked MLP (Subteam A)
+
+A neural network learns to rebuild cells. In each training pass, a share of the visible training cells is hidden and the network is trained to predict them from the rest. The design follows ReMasker. Each column enters standardised, with gaps set to the training median and a missing-value indicator beside it, and `model_id` enters as one-hot columns. The network returns a value and a scale for each numeric column and class probabilities for `model_id`.
+
+**Setup:** hidden layers of 256 and 128 units, 60 training passes, learning rate 0.0015, 40% of visible cells hidden in each pass and no dropout, chosen as section 3.3 describes. Subteam A's exact-formula step and its blanking of the placebo column are off, because both use knowledge of the generator.
+
+**Reading the results:** the selection score was still improving when selection stopped, so this setting is not the network's best."""),
+    ("code", """STUDY.run_model("Masked MLP")
+STUDY.show_model("Masked MLP")"""),
+    ("md", """### 4.10 LightGBM chained (team pipeline)
+
+The pipeline's chain starts by filling gaps with the training median and mode. In each of three passes it then fits one LightGBM model per column, on the rows where that column is observed, and replaces the column's gaps with its predictions. The stored models are replayed on new rows in the same order.
+
+**Setup:** 100 trees per model, learning rate 0.07 and 31 leaves, as the pipeline's guide records. `model_id` is a categorical input.
+
+**Reading the results:** section 4.7 runs another LightGBM chain. This one starts from the median instead of the gaps and uses fewer rounds, and neither has the ridge base of sections 4.4 to 4.6."""),
+    ("code", """STUDY.run_model("LightGBM chained")
+STUDY.show_model("LightGBM chained")"""),
+    ("md", """### 4.11 Predictive MissForest (team pipeline)
+
+A chain of random forests in the style of MissForest. Gaps start from the training mean and mode. In each of five passes one forest per column is fitted on the rows where that column is observed, and its predictions replace the gaps. Every forest is stored, so the passes can be replayed on new rows without refitting.
+
+**Setup:** 100 trees, at least 10 rows per leaf and the square root of the predictors at each split, as the pipeline's guide records.
+
+**Reading the results:** section 4.4 is also a forest chain, with the ridge base and other forest settings, and section 7.6 adds the same forest chain without the ridge."""),
+    ("code", """STUDY.run_model("Predictive MissForest")
+STUDY.show_model("Predictive MissForest")"""),
+    ("md", """### 4.12 MICE-PMM (team pipeline)
+
+Multivariate imputation by chained equations, from the team's MICE notebook and the pipeline's `mice_pmm_logistic.py`, which hold the same code. Gaps start from values drawn at random from the same column. In each sweep every column is fitted in turn on the current values of the others. Numeric columns use predictive mean matching: a lightly penalised Bayesian linear model predicts each gap, and the gap takes the observed value of one of the five rows with the closest predictions. `model_id` uses a logistic regression fitted on a bootstrap sample of the observed rows, and its label is drawn from the predicted class probabilities. Five independent chains run ten sweeps each.
+
+**Setup:** five chains, ten sweeps, five donors, a penalty of 0.0001 on the linear model, and logistic regression with C = 1 and up to 500 iterations, as the methodology document records. The shared code completes a whole table, so its models see the visible cells of the rows being scored. Here every model, scaler and encoder is fitted on training rows only, and donors come from training rows only; the fitting and drawing steps are the shared code, unchanged. The estimate is the mean of the five chains for numeric columns and the share of chains choosing each class for `model_id`.
+
+**Reading the results:** each chain copies a real observed value, so a single chain keeps the spread of a column, and the mean of five chains narrows it again. The methodology document reports this model below the median on the placebo in every scenario."""),
+    ("code", """STUDY.run_model("MICE-PMM")
+STUDY.show_model("MICE-PMM")"""),
+]
 
 # ---------------------------------------------------------------- chapter 5
 cells += [
@@ -122,13 +188,15 @@ cells += [
 
 **The evaluation starts here.** Chapters 5 to 9 and the appendix need only the setup cell and a finished run. They use saved predictions and fit no model, so they can be repeated quickly after any change to the evaluation code.
 
-The next cell collects all results. Three models are followed in detail: CatBoost, Random Forest and KNN. They share the ridge base and differ in the local model that corrects it. IterativeImputer and miceforest direct are shown as references, the first for the ridge alone and the second for a chain with no ridge. HistGradientBoosting is the same kind of model as CatBoost, so it appears in the appendix. The baseline is part of every comparison."""),
+The next cell collects all results. Every comparison table shows all models, and the baseline is part of every comparison. The line charts follow the strongest model of each branch, chosen by mean skill over the columns with a relationship in the representative scenario; the cell prints them. The lead model, which the failure map and chapter 8 follow, is the strongest model of this study."""),
     ("code", """STUDY.finish()
 NUMERIC, CATEGORY, PAIRS, CELLS = STUDY.numeric, STUDY.category, STUDY.pairs, STUDY.cells
 SCORED, FIGURES = STUDY.all_scored, STUDY.figures
-MAIN, SHOWN, LEAD = list(fl.MAIN_METHODS), list(fl.SHOWN_METHODS), fl.LEAD_METHOD
+MAIN, SHOWN, LEAD = list(STUDY.leads.values()), list(fl.SHOWN_METHODS), fl.LEAD_METHOD
 display(ev.run_summary(STUDY.log, STUDY.plan))
-print("Models followed in detail:", ", ".join(MAIN), "| references:", ", ".join(fl.REFERENCE_METHODS), "| lead model:", LEAD)"""),
+for branch, method in STUDY.leads.items():
+    print(f"Strongest model of {branch}: {method}")
+print("Lead model:", LEAD)"""),
     ("md", """### 5.1 The standard for failure
 
 A model is judged by its skill: the share of the baseline's error it removes on the same cells.
@@ -148,9 +216,9 @@ table[f"skill: {LEAD}"] = standard[standard.method.eq(LEAD)].set_index("target")
 display(table.round(3))"""),
     ("md", """### 5.2 Overall level
 
-The chart shows skill in the representative scenario for the three main models and the two references. Columns are grouped by the kind of relationship that defines them. The shaded band is the failing range, and the vertical line is the baseline.
+The chart shows skill in the representative scenario for every model of the three branches. The shaded band is the failing range, and the vertical line is the baseline.
 
-The table adds the baseline's own error, in the column's unit, and the remaining model."""),
+The table adds the kind of relationship that defines each column and the baseline's own error, in the column's unit."""),
     ("code", """fg.plot_overall(STUDY.overall, SHOWN, FIGURES)
 with pd.option_context("display.max_colwidth", 60):
     display(STUDY.overall.round(3))"""),
@@ -160,12 +228,19 @@ Each column of the map changes one thing against the reference scenario. Values 
 
 - **highest noise**, **lowest completion**, **both together**: other generator scenarios.
 - **few linked columns visible**: cells of the reference scenario in which at most a third of the directly linked columns were visible in the row.
-- **older assets hidden more**, **higher values hidden more**: the scenarios of section 2.5.
+- **older assets hidden more**, **higher values hidden more**, **related columns hidden together**, **wrong recorded values**, **completion 0.5**, **completion 0.3**: the scenarios of section 2.5.
+- **held out by location**: the representative scenario with folds of whole blocks of the grid.
 - **most harmful block removed**: the lowest skill after one block of predictors is removed and the model is refitted.
 
 Chapters 6 to 8 take these conditions one at a time."""),
     ("code", """fg.plot_failure_map(STUDY.failure_map, f"{LEAD}: skill under each condition", FIGURES, "failure_map", fl.WEAK)
 display(STUDY.failure_map.apply(lambda column: column.map(fl.state)))"""),
+    ("md", """### 5.4 Every model under every condition
+
+The map repeats the conditions of section 5.3 for every model. Values are mean skill over the columns with a relationship, so one cell summarises one model under one condition. Bold values are below 0.5. The table adds the branch of each model. The removed-block column is empty for miceforest direct, which is not refitted without predictor blocks."""),
+    ("code", """view = STUDY.branches.drop(columns="branch")
+fg.plot_failure_map(view, "Mean skill over the columns with a relationship, by model and condition", FIGURES, "models_by_condition", fl.WEAK)
+display(STUDY.branches.round(3))"""),
 ]
 
 # ---------------------------------------------------------------- chapter 6
@@ -210,23 +285,56 @@ display(STUDY.bands[STUDY.bands.method.eq(LEAD)].pivot(index="target", columns="
         .reindex(index=list(NUMERIC_TARGETS), columns=list(fl.BANDS)).round(3))"""),
     ("md", """### 6.4 How cells were chosen for hiding
 
-The three scenarios below hide the same share of cells: at random, more for older assets, and more for higher values. The chart shows the skill of the lead model in each.
+The four scenarios below hide the same share of cells: at random, more for older assets, more for higher values, and in blocks of related columns. The chart shows the skill of the lead model in each, and the first table the mean skill over the columns with a relationship for every model.
 
-Skill alone can hide a shift. When higher values are hidden more often, the visible values of a column are lower than the hidden ones, so an estimate that leans on the visible range can be too low. The first table therefore shows the mean signed error, in units of the column's spread, for the lead model and the baseline. The second table shows mean skill by age third, to check that assets with more gaps are also filled less well."""),
+Skill alone can hide a shift. When higher values are hidden more often, the visible values of a column are lower than the hidden ones, so an estimate that leans on the visible range can be too low. The second table therefore shows the mean signed error, in units of the column's spread, for the lead model and the baseline. The third table shows mean skill by age third, to check that assets with more gaps are also filled less well."""),
     ("code", """scores = STUDY.mechanism_scores
 lead_scores = scores[scores.method.eq(LEAD)].pivot(index="target", columns="mechanism", values="skill").reindex(list(TARGETS))
-order = [m for m in ("random", "age", "value") if m in lead_scores]
+order = [m for m in ("random", "age", "value", "group") if m in lead_scores]
 fg.plot_bars(lead_scores[order], f"{LEAD}: skill by how cells were chosen for hiding", FIGURES, "skill_by_mechanism",
              "Error removed vs baseline (%)")
-bias = scores[scores.method.isin([LEAD, "Median"]) & scores.target.ne("model_id")]
+signal = scores[scores.target.isin(fl.SIGNAL_TARGETS) & scores.mechanism.isin(order)]
+display(signal.groupby(["method", "mechanism"]).skill.mean().unstack()[order].reindex(SHOWN).round(3))
+bias = scores[scores.method.isin([LEAD, "Median"]) & scores.target.ne("model_id") & scores.mechanism.isin(order)]
 display(bias.pivot(index="target", columns=["method", "mechanism"], values="bias in SD").reindex(list(NUMERIC_TARGETS)).round(3))
 groups = fl.mechanism_groups(CELLS, STUDY.truth, STUDY.scenarios, STUDY.config)
-display(groups[groups.method.isin(MAIN)].pivot(index=["method", "mechanism"], columns="age third", values="skill").round(3))"""),
+groups = groups[groups.method.isin(MAIN) & groups.mechanism.isin(order)]
+display(groups.pivot(index=["method", "mechanism"], columns="age third", values="skill").round(3))"""),
     ("md", """### 6.5 Kind of relationship
 
 Columns are grouped by how the generator builds them. The table shows the mean skill of the lead model for each kind: in the reference scenario, in its best and worst generator scenario, and when few linked columns are visible."""),
     ("code", """with pd.option_context("display.max_colwidth", 70):
     display(STUDY.kinds.round(3))"""),
+    ("md", """### 6.6 Heavier random missingness
+
+The generator's files stop at 0.7 completion. Two added files hide further cells at random, down to 0.5 and 0.3 completion at noise 0.05, nested inside the 0.7 file (section 2.5). Each panel follows skill from 0.9 to 0.3 completion for the strongest model of each branch. The table gives the mean over the columns with a relationship for every model."""),
+    ("code", """completion = STUDY.completion
+fg.plot_lines(completion[completion.method.isin(MAIN)], "completion", "Skill as completion falls, at noise 0.05", FIGURES,
+              "skill_by_completion", "Completion (share of cells visible)", MAIN)
+display(completion[completion.target.isin(fl.SIGNAL_TARGETS)].groupby(["method", "completion"]).skill.mean()
+        .unstack().reindex(SHOWN).round(3))"""),
+    ("md", """### 6.7 Wrong recorded values
+
+The errors scenario keeps the representative mask and makes some visible values wrong: 5% of visible installation days move by 60 days and 2% of visible `model_id` values become another model. The mask is the same, so every hidden cell is compared with itself, once with correct and once with wrong visible values. Rows are split by whether they hold a wrong value; rows without one show what the wrong values change through the fitted model alone.
+
+The table gives mean skill over the columns with a relationship, with correct and with wrong visible values. The heatmap gives the relative change in error, by column, in rows that hold a wrong value. A cell is empty where the error was zero with correct values, so a relative change is undefined; this applies to most `model_id` cells."""),
+    ("code", """wrong = STUDY.wrong_values
+summary = wrong[wrong.target.isin(fl.SIGNAL_TARGETS)].groupby(["method", "row"])[["skill", "skill with wrong values"]].mean()
+display(summary.unstack("row").reindex(SHOWN).round(3))
+change = wrong[wrong.row.eq("row with a wrong value")].pivot(index="target", columns="method", values="relative change in error")
+change = change.reindex(list(TARGETS))[[m for m in SHOWN if m in change]]
+if change.notna().any().any():  # a small sample can leave too few rows with a wrong value
+    fg.plot_heatmap(change, "Change in error on the same hidden cells when the row holds a wrong value", FIGURES, "wrong_values",
+                    "Relative change in error", center=0.0, limit=1.0, fmt="{:+.0%}")"""),
+    ("md", """### 6.8 Assets in unseen areas
+
+Random folds leave training rows next to every held-out row. In this experiment the representative scenario is split into folds of whole 10 × 10 blocks of the grid, as both other branches split their data, so a held-out asset has no training asset beside it. The blocks are set by the grid position of a row, which no model receives. The table gives mean skill over the columns with a relationship under both splits for every model, and the heatmap the change in skill by column."""),
+    ("code", """splits = STUDY.splits
+display(splits[splits.target.isin(fl.SIGNAL_TARGETS)].groupby("method")[["random rows", "whole blocks", "change"]].mean()
+        .reindex(SHOWN).round(3))
+change = splits.pivot(index="target", columns="method", values="change").reindex(list(TARGETS))
+fg.plot_heatmap(change[[m for m in SHOWN if m in change]], "Change in skill when folds are whole blocks of the grid", FIGURES,
+                "fold_design", "Change in skill", center=0.0, limit=0.5, fmt="{:+.2f}")"""),
 ]
 
 # ---------------------------------------------------------------- chapter 7
@@ -286,7 +394,7 @@ display(by_scenario[by_scenario.method.eq(LEAD)].sort_values("scenario").round(3
 
 Four of the models share the ridge base, so part of any agreement between them can come from their structure. The chart shows the skill of each main model with no ridge base (open marker) and with it (filled marker), in the representative scenario. The table adds the two references.
 
-The last table shows how far two models fail on the same cells: it is the rank correlation between their cell errors, averaged over columns. A value near 1 means that the models are wrong in the same places."""),
+The last table covers every model of the three branches. It shows how far two models fail on the same cells: it is the rank correlation between their cell errors, averaged over columns. A value near 1 means that the models are wrong in the same places."""),
     ("code", """structure = STUDY.structure.drop(index="random_placebo")
 pairs = [(m, f"{m}: no ridge", f"{m}: with ridge", fg.METHOD_COLORS[m]) for m in MAIN if f"{m}: no ridge" in structure]
 fg.plot_pairs(structure, pairs, "Skill without and with the ridge base", FIGURES, "ridge_base_effect", "Error removed vs baseline (%)")
@@ -328,12 +436,14 @@ The first table places every column a model relies on (importance above 0.02) in
 - **stands in for a near copy**: `x` and `install_date` are near copies, so one can replace the other.
 - **no link**: the definition gives no connection.
 
-The second table lists the strongest columns relied on outside the target's own definition. The heatmap shows all values for the lead model, with direct links in bold."""),
+The second table lists the strongest columns relied on outside the target's own definition. The heatmap shows all values, with direct links in bold, for the lead model when it is one of the two single-target models, and otherwise for CatBoost, the single-target model of the same kind as the boosted lead."""),
     ("code", """with pd.option_context("display.max_colwidth", 60):
     display(STUDY.links.set_index(["method", "scenario"]).round(3).T)
-    display(fl.unexplained_links(STUDY.all_importance, NOISE_FREE, LEAD))
+    EXPLAINER = LEAD if LEAD in set(STUDY.all_importance.method) else "CatBoost"
+    print("Single-target model shown:", EXPLAINER)
+    display(fl.unexplained_links(STUDY.all_importance, NOISE_FREE, EXPLAINER))
 mean_importance = STUDY.all_importance.groupby(["method", "scenario", "target", "predictor"], sort=False).importance.mean().reset_index()
-fg.plot_importance(ev.importance_matrix(mean_importance, NOISE_FREE, LEAD), f"{LEAD}: importance of each column · {NOISE_FREE}",
+fg.plot_importance(ev.importance_matrix(mean_importance, NOISE_FREE, EXPLAINER), f"{EXPLAINER}: importance of each column · {NOISE_FREE}",
                    FIGURES, "importance")"""),
     ("md", """### 8.3 Noise carried from linked columns
 
@@ -393,7 +503,7 @@ The second part compares eight summary values that an asset analysis might take 
 - **each model**: the completed table, with out-of-fold values.
 - **measured values with true values in the gaps**: a perfect imputation, whose error comes from measurement noise alone.
 
-Values are relative errors against the truth. The last table repeats the mean absolute error for the two scenarios of section 2.5."""),
+Values are relative errors against the truth. The last table repeats the mean absolute error for the scenarios of section 2.5."""),
     ("code", """display(fl.complete_rows_table(STUDY.measured, STUDY.scenarios).round(3))
 downstream = STUDY.downstream
 order = ["rows with no missing cell", "Median and Mode"] + [m for m in SHOWN if m in set(downstream.source)] + ["measured values with true values in the gaps"]
@@ -407,7 +517,11 @@ cells += [
     ("md", """## 10. Limits of the experiment
 
 - The data is synthetic, and there is one generated truth table, so the study does not measure variation between generated datasets.
-- The two scenarios of section 2.5 are simple forms of missingness that depends on the asset. They do not cover every mechanism, and each was run at one completion and noise level.
+- The scenarios of section 2.5 are simple forms of missingness and error. They do not cover every mechanism, each was run at noise 0.05 only, and each uses one draw of masks or errors.
+- The models of the other two branches run through an adapter, under this study's folds, data and scoring. Parts of their code that encode the generator are switched off: Subteam A's gas-decay feature, spatial installation-day feature, exact formulas and placebo blanking. Their results here therefore differ from those in their own reports, and the tables here do not reproduce those reports.
+- The range limit of the chained models (chapter 4, step 5) was added after the first full run of this version, in which these models diverged at 0.3 completion: raw estimates reached three column spans outside the range of the truth, and one task failed on infinite values. That run is kept as `outputs/imputation-study/runs/20261115-012041`. Their settings were chosen before the limit existed, on scenarios where it rarely applies.
+- MICE-PMM was written to complete a whole table. Here it is fitted on training rows only, like every other model, so its results differ from the whole-table results of its own notebook.
+- Subteam A's selected settings were not in their package, so the settings here come from this study's rule and their search space. The Masked MLP was still improving when selection stopped.
 - `x` and `install_date` are near copies of each other, because assets were installed in grid order. High skill on these columns says little about model quality.
 - A noise level does not mean equal difficulty across columns. Section 8.3 gives the noise of each column in units of its spread.
 - Four models share the ridge base, so agreement between them can partly be a result of their structure. Section 7.6 measures that share.
@@ -463,6 +577,17 @@ for kind, text in cells:
     if kind == "code":
         cell.update(execution_count=None, outputs=[])
     notebook["cells"].append(cell)
+# The study's own package, independent of the team repository's layout.
+RENAMES = [("team19_asset_data.transformers.miceforest_compat", "synthetic_imputation.miceforest_compat"),
+           ("team19_asset_data.imputation_study", "synthetic_imputation"),
+           ('(ROOT / "src/team19_asset_data")', '(ROOT / "src/synthetic_imputation")'),
+           ("src/team19_asset_data/imputation_study/vendor", "src/synthetic_imputation/vendor")]
+for cell in notebook["cells"]:
+    source = "".join(cell["source"])
+    for old_name, new_name in RENAMES:
+        source = source.replace(old_name, new_name)
+    assert "team19" not in source, source[:200]
+    cell["source"] = source.splitlines(keepends=True)
 TARGET.write_text(json.dumps(notebook, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
 questions = sum("?" in "".join(c["source"]) for c in notebook["cells"] if c["cell_type"] == "markdown")
 print(len(notebook["cells"]), "cells,", sum(c["cell_type"] == "code" for c in notebook["cells"]), "code | markdown cells with a question mark:", questions)

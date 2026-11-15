@@ -19,17 +19,19 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.preprocessing import PolynomialFeatures
 
-from team19_asset_data.transformers.miceforest_compat import CorrectedKernel
+from .miceforest_compat import CorrectedKernel
 
 from .columns import CATEGORY_TARGET
 
+# The last four come from the other two branches of the project; see models_external.py.
+EXTERNAL_METHODS = ("Gaussian EM", "Masked MLP", "LightGBM chained", "Predictive MissForest", "MICE-PMM")
 NUMERIC_METHODS = (
     "Median", "KNN imputer", "IterativeImputer", "Random Forest",
     "HistGradientBoosting", "CatBoost", "miceforest direct",
-)
+) + EXTERNAL_METHODS
 CATEGORY_METHODS = (
     "Mode", "KNN imputer", "Random Forest", "HistGradientBoosting", "CatBoost", "miceforest direct",
-)
+) + EXTERNAL_METHODS
 CLASS_COUNT = 4
 THREADS = 1  # parallelism is across tasks, so each model stays single-threaded
 # miceforest defaults to a depth-limited random forest and ignores the learning rate.
@@ -263,6 +265,10 @@ class ChainedColumns:
             frame.loc[known, self.report_columns].to_numpy(float), frame.loc[known, CATEGORY_TARGET].to_numpy().astype(int))
         self.classes_ = self.reporter.classes_
         self.order = list(frame.isna().mean().sort_values(kind="stable").index)
+        # Estimates stay inside each column's observed training range. The ridge base extrapolates,
+        # and with few visible cells its estimates can feed on each other from pass to pass and
+        # diverge, as in ChainedRidgeImputer.
+        self.limits = {c: (frame[c].min(), frame[c].max()) for c in frame if c != CATEGORY_TARGET}
         filled, gaps = frame.copy(), frame.isna()
         self.sequence = []
         for step in range(self.passes):
@@ -275,8 +281,14 @@ class ChainedColumns:
                 model = self._column_model(target, columns, step).fit(matrix[seen], labels)
                 self.sequence.append((target, columns, model))
                 if not seen.all():
-                    filled.loc[gaps[target], target] = model.predict(matrix[~seen])
+                    filled.loc[gaps[target], target] = self._limit(target, model.predict(matrix[~seen]))
         return self
+
+    def _limit(self, target, values):
+        if target == CATEGORY_TARGET:
+            return values
+        low, high = self.limits[target]
+        return np.clip(values, low, high)
 
     def predict(self, frame):
         """Numeric estimates for every cell of ``frame``, and model_id class probabilities."""
@@ -284,7 +296,7 @@ class ChainedColumns:
         filled, gaps = frame.copy(), frame.isna()
         estimates = {}
         for target, columns, model in self.sequence:
-            values = model.predict(filled[columns].to_numpy(float))
+            values = self._limit(target, model.predict(filled[columns].to_numpy(float)))
             estimates[target] = values
             if gaps[target].any():
                 filled.loc[gaps[target], target] = values[gaps[target].to_numpy()]
