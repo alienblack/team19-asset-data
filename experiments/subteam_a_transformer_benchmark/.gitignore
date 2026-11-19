@@ -1,0 +1,35 @@
+# Local inputs, results and data exports
+/data
+/outputs
+*.csv
+*.csv.gz
+*.parquet
+*.pkl
+*.pt
+
+# Python development files
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+
+# OS and authoring files
+.DS_Store
+AGENTS.md
+CLAUDE.md
+.claude/
+.codex/
+.submission-build/
+.chart-data-*/
+Transcripts/
+transcripts/
+scratch/
+*.log

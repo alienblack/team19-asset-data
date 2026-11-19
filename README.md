@@ -56,3 +56,9 @@ pytest
 The first overhead-conductor experiment is controlled material reconstruction:
 hide known synthetic material values, apply comparable imputation methods, and
 measure recovery accuracy and coverage against the hidden truth.
+
+## Subteam A transformer benchmark and product review
+
+The [integrated transformer benchmark](experiments/subteam_a_transformer_benchmark/README.md) contains Rishank Goyal's existing Gaussian EM, Predictive MissForest, masked MLP and reference-method study using Subteam C's synthetic data. The [integration record](experiments/subteam_a_transformer_benchmark/INTEGRATION.md) identifies the source repository and imported commit.
+
+PGS219-258 coordinates its integration and product-review handover. The child PRs add a runnable demonstration, independent verification and documentation.
