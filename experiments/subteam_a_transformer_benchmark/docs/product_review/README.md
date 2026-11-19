@@ -39,3 +39,5 @@ The A01/A02 notebooks recalculate tables and figures from embedded saved scores.
 ## Development and review trace
 
 PGS219-258 imports the existing implementation from the published SAPN_endtoend repository with commit provenance. PGS219-259 adds the demo entry point, PGS219-260 adds independent evidence checks, and PGS219-261 provides this handover. The original implementation, synthetic data source and earlier work remain attributed in the final report and source integration record.
+
+[Pull-request links, Jira comment text and review order](PR_And_Jira_Trace.md).
