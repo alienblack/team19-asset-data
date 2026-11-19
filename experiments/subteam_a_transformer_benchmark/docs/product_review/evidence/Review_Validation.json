@@ -1,0 +1,17 @@
+{
+  "imported_benchmark_tests_passed": 32,
+  "independent_demo_tests_passed": 3,
+  "checked_demo_conditions": [
+    "live_default",
+    "live_noise10"
+  ],
+  "field_metrics_per_demo": 120,
+  "hidden_predictions_per_demo": 21632,
+  "shared_main_commit": "94f9dcc7f999102c3b57dccbba959bc19ddd1663",
+  "shared_main_suite": {
+    "passed": 150,
+    "failed": 3
+  },
+  "same_three_failures_reproduced_on_untouched_main": true,
+  "source_benchmark_commit": "6ae6621d40324b22dd5e415b2857b5d072ba2aca"
+}
