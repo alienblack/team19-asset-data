@@ -57,6 +57,8 @@ def arguments():
     parser.add_argument("--seed", type=int, default=219)
     parser.add_argument("--split-seed", type=int, default=617)
     parser.add_argument("--no-gas-correction", action="store_true")
+    parser.add_argument("--results-only", action="store_true",
+                        help="Print a compact comparison and build a page with a table and three result graphs.")
     parser.add_argument("--out", type=Path, default=PROJECT / "outputs" / "product-review-demo",
                         help="Parent directory. Each execution creates a fresh run subdirectory.")
     args = parser.parse_args()
@@ -147,8 +149,9 @@ def run_condition(label, truth, measured, calibration_view, partitions, args):
         runtimes.append({"condition": label, "method": name,
                          "fit_seconds": fitted - started, "total_seconds": seconds})
         numeric = rows.loc[rows.type.eq("numeric") & rows.attribute.ne("random_placebo")]
-        print(f"  {display_name:23} skill {numeric.skill.mean(): .3f} | "
-              f"{seconds:.2f}s | observed values preserved", flush=True)
+        if not args.results_only:
+            print(f"  {display_name:23} skill {numeric.skill.mean(): .3f} | "
+                  f"{seconds:.2f}s | observed values preserved", flush=True)
 
     return {
         "metrics": pd.concat(metrics, ignore_index=True),
@@ -328,7 +331,8 @@ def main():
     started = perf_counter()
     print("PRODUCT REVIEW DEMO · fresh fits · single split · fixed settings", flush=True)
     conditional_check = check_conditional_calculation()
-    print("PASS · conditional mean 0.6 and variance 1.64", flush=True)
+    if not args.results_only:
+        print("PASS · conditional mean 0.6 and variance 1.64", flush=True)
     truth, noise_draws, mask_draws = (np.asarray(value, dtype=float) for value in generate(args.seed))
     partitions, blocks = split_blocks(truth, args.split_seed, TRANSFORMER)
     counts = {"train": args.train_rows, "calibration": args.calibration_rows, "test": args.test_rows}
@@ -348,7 +352,8 @@ def main():
         scenario = Scenario(label, args.missing, args.noise, mechanism)
         measured = measure(truth, noise_draws, mask_draws, scenario)
         calibration_view = measure(truth, noise_draws, calibration_draws, scenario)
-        print(f"\n{label} gaps · test cells hidden {np.isnan(measured[partitions['test']]).mean():.1%}", flush=True)
+        if not args.results_only:
+            print(f"\n{label} gaps · test cells hidden {np.isnan(measured[partitions['test']]).mean():.1%}", flush=True)
         with threadpool_limits(limits=1):
             results[label] = run_condition(label, truth, measured, calibration_view, partitions, args)
         exported = pd.DataFrame(measured[partitions["test"]], columns=TRANSFORMER.names)
@@ -401,13 +406,23 @@ def main():
         "scope": "Single-split subset demonstration with fixed defaults; see final report for tuned repeated results.",
     }
     (folder / "verification.json").write_text(json.dumps(verification, indent=2) + "\n")
-    print("\nComparison of fresh fits", flush=True)
-    print(summary.to_string(index=False, float_format=lambda value: f"{value:.3f}"))
-    print("\nGaussian EM examples · clean truth attached for scoring", flush=True)
-    print(examples[["asset_id", "truth", "fill", "lower", "upper", "decision"]].round(2).to_string(index=False))
-    print(f"\nPASS · {verified['metric_rows_recomputed']} metric rows recomputed from saved predictions", flush=True)
-    print(f"PASS · completed exports preserve their observed inputs\nOutputs · {folder}", flush=True)
-    print(f"Elapsed · {verification['elapsed_seconds']:.1f}s", flush=True)
+    if args.results_only:
+        from present_product_review import build_report
+        report = build_report(folder)
+        table = summary.loc[summary.method.isin(["mixture", "forest"]), [
+            "condition", "method", "mean_numeric_skill", "mean_within_loose", "fields_breaking",
+        ]].copy()
+        table["method"] = table.method.map(METHODS)
+        print(table.to_string(index=False, float_format=lambda value: f"{value:.3f}"))
+        print(f"\nResults page · {report}\nVerification · PASS", flush=True)
+    else:
+        print("\nComparison of fresh fits", flush=True)
+        print(summary.to_string(index=False, float_format=lambda value: f"{value:.3f}"))
+        print("\nGaussian EM examples · clean truth attached for scoring", flush=True)
+        print(examples[["asset_id", "truth", "fill", "lower", "upper", "decision"]].round(2).to_string(index=False))
+        print(f"\nPASS · {verified['metric_rows_recomputed']} metric rows recomputed from saved predictions", flush=True)
+        print(f"PASS · completed exports preserve their observed inputs\nOutputs · {folder}", flush=True)
+    print(f"Elapsed · {perf_counter() - started:.1f}s", flush=True)
 
 
 if __name__ == "__main__":
