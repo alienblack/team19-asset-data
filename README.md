@@ -1,86 +1,74 @@
-# Team 19 Asset Data
+# Team 19 · Asset data imputation
 
-Reproducible synthetic-data experiments for Team 19's SA Power Networks capstone project.
+SA Power Networks capstone project. This repository contains the final client
+product and the supporting research that led to it.
 
-## Project purpose
+**Client starting point: [Final product — setup and user guide](experiments/shared_final_study/README.md).**
 
-The project investigates justified, explainable approaches for improving selected
-missing asset attributes that support SA Power Networks' existing statistical,
-Probability of Failure (PoF), and Weibull-style analyses. It does not develop a
-replacement PoF model.
+| What you need | Start here |
+| --- | --- |
+| Install and run the final product | [Short setup guide](experiments/shared_final_study/START_HERE.md) |
+| Use the dataset workbench, transformer example and generated reports | [Client README](experiments/shared_final_study/README.md) |
+| Test uploads, experiments, reports and downloads | [Testing guide](experiments/shared_final_study/docs/TESTING.md) |
+| Download a named client release | [GitHub Releases](https://github.com/alienblack/team19-asset-data/releases) — use the attached client handover ZIP when published |
+| Check submission contents and version-control steps | [Handover checklist](experiments/shared_final_study/SUBMISSION.md) |
+| Review earlier methods, experiments and contribution evidence | [Research and repository guide](docs/REPOSITORY_GUIDE.md) |
 
-The initial asset streams are:
+## Run the final product
 
-- overhead conductors;
-- underground cables; and
-- pole-mounted transformers.
+Use **Python 3.12** and the requirements inside `experiments/shared_final_study`.
+From a repository checkout on macOS/Linux:
 
-## Data handling rule
-
-Only synthetic data, public information, and literature-derived assumptions may
-be committed to this repository. Do not commit, upload, or paste confidential SA
-Power Networks data, credentials, signed documents, meeting recordings, or
-unapproved client material. Any future authorised data must follow the storage
-arrangements confirmed by SA Power Networks; it is not automatically suitable for
-GitHub.
-
-## Repository layout
-
-```text
-data/synthetic/                 Versioned, controlled test data only
-docs/                           Decisions, methodology and data-handling notes
-notebooks/                      Exploratory work that is later moved into src/
-src/team19_asset_data/common/   Shared validation and utility code
-src/team19_asset_data/<stream>/ Asset-stream-specific code
-tests/                          Automated checks for reusable code
-```
-
-## Getting started
-
-```bash
-python3 -m venv .venv
+```sh
+cd experiments/shared_final_study
+python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
-pytest
+python -m pip install -r requirements.txt
+python run_study.py --mode guided
 ```
+
+Open `http://127.0.0.1:8765`. The client README includes Windows instructions,
+screenshots, the transformer input/truth files, field settings, masking/noise
+experiments and report interpretation. The root-level requirements belong to
+the earlier stream-specific research; use the final product's own environment.
+
+For the client handover, download the attached **Team19_Automated_Handover.zip**
+and its checksum from the named release, then open `START_HERE.md` after
+extraction. This curated archive contains the runnable product and its required
+synthetic inputs/reference evidence. GitHub's automatic whole-repository source
+ZIP also contains the team's supporting research.
+
+## How this repository is organised
+
+| Area | Role |
+| --- | --- |
+| `experiments/shared_final_study/` | Final client product, workbench, tests, synthetic inputs, curated results and detailed client documentation. |
+| `experiments/subteam_a_transformer_benchmark/` | Earlier Subteam A benchmark, uncertainty/stress analyses and product-review evidence; a separate Python 3.11 study. |
+| Root `src/`, `config/`, `data/`, `notebooks/`, `tests/` | Supporting overhead-conductor, underground-cable and transformer research. These are separate from the packaged workbench. |
+| Root `docs/` and selected tracked `outputs/` | Methodology, Jira evidence and historical study results retained for traceability. |
+
+Earlier work is preserved because it explains the project's decisions and
+contributions. Its presence does not make it a second installation route for the
+client product. See the research guide before reusing an older script or score.
+New scratch runs, environments, caches and client uploads remain excluded from
+Git and from the curated handover ZIP.
+
+## Project purpose and data handling
+
+The project investigates missing-value recovery to support SA Power Networks'
+existing statistical, Probability of Failure and Weibull-style analyses. It does
+not replace a PoF model. The research covered overhead conductors, underground
+cables and pole-mounted transformers.
+
+Only synthetic data, public information and approved literature-derived
+assumptions belong in this repository. Confidential SAPN data, credentials,
+meeting recordings, signed documents and unapproved client material must stay
+outside it. The supplied demonstration datasets are synthetic.
 
 ## Team workflow
 
-1. Create one branch per Jira ticket, for example `feature/PGS219-XX-overhead-baselines`.
-2. Make small commits using the Jira key, for example `PGS219-XX add material mode baseline`.
-3. Open a pull request for another team member to review before merging into `main`.
-4. Record the source, assumptions, seed, masking mechanism and metric for every experiment.
-5. Keep exploratory notebooks lightweight; move reusable logic into `src/`.
-
-The first overhead-conductor experiment is controlled material reconstruction:
-hide known synthetic material values, apply comparable imputation methods, and
-measure recovery accuracy and coverage against the hidden truth.
-
-## Final shared study and client handover
-
-The [combined final study](experiments/shared_final_study/START_HERE.md) contains
-the team's eleven-imputer comparison, median/mode baseline, synthetic inputs,
-archived results, completed datasets and automated offline report. Its
-[submission guide](experiments/shared_final_study/SUBMISSION.md) explains the
-GitHub/Jira handover and the optional original saved-prediction package.
-
-Run this study in its own **Python 3.12** environment, using its local
-`requirements.txt`; the root setup above does not install its dependencies.
-From the `experiments/shared_final_study` folder, `python run_study.py` regenerates
-the archived-results report without fitting. Quick/full modes fit fresh models.
-`python run_study.py --mode guided` opens the local dataset workbench: choose a
-CSV, define its fields and experiment settings, then generate completed datasets
-and a new report. This new-dataset protocol is documented separately from the
-archived benchmark, whose original scientific modules and scores are preserved.
-The earlier Subteam A benchmark below uses a separate **Python 3.11** environment
-and a different evaluation protocol; its figures are supporting evidence, not
-interchangeable scores for the shared final study.
-
-## Subteam A transformer benchmark and product review
-
-The [integrated transformer benchmark](experiments/subteam_a_transformer_benchmark/README.md) contains Rishank Goyal's existing Gaussian EM, Predictive MissForest, masked MLP and reference-method study using Subteam C's synthetic data. The [integration record](experiments/subteam_a_transformer_benchmark/INTEGRATION.md) identifies the source repository and imported commit.
-
-PGS219-258 coordinates its integration and product-review handover. The child PRs add a runnable demonstration, independent verification and documentation.
-
-The [product-review handover](experiments/subteam_a_transformer_benchmark/docs/product_review/README.md) maps the Gaussian EM implementation, fresh demonstration, validation notebooks and final report to the Sprint 6 integration tickets.
+Use a short branch for each Jira ticket, review its PR into `main`, then tag the
+merged revision for a client release. Keep existing release tags fixed and use a
+new patch version for later fixes. The final-product submission guide describes
+the release assets and the exact checks. A permanent `dev` or `final` branch is
+not needed for this handover.
