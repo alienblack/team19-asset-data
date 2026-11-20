@@ -1,197 +1,119 @@
 # Predictive MissForest — Experimental Evaluation
 
-This document explains how to run the **Predictive MissForest evaluation experiment** for Team 19's SA Power Networks overhead-conductor capstone project.
+This runbook was reconciled with the YAML workflow when PGS219-186 was integrated
+with the newer main branch. It describes the current commands. Historical E5
+results remain unchanged and are a separate, in-batch experiment.
 
-The evaluation runner compares a **training-fitted Median/Mode baseline** against the **Predictive MissForest** implementation on the **same held-out synthetic test cells**. It also verifies that a saved model can be reloaded and can reproduce its predictions.
+## 1. Purpose and input
 
-> **Scope:** This is a development benchmark using synthetic data. It is not a performance assessment on real SA Power Networks asset records. The separate E5 0% / 30% / 50% mixed-noise experiment is described below, but **is not run by this command**.
+Compare a training-fitted Median/Mode floor and Predictive MissForest on the same
+held-out synthetic cells. The input can already contain missing values. An
+additional evaluation mask hides only currently observed cells. Naturally missing
+values have no known truth and are excluded from reconstruction scoring.
 
-## 1. Prerequisites
+Use `--truth-csv` to supply a separate clean synthetic reference when the input is
+noisy. Otherwise the temporarily hidden recorded input values are the reference.
+Models do not receive the clean truth as a fitting input.
 
-Run all commands from the root of the `team19-asset-data` repository.
+The seven model fields are installation year, distance to sea, voltage, location,
+corrosion zone, material and covering. Identifiers and derived/leakage fields
+remain excluded from model targets and predictors as configured.
 
-- Python environment with `numpy`, `pandas`, `scikit-learn`, `joblib`, `PyYAML` and `pytest` installed.
-- The `src/team19_asset_data` package and `experiments/run_predictive_imputation_experiment.py` present in this branch.
-- An **unmasked, complete synthetic reference CSV** containing all seven configured model fields.
-- An imputation YAML configuration defining those model fields and the Predictive MissForest settings.
+## 2. Fitting and evaluation
 
-Check the required files:
+The YAML `data_split` creates 60% train, 10% validation, 10% reserved calibration
+and 20% test partitions. Tuning, when enabled, uses train and validation only.
+A separate evaluation forest is fitted on train only and scores the held-out test
+cells. The Median/Mode statistics also come from train only.
 
-```bash
-pwd
-ls experiments/run_predictive_imputation_experiment.py
-ls config/imputation/overhead_conductors_all_attributes_v2.yaml
-ls data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv
-```
+After held-out scoring, a separate deployment forest is fitted on all input rows.
+This final full-data model must not be used for independent evaluation on those
+same rows. Fitting-ID provenance is saved beside both models. For subsequent
+`evaluate_only` runs, the runner rejects fitting/evaluation ID overlap.
 
-> The runner **rejects incomplete ground truth**. Do **not** pass `data/synthetic/overhead_conductors/strength_100/masked/MF01/masked_MF01.csv` to this evaluation runner. It generates its **own evaluation masks after splitting** the complete reference data.
+The passes are fixed, not a convergence-based stopping rule. Forest disagreement
+and percentile bands are exploratory diagnostics, not calibrated confidence.
 
-## 2. How the evaluation works
+## 3. Smoke test
 
-The runner follows a reproducible, row-disjoint protocol:
-
-| Partition | Proportion | Purpose |
-|---|---:|---|
-| Fit | 60% | Train the baseline's statistics and Predictive MissForest forests |
-| Tune | 10% | Select hyperparameters when `--tune` is provided |
-| Calibration | 10% | Reserved; not used for fitting, tuning or scoring in this runner |
-| Test | 20% | Evaluate methods on intentionally hidden values, using identical test masks |
-
-After splitting, the runner hides a reproducible fraction of cells in the fit, tune and test partitions. It then:
-
-1. Fits Median/Mode statistics and Predictive MissForest **only on the fitting partition**.
-2. Optionally selects model hyperparameters using the tuning partition (`--tune`).
-3. Saves the fitted Predictive MissForest model to disk.
-4. Applies both methods to the **same masked held-out test records**.
-5. Calculates errors **only at deliberately masked test positions**, against the original complete synthetic values.
-6. Reloads the saved forest model and asserts that its transformed output matches the previously generated test output.
-
-The seven model fields are `installation_year`, `distance_to_sea_km`, `voltage_category`, `location_group`, `corrosion_zone`, `material`, and `covering`. Non-model fields (such as identifiers and known leakage/derived fields) must not be treated as independent target labels.
-
-## 3. Quick smoke test
-
-Use a small sample and fewer trees/passes to verify that the full pipeline runs. **These are development settings, not the final tuned E3 results.**
+Run from the repository root in an environment with the project dependencies:
 
 ```bash
 PYTHONPATH=src python -m experiments.run_predictive_imputation_experiment \
   --input-csv data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv \
-  --config config/imputation/overhead_conductors_all_attributes_v2.yaml \
+  --config config/imputation/overhead_conductors_prototype_v2.yaml \
   --output-dir outputs/predictive_missforest_evaluation_smoke \
-  --sample-rows 350 \
-  --n-estimators 20 \
-  --n-passes 2 \
-  --seed 219 \
-  --mask-rate 0.30
+  --model-path outputs/models/predictive_missforest_smoke.joblib \
+  --sample-rows 350 --n-estimators 20 --n-passes 2
 ```
 
-`--sample-rows 350` takes the first 350 complete rows **before** the seeded random partition. Omit it for the full 10,000-row run.
+The prototype YAML enables evaluation and disables tuning. Its YAML values control
+mask rates, mask seeds and partition seeds. The old `--seed`, `--mask-rate`,
+`--tune` and `--grid` flags are not part of the current CLI.
 
-## 4. Full held-out evaluation
+## 4. Full evaluation and tuning
 
-Run with the complete synthetic reference and the configured model settings:
+For a full evaluation, remove the three development-size overrides above. For a
+parameter search, use `config/imputation/overhead_conductors_tuning_v2.yaml`.
+That file enables tuning with the all-attribute objective, four depth choices and
+three leaf-size choices. Change the YAML for a smaller grid or a different mask
+rate. A selected configuration is not guaranteed to reproduce an earlier E3
+configuration under another protocol.
 
 ```bash
 PYTHONPATH=src python -m experiments.run_predictive_imputation_experiment \
   --input-csv data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv \
-  --config config/imputation/overhead_conductors_all_attributes_v2.yaml \
-  --output-dir outputs/predictive_missforest_evaluation \
-  --seed 219 \
-  --mask-rate 0.30
+  --config config/imputation/overhead_conductors_tuning_v2.yaml \
+  --output-dir outputs/predictive_missforest_tuned_evaluation
 ```
 
-**Important:** Without `--tune`, model parameters come from the YAML configuration. Do not describe this run as “tuned E3” unless its `methods.predictive_missforest` section actually specifies the E3 settings. For the previously selected E3 configuration, these were **100 trees, five fixed passes, `max_depth=8`, and `min_samples_leaf=2`**. The runner's CLI exposes overrides for tree/pass counts, but not depth or minimum leaf size; set the latter in the YAML, or use tuning.
+## 5. Important options
 
-The **five passes are fixed**. They are not a convergence-based stopping criterion; Original MissForest uses a different, convergence-based workflow.
-
-## 5. Optional hyperparameter search
-
-The runner supports two tuning grids. Tuning uses only the training and tuning partitions; final scores are calculated on the held-out test partition.
-
-**Quick tuning smoke test:**
-
-```bash
-PYTHONPATH=src python -m experiments.run_predictive_imputation_experiment \
-  --input-csv data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv \
-  --config config/imputation/overhead_conductors_all_attributes_v2.yaml \
-  --output-dir outputs/predictive_missforest_tuning_smoke \
-  --sample-rows 350 \
-  --n-estimators 20 \
-  --n-passes 2 \
-  --tune \
-  --grid quick
-```
-
-**Full parameter search:**
-
-```bash
-PYTHONPATH=src python -m experiments.run_predictive_imputation_experiment \
-  --input-csv data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv \
-  --config config/imputation/overhead_conductors_all_attributes_v2.yaml \
-  --output-dir outputs/predictive_missforest_tuned_evaluation \
-  --seed 219 \
-  --mask-rate 0.30 \
-  --n-estimators 100 \
-  --n-passes 5 \
-  --tune \
-  --grid full
-```
-
-- `quick` checks two candidate combinations (`max_depth` 4 or unlimited, `min_samples_leaf` 1).
-- `full` checks twelve combinations: `max_depth` in `{4, 8, 16, None}` and `min_samples_leaf` in `{1, 2, 10}`.
-- The winner is selected using the tuning subset. Its actual configuration is saved in `run_metadata.json`.
-- The winner **is not guaranteed** to match the previously chosen E3 combination for every dataset or evaluation protocol.
-
-## 6. Main CLI options
-
-| Argument | Purpose | Default |
-|---|---|---|
-| `--input-csv` | Path to **complete synthetic reference data** | Required |
-| `--config` | Imputation YAML file | Supply explicitly (recommended) |
-| `--output-dir` | Folder for models, metrics and artefacts | Required |
-| `--sample-rows` | Limit the number of initial reference rows | All rows |
-| `--seed` | Reproducible partition and masking seed | `219` |
-| `--mask-rate` | Approximate fraction of observed cells hidden within each evaluated partition | `0.30` |
-| `--n-estimators` | Development override for number of trees per forest | From YAML |
-| `--n-passes` | Development override for fixed sequential passes | From YAML |
-| `--tune` | Enable training/tuning split hyperparameter search | Disabled |
-| `--grid` | Tuning grid: `quick` or `full` (only relevant with `--tune`) | `full` |
-
-For the complete argument list:
-
-```bash
-PYTHONPATH=src python -m experiments.run_predictive_imputation_experiment --help
-```
-
-## 7. Output files
-
-The selected `--output-dir` contains:
-
-| File | Description |
+| Option | Use |
 |---|---|
-| `metrics_test.csv` | Baseline and Predictive MissForest scores for hidden held-out test cells |
-| `partition_manifest.csv` | Original row/segment identifiers and fit/tune/calibration/test membership |
-| `masked_test.csv` | Incomplete test records given to the imputers |
-| `test_hidden_mask.csv` | Boolean mask identifying which test cells were deliberately hidden |
-| `predictive_imputed_test.csv` | Completed held-out test data from Predictive MissForest |
-| `baseline_imputed_test.csv` | Completed held-out test data from training-fitted Median/Mode |
-| `predictive_missforest.joblib` | Saved fitted Predictive MissForest pipelines |
-| `predictive_diagnostics_test.csv` | Exploratory per-cell forest diagnostics; **not calibrated confidence** |
-| `convergence_training.csv` | Per-pass training diagnostics; five fixed passes do **not** imply convergence |
-| `run_metadata.json` | Seed, partition sizes, masked-cell counts, fitted settings and fit report |
-| `tuning_validation.csv` | Candidate validation scores, **only when `--tune` is used** |
+| `--input-csv` | Complete or already-incomplete observed input |
+| `--truth-csv` | Optional separate clean synthetic reference for scoring |
+| `--config` | YAML methods, workflow, split and evaluation settings |
+| `--output-dir` | Run-specific metrics and exports |
+| `--model-path` | Override deployment model destination |
+| `--mode` | fit_only, fit_transform, transform_only or evaluate_only |
+| `--partition-manifest` | Reuse the same ID-based partitions across scenarios |
+| `--evaluation-mask-csv` | Reuse an additional evaluation mask keyed by segment ID |
+| `--sample-rows`, `--n-estimators`, `--n-passes` | Development-only overrides |
 
-On successful completion, the runner prints partition counts, the number of trained forest pipelines, selected metrics for `installation_year` and `material`, and the output folder path.
+See `PYTHONPATH=src python -m experiments.run_predictive_imputation_experiment --help`.
 
-### Inspect the held-out results
+## 6. Outputs and interpretation
 
-```bash
-python - <<'PY'
-import pandas as pd
-from pathlib import Path
-out = Path('outputs/predictive_missforest_evaluation')
-metrics = pd.read_csv(out / 'metrics_test.csv')
-print(metrics[['method', 'variable', 'n_masked', 'mae', 'macro_f1']].to_string(index=False))
-PY
-```
+| File | Meaning |
+|---|---|
+| `metrics_test.csv` | Test-only masked-cell scores for both methods |
+| `partition_manifest.csv` | ID membership: train, validation, calibration and test |
+| `masked_test.csv`, `test_hidden_mask.csv` | Exact test inputs and additional hidden positions |
+| `predictive_imputed_test.csv`, `baseline_imputed_test.csv` | Held-out completions |
+| `evaluation_model.joblib` | Forest fitted only on the training partition |
+| Configured `model_path` | Separate deployment forest fitted on all input rows |
+| `*.provenance.json` | Fitting-ID hashes used to detect later evaluation overlap |
+| `predictive_imputed_full.csv` | Full-input completion in fit_transform mode |
+| `predictive_diagnostics_test.csv` | Uncalibrated forest diagnostics |
+| `run_metadata.json` | Actual workflow, partition sizes and fitted settings |
+| `tuning_validation.csv` | Candidate scores when tuning is enabled |
 
-**Metric interpretation:** Lower **MAE** is better for numeric fields; higher **Macro-F1** is better for categorical fields (particularly where categories are imbalanced). Blank MAE values for categories and blank Macro-F1 values for numbers are expected.
+Lower numeric MAE is better. Higher categorical macro-F1 gives equal importance
+to each class. Scores concern only additional hidden test cells. They do not
+measure accuracy on naturally missing fields or validate real SAPN performance.
 
-### Inspect what was saved
+## 7. Noise integration
 
-```bash
-python - <<'PY'
-import json
-from pathlib import Path
-out = Path('outputs/predictive_missforest_evaluation')
-meta = json.loads((out / 'run_metadata.json').read_text())
-print('Partitions:', meta['partitions'])
-print('Tuned:', meta['tuned'])
-print('Model settings:', meta['predictive_config'])
-print('Trained models:', meta['fit_report']['n_models'])
-PY
-```
+PGS219-186 adds nested same-seed numeric/categorical noise levels. The integrated
+implementation also retains main's explicit mixed-noise support for material and
+installation year, with linked asset age recomputed. Material stays protected in
+legacy categorical-only scenarios. Numeric noise levels control both selected
+fraction and maximum relative error, while installation years use `year_step`.
 
-For the standard 10,000-record reference, the expected partition sizes are **6,000 fit / 1,000 tune / 1,000 reserved calibration / 2,000 test**. The precise count of hidden cells is reported in `run_metadata.json` and is not necessarily exactly 30% because evaluation masks are randomly drawn.
+Existing saved E5 results are not rerun or replaced by this merge. Expanded mixed
+scenarios on main include year/material corruption. Check saved scenario metadata
+before comparing them with a historical predictor-only experiment.
 
 ## 8. Relationship to the E5 noise robustness experiment
 
@@ -215,42 +137,20 @@ outputs/noise_robustness/comparison_0_30_50/numerical_comparison.csv
 outputs/noise_robustness/comparison_0_30_50/categorical_comparison.csv
 ```
 
-## 9. Tests and reproducibility checks
-
-To run the new merge-request tests (assuming they have been added to `tests/`):
-
-```bash
-PYTHONPATH=src python -m pytest -q \
-  tests/test_predictive_missforest_review.py \
-  tests/test_predictive_experiment_runner_review.py
-```
-
-Run the repository's full test suite:
+## 9. Tests
 
 ```bash
 PYTHONPATH=src python -m pytest -q tests/
 ```
 
-Before sharing experiment outputs, confirm that the saved metadata records the correct input path, seed, mask rate and hyperparameters. Do not reuse numbers from the live demonstration as held-out evaluation results.
+Regression tests verify nested selections, material protection in legacy noise,
+explicit mixed material/year errors, observed-cell preservation, train/test
+separation and exclusion of naturally missing values from evaluation.
 
-## 10. Common issues
+## 10. Limits
 
-| Problem | Resolution |
-|---|---|
-| `No module named experiments.run_predictive_imputation_experiment` | Run from repository root; confirm the experiment file exists at `experiments/run_predictive_imputation_experiment.py`. |
-| `No module named team19_asset_data` | Run with `PYTHONPATH=src`, or install the project package in your environment. |
-| Error that complete truth is required | You passed an already-masked CSV. Use the complete `material_model_ready_data.csv` file for this runner. |
-| `--tune` takes a long time | Try the 350-row smoke run with `--grid quick`, fewer trees and fewer passes before the full search. |
-| Different results from the E5 report | The held-out runner uses a **different protocol and baseline**. Direct numeric comparison is not appropriate. |
-| Unexpected hyperparameters | Check `methods.predictive_missforest` in the YAML and the `predictive_config` recorded in `run_metadata.json`. |
-| `joblib` model compatibility or trust warning | Reload models in a compatible scikit-learn environment and only load model files produced by trusted sources. |
-
-## 11. Limitations
-
-- These experiments use synthetic conductor records and generated missingness, not measured SAPN data-quality rates.
-- Holding out rows provides stronger evidence about **synthetic generalisation** than same-batch replay, but it does not validate behaviour on real assets or missing-not-at-random records.
-- A single mask/partition seed does not estimate variability across random seeds; additional repeated experiments are needed.
-- The runner does not test the impact of imputed data on SAPN's downstream reliability/PoF model.
-- Tree probabilities, disagreement scores and percentile bands are diagnostic outputs, **not calibrated probabilities or prediction intervals**.
-
-**Recommended merge-request description:** "Adds a reproducible row-disjoint evaluation runner for Predictive MissForest, compares against a training-fitted Median/Mode baseline on identical masked held-out test cells, verifies saved-model replay and documents outputs and limitations. The separate E5 noise-robustness benchmark is not reproduced by this runner."
+These are synthetic records with designed errors and missingness. A single split
+does not establish stability across seeds. The reserved calibration partition has
+no calibration operation in this runner. No downstream SAPN reliability model is
+validated here. The separate transformer benchmark has its own calibration and
+stress-test pipeline.

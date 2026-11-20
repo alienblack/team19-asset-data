@@ -1,0 +1,94 @@
+protocol_version: "1.0"
+prepared_date: "2026-10-22"
+status: draft_for_peer_review
+execution_status: design_contract_not_current_cli_config
+asset_class: overhead_conductors
+scope:
+  primary_targets: [material, installation_year]
+  numeric_model_fields: [installation_year, distance_to_sea_km]
+  categorical_model_fields: [voltage_category, location_group, corrosion_zone, material, covering]
+  excluded_from_primary_model: [asset_age, conductor_type, length_km, segment_id, feeder_id, data_status, record_version]
+  snapshot_year: 2014
+  derive_after_imputation:
+    asset_age: "2014 - installation_year"
+  linked_masking:
+    installation_year: [asset_age]
+pilot_population:
+  purpose: exploratory_development_only
+  relationship_strength: 50
+  generation_seed: 901
+  expected_rows: 10000
+partitions:
+  fitting: 0.60
+  tuning: 0.10
+  calibration: 0.10
+  test: 0.20
+  strategy: seeded_row_split
+  split_seed: 4100
+  interpretation: new_rows_same_synthetic_population_not_unseen_feeders
+observations:
+  fitting:
+    per_field_missingness: 0.20
+    mechanism: independent_mcar
+    recording_error: none
+    mask_seed: 5100
+  tuning:
+    per_field_missingness: 0.30
+    recording_error: none
+    mask_seed: 6100
+  calibration:
+    per_field_missingness: 0.30
+    recording_error: none
+    mask_seed: 6150
+  test:
+    per_field_missingness: 0.30
+    mask_seed: 6200
+    shared_mask_across_methods_and_conditions: true
+    conditions:
+      N00:
+        numeric_error: false
+        categorical_error: false
+      N11:
+        numeric_error: true
+        categorical_error: true
+    noise_seed: 7100
+    numeric_error:
+      field: distance_to_sea_km
+      affected_fraction: 0.20
+      relative_uniform_bound: 0.30
+      allowed_range_km: [0.0, 350.0]
+    categorical_error:
+      fields: [voltage_category, location_group, corrosion_zone]
+      affected_fraction_per_field: 0.20
+      rule: choose_uniformly_from_other_valid_labels
+    operation_order: [copy_clean_reference, apply_recording_error, apply_shared_mask]
+methods:
+  - median_mode
+  - predictive_missforest_after_review
+  - masked_autoencoder_when_implemented
+preprocessing:
+  fit_on: fitting_observations_only
+  baseline: numeric_median_and_categorical_mode_original_units
+  forest: numeric_original_units_and_one_hot_categorical_predictors
+  neural_planned: training_only_numeric_standardization_one_hot_categories_and_availability_bits
+  observed_values_preserved: true
+evaluation:
+  truth: immutable_clean_reference_evaluator_only
+  scored_cells: deliberately_hidden_originally_known_cells
+  material: [accuracy, balanced_accuracy, macro_f1, per_class_recall, confusion_matrix]
+  installation_year: [mae_years, rmse_years, signed_bias_years, within_1_year, within_5_years]
+  population: [material_total_variation, material_class_share_difference, year_variance_ratio, year_wasserstein_distance, older_year_tail_share, material_by_decade_total_variation]
+  report_denominators: [hidden_target_rows, completed_test_register]
+  confidence: uncalibrated_until_separate_calibration_is_implemented
+  downstream_pof: not_evaluated
+required_artifacts:
+  - clean_truth_reference
+  - input_schema_audit
+  - partition_manifest
+  - training_and_test_mask_manifests
+  - observed_input_views
+  - cell_change_ledger
+  - candidate_predictions
+  - per_cell_and_population_metrics
+  - run_manifest_with_code_revision_seeds_versions_and_failures
+  - client_readable_pilot_interpretation

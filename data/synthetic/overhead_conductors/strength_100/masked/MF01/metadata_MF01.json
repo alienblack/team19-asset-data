@@ -1,0 +1,45 @@
+{
+  "input_file": "team19-asset-data/data/synthetic/overhead_conductors/strength_100/material_model_ready_data.csv",
+  "config_file": "team19-asset-data/config/overhead_conductor_masking_rules.yaml",
+  "rules_applied": [
+    "MF01"
+  ],
+  "masked_output_file": "team19-asset-data/data/synthetic/overhead_conductors/strength_100/masked/MF01/masked_MF01.csv",
+  "truth_output_file": "team19-asset-data/data/synthetic/overhead_conductors/strength_100/masked/MF01/truth_MF01.csv",
+  "rule_metadata": [
+    {
+      "rule_id": "MF01",
+      "name": "MissForest Multi-Field Random 20 Percent",
+      "description": "Independently mask 20% of known values across all model-ready attributes for mixed-field imputation evaluation.",
+      "strategy": "random_attribute",
+      "seed": 219,
+      "rows_in_dataset": 10000,
+      "requested_rate": 0.2,
+      "number_of_attributes": 8,
+      "selection_mode": "independent",
+      "selected_attributes": [
+        "voltage_category",
+        "covering",
+        "length_km",
+        "corrosion_zone",
+        "material",
+        "installation_year",
+        "location_group",
+        "distance_to_sea_km"
+      ],
+      "masked_counts": {
+        "voltage_category": 2000,
+        "covering": 2000,
+        "length_km": 2000,
+        "corrosion_zone": 2000,
+        "material": 2000,
+        "installation_year": 2000,
+        "location_group": 2000,
+        "distance_to_sea_km": 2000
+      },
+      "linked_masked_counts": {
+        "asset_age": 2000
+      }
+    }
+  ]
+}

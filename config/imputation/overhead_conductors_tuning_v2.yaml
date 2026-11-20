@@ -94,6 +94,7 @@ execution:
 
 tuning:
   enabled: true
+  objective: all_attributes
   mask_rate: 0.10       # Fraction of CURRENTLY KNOWN validation target cells
   mask_seed: 219
   grid:
