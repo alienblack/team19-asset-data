@@ -1,0 +1,181 @@
+scenario,method,mean gap,largest gap,pair with the largest gap
+completion0.7-noise0.0,Median,0.21484744409981774,0.9997006306143145,x ~ install_date
+completion0.7-noise0.0,KNN imputer,0.013956436291649525,0.05131660442584293,total_gas ~ leakage
+completion0.7-noise0.0,IterativeImputer,0.013168823297357364,0.05329997734422816,measured_gas_c ~ leakage
+completion0.7-noise0.0,Random Forest,0.012236309097313162,0.05436847215170518,total_gas ~ leakage
+completion0.7-noise0.0,HistGradientBoosting,0.01311266802982066,0.054572991483736816,total_gas ~ leakage
+completion0.7-noise0.0,CatBoost,0.013339177638414804,0.057247620046240455,total_gas ~ leakage
+completion0.7-noise0.0,miceforest direct,0.013000001552516906,0.06168286086533177,measured_humid ~ measured_salt
+completion0.7-noise0.0,Gaussian EM,0.019067398765420497,0.08516840649532464,measured_humid ~ life
+completion0.7-noise0.0,Masked MLP,0.024787289734713867,0.15462257867233448,measured_humid ~ measured_salt
+completion0.7-noise0.0,LightGBM chained,0.013747175889010057,0.05265849892840779,total_gas ~ leakage
+completion0.7-noise0.0,Predictive MissForest,0.02275306536984252,0.1355941457692445,measured_humid ~ measured_salt
+completion0.7-noise0.0,MICE-PMM,0.015349325045103756,0.06677193051359108,measured_salt ~ life
+completion0.7-noise0.05,Median,0.2144363410182994,0.9997006306143145,x ~ install_date
+completion0.7-noise0.05,KNN imputer,0.013188407291810833,0.05281476967403265,total_gas ~ leakage
+completion0.7-noise0.05,IterativeImputer,0.012245159185707876,0.055217786158862095,measured_gas_c ~ leakage
+completion0.7-noise0.05,Random Forest,0.011886138880213386,0.05411763993996417,measured_gas_c ~ leakage
+completion0.7-noise0.05,HistGradientBoosting,0.01309991975627075,0.05455332256931955,total_gas ~ leakage
+completion0.7-noise0.05,CatBoost,0.013340895739698568,0.0589197482701512,total_gas ~ leakage
+completion0.7-noise0.05,miceforest direct,0.01257549309324003,0.05958722300839484,measured_humid ~ measured_salt
+completion0.7-noise0.05,Gaussian EM,0.01899380638411569,0.0863915239073707,measured_humid ~ life
+completion0.7-noise0.05,Masked MLP,0.024434492213816793,0.1549903431027595,measured_humid ~ measured_salt
+completion0.7-noise0.05,LightGBM chained,0.01348886754618583,0.05337988202604345,measured_gas_c ~ leakage
+completion0.7-noise0.05,Predictive MissForest,0.022870640055486655,0.1430368079302231,measured_humid ~ measured_salt
+completion0.7-noise0.05,MICE-PMM,0.014993566737864126,0.06944597676762577,measured_salt ~ life
+completion0.7-noise0.1,Median,0.21425810162142933,0.9997006306143145,x ~ install_date
+completion0.7-noise0.1,KNN imputer,0.015333327094903058,0.05102501133573152,measured_gas_c ~ leakage
+completion0.7-noise0.1,IterativeImputer,0.013833124547677607,0.05181497628991827,total_gas ~ leakage
+completion0.7-noise0.1,Random Forest,0.013918567781739919,0.051987441042722696,measured_gas_c ~ leakage
+completion0.7-noise0.1,HistGradientBoosting,0.015192420896745207,0.04937452763160302,total_gas ~ leakage
+completion0.7-noise0.1,CatBoost,0.015213531956676485,0.0530194491247902,total_gas ~ leakage
+completion0.7-noise0.1,miceforest direct,0.014214184129067827,0.05881495310792985,measured_humid ~ measured_salt
+completion0.7-noise0.1,Gaussian EM,0.019472576501206176,0.08762295215794558,measured_humid ~ life
+completion0.7-noise0.1,Masked MLP,0.0265916748753221,0.16515674394242727,measured_humid ~ measured_salt
+completion0.7-noise0.1,LightGBM chained,0.01469044361632277,0.04815087831082622,measured_gas_c ~ leakage
+completion0.7-noise0.1,Predictive MissForest,0.023939251168463283,0.14293995564646955,measured_humid ~ measured_salt
+completion0.7-noise0.1,MICE-PMM,0.01745431718524216,0.06250770192114086,measured_overgrowth ~ life
+completion0.8-noise0.0,Median,0.2147948130457903,1.0001349667413253,x ~ install_date
+completion0.8-noise0.0,KNN imputer,0.011268733231530978,0.05636010651403514,total_gas ~ leakage
+completion0.8-noise0.0,IterativeImputer,0.011904471684893047,0.06199902955501343,y ~ total_gas
+completion0.8-noise0.0,Random Forest,0.009834058695124498,0.05389287948435184,total_gas ~ leakage
+completion0.8-noise0.0,HistGradientBoosting,0.008683138578917284,0.05801063096154238,total_gas ~ leakage
+completion0.8-noise0.0,CatBoost,0.00892296004886145,0.05760400787351308,total_gas ~ leakage
+completion0.8-noise0.0,miceforest direct,0.010787885908166683,0.04424440669039298,total_gas ~ leakage
+completion0.8-noise0.0,Gaussian EM,0.014264460432712288,0.07493096107579011,measured_humid ~ life
+completion0.8-noise0.0,Masked MLP,0.02178849843829673,0.1225452704019511,measured_humid ~ measured_salt
+completion0.8-noise0.0,LightGBM chained,0.010014469621326757,0.04337079902708993,total_gas ~ leakage
+completion0.8-noise0.0,Predictive MissForest,0.018633592109675804,0.1264020136835563,measured_humid ~ measured_salt
+completion0.8-noise0.0,MICE-PMM,0.013905423323195873,0.05871384987747352,measured_overgrowth ~ life
+completion0.8-noise0.05,Median,0.21411921970830003,1.0001349667413253,x ~ install_date
+completion0.8-noise0.05,KNN imputer,0.011259654681071747,0.05764386149926054,total_gas ~ leakage
+completion0.8-noise0.05,IterativeImputer,0.011816193129558953,0.06459935031477755,y ~ total_gas
+completion0.8-noise0.05,Random Forest,0.009633278202038789,0.05486123396877132,total_gas ~ leakage
+completion0.8-noise0.05,HistGradientBoosting,0.009641514063910265,0.06110678186660301,total_gas ~ leakage
+completion0.8-noise0.05,CatBoost,0.009709496820044938,0.06013112411370772,total_gas ~ leakage
+completion0.8-noise0.05,miceforest direct,0.010712520568374365,0.044455135896409176,total_gas ~ leakage
+completion0.8-noise0.05,Gaussian EM,0.014480221050506175,0.07693965770511324,measured_humid ~ life
+completion0.8-noise0.05,Masked MLP,0.02105293798799754,0.1136449154841459,measured_humid ~ measured_salt
+completion0.8-noise0.05,LightGBM chained,0.01012253578397175,0.0508591235967768,total_gas ~ leakage
+completion0.8-noise0.05,Predictive MissForest,0.017866021274377135,0.1288417379302561,measured_humid ~ measured_salt
+completion0.8-noise0.05,MICE-PMM,0.014758176353805627,0.05784077724429304,measured_overgrowth ~ life
+completion0.8-noise0.1,Median,0.2139611211745751,1.0001349667413253,x ~ install_date
+completion0.8-noise0.1,KNN imputer,0.013407584750375684,0.05266673102004396,total_gas ~ leakage
+completion0.8-noise0.1,IterativeImputer,0.01403288283019974,0.06489508248668678,y ~ total_gas
+completion0.8-noise0.1,Random Forest,0.01215170098886334,0.05289406149012668,total_gas ~ leakage
+completion0.8-noise0.1,HistGradientBoosting,0.012124390667322545,0.05556795077096752,total_gas ~ leakage
+completion0.8-noise0.1,CatBoost,0.011751115847283245,0.05643872086667506,total_gas ~ leakage
+completion0.8-noise0.1,miceforest direct,0.011999747098792424,0.04037687856771913,total_gas ~ leakage
+completion0.8-noise0.1,Gaussian EM,0.016015594593539188,0.07737827927970176,measured_humid ~ life
+completion0.8-noise0.1,Masked MLP,0.025187051540106274,0.125315919622258,measured_humid ~ measured_salt
+completion0.8-noise0.1,LightGBM chained,0.012229287438329042,0.046301993442628114,total_gas ~ leakage
+completion0.8-noise0.1,Predictive MissForest,0.019434517668527915,0.12737331099411053,measured_humid ~ measured_salt
+completion0.8-noise0.1,MICE-PMM,0.015469280878525926,0.05628461857566258,measured_overgrowth ~ life
+completion0.9-noise0.0,Median,0.21301655706264896,1.00014684918702,x ~ install_date
+completion0.9-noise0.0,KNN imputer,0.007901355164791193,0.05051293698721404,total_gas ~ leakage
+completion0.9-noise0.0,IterativeImputer,0.008384863985325371,0.047378987145547696,total_gas ~ leakage
+completion0.9-noise0.0,Random Forest,0.005984210106686167,0.04545999149210331,total_gas ~ leakage
+completion0.9-noise0.0,HistGradientBoosting,0.006339351457185416,0.04471965942887132,total_gas ~ leakage
+completion0.9-noise0.0,CatBoost,0.006077101135750191,0.05023343970486438,total_gas ~ leakage
+completion0.9-noise0.0,miceforest direct,0.006623015382773708,0.04273160305905718,total_gas ~ leakage
+completion0.9-noise0.0,Gaussian EM,0.010831704983328184,0.060489969732002935,measured_humid ~ life
+completion0.9-noise0.0,Masked MLP,0.014548700823113781,0.06940317764976697,total_gas ~ leakage
+completion0.9-noise0.0,LightGBM chained,0.006384112886563919,0.03992515569574018,total_gas ~ leakage
+completion0.9-noise0.0,Predictive MissForest,0.014194360663325708,0.09733483206807306,measured_humid ~ measured_salt
+completion0.9-noise0.0,MICE-PMM,0.010217338989867519,0.05520106171553152,measured_overgrowth ~ life
+completion0.9-noise0.05,Median,0.21243436109704955,1.00014684918702,x ~ install_date
+completion0.9-noise0.05,KNN imputer,0.009090655230150487,0.053006307149500165,total_gas ~ leakage
+completion0.9-noise0.05,IterativeImputer,0.009156363946638822,0.0512833656554367,total_gas ~ leakage
+completion0.9-noise0.05,Random Forest,0.006978012005067527,0.05369766296084108,total_gas ~ leakage
+completion0.9-noise0.05,HistGradientBoosting,0.007411002453395053,0.054295789378407705,total_gas ~ leakage
+completion0.9-noise0.05,CatBoost,0.007285245676448072,0.0570212693606276,total_gas ~ leakage
+completion0.9-noise0.05,miceforest direct,0.0077791588139493025,0.04587754232185401,total_gas ~ leakage
+completion0.9-noise0.05,Gaussian EM,0.012267585560966231,0.06111474624981528,measured_humid ~ life
+completion0.9-noise0.05,Masked MLP,0.015747753312631226,0.08801053754796637,x ~ leakage
+completion0.9-noise0.05,LightGBM chained,0.007769428346142805,0.047194571989692236,total_gas ~ leakage
+completion0.9-noise0.05,Predictive MissForest,0.015052685456061896,0.09838729183889715,measured_humid ~ measured_salt
+completion0.9-noise0.05,MICE-PMM,0.011783398629680465,0.0564413745452107,measured_overgrowth ~ life
+completion0.9-noise0.1,Median,0.2121915213429423,1.00014684918702,x ~ install_date
+completion0.9-noise0.1,KNN imputer,0.011147708908297081,0.05302591173556351,total_gas ~ leakage
+completion0.9-noise0.1,IterativeImputer,0.01134992194242031,0.051213843853534335,total_gas ~ leakage
+completion0.9-noise0.1,Random Forest,0.009935111609619249,0.056355380651723325,total_gas ~ leakage
+completion0.9-noise0.1,HistGradientBoosting,0.009879505351759897,0.05268543357719141,total_gas ~ leakage
+completion0.9-noise0.1,CatBoost,0.009887298263870687,0.05438454429456069,total_gas ~ leakage
+completion0.9-noise0.1,miceforest direct,0.010717237559964583,0.04791609902594729,total_gas ~ leakage
+completion0.9-noise0.1,Gaussian EM,0.014353147480114549,0.06104210514918096,measured_humid ~ life
+completion0.9-noise0.1,Masked MLP,0.019103236480185044,0.09164130141914555,measured_humid ~ measured_salt
+completion0.9-noise0.1,LightGBM chained,0.010578029434670178,0.04743228701219046,total_gas ~ leakage
+completion0.9-noise0.1,Predictive MissForest,0.016710887011130472,0.09568028479386685,measured_humid ~ measured_salt
+completion0.9-noise0.1,MICE-PMM,0.013682919182873734,0.05517834190719473,measured_overgrowth ~ life
+completion0.8-noise0.05-age,Median,0.2124042412041881,1.0429681569244036,x ~ install_date
+completion0.8-noise0.05-age,KNN imputer,0.011070994014692661,0.04876163587700187,measured_gas_c ~ leakage
+completion0.8-noise0.05-age,IterativeImputer,0.011808618996323352,0.046033662469275496,measured_gas_c ~ leakage
+completion0.8-noise0.05-age,Random Forest,0.009145480685613045,0.051188947074205,measured_gas_c ~ leakage
+completion0.8-noise0.05-age,HistGradientBoosting,0.0096635206126286,0.0534556259102877,measured_gas_c ~ leakage
+completion0.8-noise0.05-age,CatBoost,0.009723327495198393,0.053927760664304755,measured_gas_c ~ leakage
+completion0.8-noise0.05-age,miceforest direct,0.010822146093099073,0.05208068931434906,measured_humid ~ measured_salt
+completion0.8-noise0.05-age,Gaussian EM,0.015563917475595464,0.08510952549657436,measured_humid ~ life
+completion0.8-noise0.05-age,Masked MLP,0.016283493465198702,0.11033345671252023,measured_humid ~ measured_salt
+completion0.8-noise0.05-age,LightGBM chained,0.010467844172613108,0.04490062198957091,measured_humid ~ measured_salt
+completion0.8-noise0.05-age,Predictive MissForest,0.018071712095997488,0.12551894336391858,measured_humid ~ measured_salt
+completion0.8-noise0.05-age,MICE-PMM,0.015440613425376993,0.09186945411553002,measured_salt ~ life
+completion0.8-noise0.05-value,Median,0.21957833311058772,1.0539115209772942,x ~ install_date
+completion0.8-noise0.05-value,KNN imputer,0.0184331381243,0.10402808679177902,total_gas ~ leakage
+completion0.8-noise0.05-value,IterativeImputer,0.02062481514586495,0.09988675895837504,total_gas ~ leakage
+completion0.8-noise0.05-value,Random Forest,0.01636929674324313,0.10408471510272752,total_gas ~ leakage
+completion0.8-noise0.05-value,HistGradientBoosting,0.015333257356687977,0.09712922018104878,total_gas ~ leakage
+completion0.8-noise0.05-value,CatBoost,0.01608701839890666,0.09919234597688995,total_gas ~ leakage
+completion0.8-noise0.05-value,miceforest direct,0.016329944134483017,0.09319904040222608,install_date ~ leakage
+completion0.8-noise0.05-value,Gaussian EM,0.022163322085888643,0.09380614804678486,total_gas ~ leakage
+completion0.8-noise0.05-value,Masked MLP,0.023867170635299823,0.15731561316487785,install_date ~ leakage
+completion0.8-noise0.05-value,LightGBM chained,0.016793222036518427,0.10705146615421623,install_date ~ leakage
+completion0.8-noise0.05-value,Predictive MissForest,0.022142906775481502,0.1262912534130476,install_date ~ leakage
+completion0.8-noise0.05-value,MICE-PMM,0.022974215574480247,0.08118744855566924,install_date ~ leakage
+completion0.8-noise0.05-group,Median,0.21372823037361183,1.0009552127954164,x ~ install_date
+completion0.8-noise0.05-group,KNN imputer,0.02358648203256252,0.09134876681853044,y ~ altitude
+completion0.8-noise0.05-group,IterativeImputer,0.029238437769748507,0.21161555943910687,x ~ y
+completion0.8-noise0.05-group,Random Forest,0.016665580764563377,0.11315676770598165,measured_salt ~ measured_overgrowth
+completion0.8-noise0.05-group,HistGradientBoosting,0.014876280242373982,0.07546860078430362,y ~ altitude
+completion0.8-noise0.05-group,CatBoost,0.016615398823732065,0.07837931175884061,y ~ altitude
+completion0.8-noise0.05-group,miceforest direct,0.023745745819610423,0.2211644366584209,measured_salt ~ measured_overgrowth
+completion0.8-noise0.05-group,Gaussian EM,0.02440613137141174,0.08617052146972604,y ~ altitude
+completion0.8-noise0.05-group,Masked MLP,0.024801526896707993,0.17452714024739047,y ~ altitude
+completion0.8-noise0.05-group,LightGBM chained,0.01876864552118192,0.08974713237669318,y ~ altitude
+completion0.8-noise0.05-group,Predictive MissForest,0.02433563504948416,0.1340432059817655,y ~ measured_salt
+completion0.8-noise0.05-group,MICE-PMM,0.02680640571151611,0.1471488547712782,x ~ y
+completion0.8-noise0.05-errors,Median,0.21411850187824866,1.0002099437019647,x ~ install_date
+completion0.8-noise0.05-errors,KNN imputer,0.011425419085043971,0.05549559503482818,total_gas ~ leakage
+completion0.8-noise0.05-errors,IterativeImputer,0.011819649708876319,0.06496954275889738,y ~ total_gas
+completion0.8-noise0.05-errors,Random Forest,0.009256694652495378,0.053439818478329404,total_gas ~ leakage
+completion0.8-noise0.05-errors,HistGradientBoosting,0.00917853088753634,0.06216681355833262,total_gas ~ leakage
+completion0.8-noise0.05-errors,CatBoost,0.009476065664805562,0.057487438426679194,total_gas ~ leakage
+completion0.8-noise0.05-errors,miceforest direct,0.010829409307444793,0.045178321643006975,total_gas ~ leakage
+completion0.8-noise0.05-errors,Gaussian EM,0.01449963569391527,0.07806658435608804,measured_humid ~ life
+completion0.8-noise0.05-errors,Masked MLP,0.01990790886503244,0.10500946673098024,measured_humid ~ measured_salt
+completion0.8-noise0.05-errors,LightGBM chained,0.010297177085991493,0.05172863156952856,total_gas ~ leakage
+completion0.8-noise0.05-errors,Predictive MissForest,0.01834572893723679,0.1280764798701346,measured_humid ~ measured_salt
+completion0.8-noise0.05-errors,MICE-PMM,0.015068881477238798,0.05918885898871973,measured_overgrowth ~ life
+completion0.5-noise0.05-sparse,Median,0.21174228526220804,0.9999817196130976,x ~ install_date
+completion0.5-noise0.05-sparse,KNN imputer,0.026219819266724252,0.08721243426220723,measured_gas_c ~ leakage
+completion0.5-noise0.05-sparse,IterativeImputer,0.022449220899379226,0.1490429805888859,random_placebo ~ leakage
+completion0.5-noise0.05-sparse,Random Forest,0.019452279589229977,0.06778060415797346,random_placebo ~ measured_gas_b
+completion0.5-noise0.05-sparse,HistGradientBoosting,0.018536292721104148,0.061867199729789636,random_placebo ~ measured_gas_b
+completion0.5-noise0.05-sparse,CatBoost,0.023903072964353813,0.0803964107176306,random_placebo ~ measured_gas_b
+completion0.5-noise0.05-sparse,miceforest direct,0.022218496280286736,0.12087236746511312,measured_humid ~ measured_salt
+completion0.5-noise0.05-sparse,Gaussian EM,0.036417356982906136,0.18577032250266565,measured_humid ~ measured_salt
+completion0.5-noise0.05-sparse,Masked MLP,0.03816120960537023,0.1949261875429767,measured_humid ~ measured_salt
+completion0.5-noise0.05-sparse,LightGBM chained,0.021124036963252393,0.06490576327441228,y ~ measured_salt
+completion0.5-noise0.05-sparse,Predictive MissForest,0.03912858215964231,0.25774631582987495,y ~ measured_salt
+completion0.5-noise0.05-sparse,MICE-PMM,0.02089995346669117,0.10094104155755568,measured_humid ~ measured_salt
+completion0.3-noise0.05-sparse,Median,0.21107765838066184,0.9989735933468665,x ~ install_date
+completion0.3-noise0.05-sparse,KNN imputer,0.04569223876250837,0.4159770010622288,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,IterativeImputer,0.043239687520533684,0.46072488055758465,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,Random Forest,0.03337665982170127,0.28306497888223897,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,HistGradientBoosting,0.025109168207741,0.18485338306697238,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,CatBoost,0.03316332909566383,0.11107438064309086,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,miceforest direct,0.03874910413936603,0.20341676512465315,measured_humid ~ measured_salt
+completion0.3-noise0.05-sparse,Gaussian EM,0.07173502292630353,0.24941379239141812,measured_humid ~ measured_salt
+completion0.3-noise0.05-sparse,Masked MLP,0.06071730411125867,0.2157750013071961,measured_humid ~ measured_salt
+completion0.3-noise0.05-sparse,LightGBM chained,0.04331928987518657,0.14666694322836962,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,Predictive MissForest,0.062282193717919876,0.3736324280928323,random_placebo ~ leakage
+completion0.3-noise0.05-sparse,MICE-PMM,0.03424376315287348,0.1120146054151557,measured_humid ~ measured_salt

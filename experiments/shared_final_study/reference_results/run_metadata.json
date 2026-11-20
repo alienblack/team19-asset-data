@@ -1,0 +1,28 @@
+{
+  "source": "Original supplied notebook outputs, cells 105 and 107; not a new model run",
+  "source_notebook_sha256": "ae077dc45a828ec15cc234ef02226b2cd42f24a199f65aada74924a2b16b67aa",
+  "run_id": "20261115-121714",
+  "tasks": 3580,
+  "failed_tasks": 0,
+  "tasks_with_warnings": 175,
+  "warning_records": [
+    {
+      "method": "IterativeImputer",
+      "warning_types": "ConvergenceWarning",
+      "tasks": 165,
+      "warning_example": "[IterativeImputer] Early stopping criterion not reached."
+    },
+    {
+      "method": "IterativeImputer (5)",
+      "warning_types": "ConvergenceWarning",
+      "tasks": 5,
+      "warning_example": "[IterativeImputer] Early stopping criterion not reached."
+    },
+    {
+      "method": "IterativeImputer (30)",
+      "warning_types": "ConvergenceWarning",
+      "tasks": 5,
+      "warning_example": "[IterativeImputer] Early stopping criterion not reached."
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"base": "block", "classifier_rounds": 200, "early_stopping": true, "l2_regularization": 0.0, "learning_rate": 0.05, "linear_alpha": 30.0, "max_iter": 400, "max_leaf_nodes": 31, "min_samples_leaf": 20, "n_iter_no_change": 20, "passes": 6, "validation_fraction": 0.15}

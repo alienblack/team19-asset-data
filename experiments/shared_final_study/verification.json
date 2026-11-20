@@ -1,0 +1,85 @@
+{
+  "version": "5.1.0",
+  "tests": {
+    "passed": 68,
+    "failed": 0,
+    "final_seconds": 6.65,
+    "fresh_extraction_passed": 68
+  },
+  "fresh_extraction_quick_run": {
+    "run_id": "20261119-134829",
+    "tasks": 3060,
+    "failed": 0,
+    "rows": 600,
+    "charts": 31,
+    "csv_exports": 52,
+    "diagnostic_only": true
+  },
+  "repeat_seeded_quick_run": {
+    "completed_tables_matching": 12,
+    "relative_tolerance": 1e-08
+  },
+  "saved_quick_evaluation": {
+    "run_id": "20261119-133823",
+    "tasks": 3060,
+    "failed": 0,
+    "no_refitting": true
+  },
+  "published_report": {
+    "source_run": "20261115-121714",
+    "charts": 54,
+    "csv_exports": 58,
+    "source": "supplied package 02",
+    "full_study_refitted_for_this_update": false,
+    "recorded_tasks_with_warnings": 175,
+    "warning_source": "Original supplied notebook outputs, cells 105 and 107"
+  },
+  "selection": {
+    "audited_models": 8,
+    "all_match": true,
+    "new_em_refit_diagnostic": {
+      "rows": 600,
+      "candidates": 2,
+      "folds": 3,
+      "scenarios": 3,
+      "truth_files_read": false
+    }
+  },
+  "browser_checks": {
+    "decoded_charts": 54,
+    "javascript_errors": 0,
+    "missing_local_download_targets": 0,
+    "filters": true,
+    "chart_modal": true,
+    "png_download": true,
+    "print_chart_display": true,
+    "mobile_page_overflow": false,
+    "print_preparation_decoded_charts": 54,
+    "print_preparation_result_rows": 179,
+    "print_restores_filters": true
+  },
+  "package_checks": {
+    "original_modules_unchanged": 25,
+    "input_csvs_unchanged": 30,
+    "result_csvs_unchanged": 58,
+    "wheel_template_included": true,
+    "notebook_format_valid": true
+  },
+  "environment": {
+    "python": "3.12.11",
+    "platform": "macOS-15.5-arm64-arm-64bit",
+    "packages": {
+      "numpy": "2.5.4",
+      "pandas": "2.3.3",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "torch": "2.9.1",
+      "lightgbm": "4.5.0",
+      "miceforest": "6.0.5",
+      "catboost": "1.2.10",
+      "matplotlib": "3.11.2",
+      "joblib": "1.6.0",
+      "Jinja2": "3.1.6"
+    }
+  }
+}

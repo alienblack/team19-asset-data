@@ -1,0 +1,14 @@
+target,best,skill,next,gap to next,lead,noise 0 to 0.1,completion 0.7 to 0.9
+x,HistGradientBoosting,0.9849580035535455,CatBoost,0.07919463087248313,not separated,+43%,-88%
+y,CatBoost,0.8219265524326265,HistGradientBoosting,0.0076173406519548514,not separated,+1% (not clear),-72%
+install_date,HistGradientBoosting,0.9796219039436428,CatBoost,0.03977108084613157,not separated,+33%,-75%
+altitude,CatBoost,0.869142689371697,HistGradientBoosting,0.007291900381422467,not separated,+2% (not clear),-70%
+measured_humid,HistGradientBoosting,0.7546908737702461,CatBoost,0.0011628854129899224,not separated,+11%,-40%
+measured_salt,HistGradientBoosting,0.5813333028468214,Random Forest,0.003693486137063884,not separated,+17%,-40%
+measured_overgrowth,CatBoost,0.8496826186194908,HistGradientBoosting,0.011205025588351125,not separated,+38%,-63%
+life,HistGradientBoosting,0.8798282317260719,CatBoost,0.015505869842829867,not separated,+59%,-65%
+measured_gas_a,Gaussian EM,0.8924124094259482,Predictive MissForest,0.04955984601220975,not separated,+48%,-37%
+measured_gas_b,Gaussian EM,0.8682275744572084,Random Forest,0.043038520808375,not separated,+35%,-38%
+measured_gas_c,Gaussian EM,0.8756993641276725,KNN imputer,0.10415450792325132,clear,+38%,-32%
+total_gas,CatBoost,0.8375708460336272,HistGradientBoosting,0.0033732262699368576,not separated,+159%,-27%
+leakage,CatBoost,0.21437480175304047,KNN imputer,0.002368499589498807,not separated,+7%,-6%

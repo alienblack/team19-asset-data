@@ -1,0 +1,311 @@
+relation,scenario,n,method,MAE
+altitude from x and y,completion0.8-noise0.0,1308,CatBoost,0.008409785932721712
+altitude from x and y,completion0.8-noise0.0,1308,Gaussian EM,0.011467889908256881
+altitude from x and y,completion0.8-noise0.0,1308,HistGradientBoosting,0.02217125382262997
+altitude from x and y,completion0.8-noise0.0,1308,IterativeImputer,0.21712538226299694
+altitude from x and y,completion0.8-noise0.0,1308,KNN imputer,0.1811926605504587
+altitude from x and y,completion0.8-noise0.0,1308,LightGBM chained,0.7079510703363915
+altitude from x and y,completion0.8-noise0.0,1308,MICE-PMM,1.1330275229357798
+altitude from x and y,completion0.8-noise0.0,1308,Masked MLP,2.055045871559633
+altitude from x and y,completion0.8-noise0.0,1308,Median,34.02446483180428
+altitude from x and y,completion0.8-noise0.0,1308,Predictive MissForest,4.746177370030581
+altitude from x and y,completion0.8-noise0.0,1308,Random Forest,0.09480122324159021
+altitude from x and y,completion0.8-noise0.0,1308,miceforest direct,0.8960244648318043
+altitude from x and y,completion0.8-noise0.0,1308,Formula,0.0
+x from altitude and y,completion0.8-noise0.0,1299,CatBoost,0.08468052347959969
+x from altitude and y,completion0.8-noise0.0,1299,Gaussian EM,0.09314857582755966
+x from altitude and y,completion0.8-noise0.0,1299,HistGradientBoosting,0.09545804464973057
+x from altitude and y,completion0.8-noise0.0,1299,IterativeImputer,0.4103156274056967
+x from altitude and y,completion0.8-noise0.0,1299,KNN imputer,0.36643571978444955
+x from altitude and y,completion0.8-noise0.0,1299,LightGBM chained,0.9130100076982294
+x from altitude and y,completion0.8-noise0.0,1299,MICE-PMM,1.5981524249422632
+x from altitude and y,completion0.8-noise0.0,1299,Masked MLP,1.6951501154734412
+x from altitude and y,completion0.8-noise0.0,1299,Median,24.711316397228636
+x from altitude and y,completion0.8-noise0.0,1299,Predictive MissForest,1.775211701308699
+x from altitude and y,completion0.8-noise0.0,1299,Random Forest,0.24634334103156275
+x from altitude and y,completion0.8-noise0.0,1299,miceforest direct,1.0269438029253273
+x from altitude and y,completion0.8-noise0.0,1299,Formula,0.0
+y from altitude and x,completion0.8-noise0.0,1278,CatBoost,0.006259780907668232
+y from altitude and x,completion0.8-noise0.0,1278,Gaussian EM,0.025039123630672927
+y from altitude and x,completion0.8-noise0.0,1278,HistGradientBoosting,0.010954616588419406
+y from altitude and x,completion0.8-noise0.0,1278,IterativeImputer,0.34507042253521125
+y from altitude and x,completion0.8-noise0.0,1278,KNN imputer,0.23943661971830985
+y from altitude and x,completion0.8-noise0.0,1278,LightGBM chained,0.744131455399061
+y from altitude and x,completion0.8-noise0.0,1278,MICE-PMM,1.162754303599374
+y from altitude and x,completion0.8-noise0.0,1278,Masked MLP,2.0469483568075115
+y from altitude and x,completion0.8-noise0.0,1278,Median,25.280125195618155
+y from altitude and x,completion0.8-noise0.0,1278,Predictive MissForest,5.099374021909234
+y from altitude and x,completion0.8-noise0.0,1278,Random Forest,0.10719874804381847
+y from altitude and x,completion0.8-noise0.0,1278,miceforest direct,1.2503912363067293
+y from altitude and x,completion0.8-noise0.0,1278,Formula,0.0
+total_gas from gas readings,completion0.8-noise0.0,1030,CatBoost,13.452535711334452
+total_gas from gas readings,completion0.8-noise0.0,1030,Gaussian EM,28.198020577910693
+total_gas from gas readings,completion0.8-noise0.0,1030,HistGradientBoosting,16.035493586485583
+total_gas from gas readings,completion0.8-noise0.0,1030,IterativeImputer,48.364468453578716
+total_gas from gas readings,completion0.8-noise0.0,1030,KNN imputer,48.662118587552946
+total_gas from gas readings,completion0.8-noise0.0,1030,LightGBM chained,58.16612134929126
+total_gas from gas readings,completion0.8-noise0.0,1030,MICE-PMM,1.005612991355269
+total_gas from gas readings,completion0.8-noise0.0,1030,Masked MLP,192.2174695592345
+total_gas from gas readings,completion0.8-noise0.0,1030,Median,1109.2345288373288
+total_gas from gas readings,completion0.8-noise0.0,1030,Predictive MissForest,98.87006097852783
+total_gas from gas readings,completion0.8-noise0.0,1030,Random Forest,25.818988916647548
+total_gas from gas readings,completion0.8-noise0.0,1030,miceforest direct,54.23122515599591
+total_gas from gas readings,completion0.8-noise0.0,1030,Formula,1.3951472124283753e-12
+gas a from total and other readings,completion0.8-noise0.0,1018,CatBoost,17.389984021064205
+gas a from total and other readings,completion0.8-noise0.0,1018,Gaussian EM,47.84981801002231
+gas a from total and other readings,completion0.8-noise0.0,1018,HistGradientBoosting,18.034961339501113
+gas a from total and other readings,completion0.8-noise0.0,1018,IterativeImputer,38.839072834922234
+gas a from total and other readings,completion0.8-noise0.0,1018,KNN imputer,42.08597790721323
+gas a from total and other readings,completion0.8-noise0.0,1018,LightGBM chained,57.60318025845029
+gas a from total and other readings,completion0.8-noise0.0,1018,MICE-PMM,0.8456422314155041
+gas a from total and other readings,completion0.8-noise0.0,1018,Masked MLP,141.47205579495338
+gas a from total and other readings,completion0.8-noise0.0,1018,Median,1248.8075980431097
+gas a from total and other readings,completion0.8-noise0.0,1018,Predictive MissForest,101.00992641697268
+gas a from total and other readings,completion0.8-noise0.0,1018,Random Forest,24.961470435629998
+gas a from total and other readings,completion0.8-noise0.0,1018,miceforest direct,69.64549826390608
+gas a from total and other readings,completion0.8-noise0.0,1018,Formula,2.2621223820128233e-12
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,CatBoost,0.0074608117512112845
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,Gaussian EM,0.0537622396102427
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,HistGradientBoosting,0.007361230919492617
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,IterativeImputer,0.027750274973083036
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,KNN imputer,0.018822240082342706
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,LightGBM chained,0.007725937902747191
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,MICE-PMM,0.04194083045036872
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,Masked MLP,0.04136117831098619
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,Median,0.307022182655935
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,Predictive MissForest,0.0498227553265261
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,Random Forest,0.008395507099766494
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,miceforest direct,0.014871361790670761
+overgrowth from humidity and salt,completion0.8-noise0.0,1244,Formula,3.366325729245829e-17
+life from all its inputs,completion0.8-noise0.0,537,CatBoost,10.98221431399241
+life from all its inputs,completion0.8-noise0.0,537,Gaussian EM,100.56518319726361
+life from all its inputs,completion0.8-noise0.0,537,HistGradientBoosting,10.944065087357139
+life from all its inputs,completion0.8-noise0.0,537,IterativeImputer,35.00790197057554
+life from all its inputs,completion0.8-noise0.0,537,KNN imputer,19.777485477311092
+life from all its inputs,completion0.8-noise0.0,537,LightGBM chained,28.991067681993897
+life from all its inputs,completion0.8-noise0.0,537,MICE-PMM,129.80787052095613
+life from all its inputs,completion0.8-noise0.0,537,Masked MLP,52.202786014659075
+life from all its inputs,completion0.8-noise0.0,537,Median,294.55936580015316
+life from all its inputs,completion0.8-noise0.0,537,Predictive MissForest,46.52080607296318
+life from all its inputs,completion0.8-noise0.0,537,Random Forest,12.747544647548434
+life from all its inputs,completion0.8-noise0.0,537,miceforest direct,25.565854384014006
+life from all its inputs,completion0.8-noise0.0,537,Formula,6.85593026587861e-12
+"leakage from gases, date and model",completion0.8-noise0.0,608,CatBoost,0.07356505293456939
+"leakage from gases, date and model",completion0.8-noise0.0,608,Gaussian EM,0.07471656497434491
+"leakage from gases, date and model",completion0.8-noise0.0,608,HistGradientBoosting,0.07400911772151551
+"leakage from gases, date and model",completion0.8-noise0.0,608,IterativeImputer,0.07412785718087829
+"leakage from gases, date and model",completion0.8-noise0.0,608,KNN imputer,0.07392956207943438
+"leakage from gases, date and model",completion0.8-noise0.0,608,LightGBM chained,0.07485060567931716
+"leakage from gases, date and model",completion0.8-noise0.0,608,MICE-PMM,0.0820924790337866
+"leakage from gases, date and model",completion0.8-noise0.0,608,Masked MLP,0.08845856727628344
+"leakage from gases, date and model",completion0.8-noise0.0,608,Median,0.09686220948847471
+"leakage from gases, date and model",completion0.8-noise0.0,608,Predictive MissForest,0.077402308582952
+"leakage from gases, date and model",completion0.8-noise0.0,608,Random Forest,0.07285872777204241
+"leakage from gases, date and model",completion0.8-noise0.0,608,miceforest direct,0.07580508013115174
+"leakage from gases, date and model",completion0.8-noise0.0,608,Formula,0.06511110334120027
+altitude from x and y,completion0.8-noise0.05,1308,CatBoost,0.013761467889908258
+altitude from x and y,completion0.8-noise0.05,1308,Gaussian EM,0.009938837920489297
+altitude from x and y,completion0.8-noise0.05,1308,HistGradientBoosting,0.021406727828746176
+altitude from x and y,completion0.8-noise0.05,1308,IterativeImputer,0.20336391437308868
+altitude from x and y,completion0.8-noise0.05,1308,KNN imputer,0.1628440366972477
+altitude from x and y,completion0.8-noise0.05,1308,LightGBM chained,0.709480122324159
+altitude from x and y,completion0.8-noise0.05,1308,MICE-PMM,1.209480122324159
+altitude from x and y,completion0.8-noise0.05,1308,Masked MLP,1.7201834862385321
+altitude from x and y,completion0.8-noise0.05,1308,Median,34.02446483180428
+altitude from x and y,completion0.8-noise0.05,1308,Predictive MissForest,4.67125382262997
+altitude from x and y,completion0.8-noise0.05,1308,Random Forest,0.09480122324159021
+altitude from x and y,completion0.8-noise0.05,1308,miceforest direct,0.9220183486238532
+altitude from x and y,completion0.8-noise0.05,1308,Formula,0.0
+x from altitude and y,completion0.8-noise0.05,1299,CatBoost,0.11547344110854503
+x from altitude and y,completion0.8-noise0.05,1299,Gaussian EM,0.08083140877598152
+x from altitude and y,completion0.8-noise0.05,1299,HistGradientBoosting,0.1170130869899923
+x from altitude and y,completion0.8-noise0.05,1299,IterativeImputer,0.418013856812933
+x from altitude and y,completion0.8-noise0.05,1299,KNN imputer,0.40030792917628943
+x from altitude and y,completion0.8-noise0.05,1299,LightGBM chained,1.0284834488067744
+x from altitude and y,completion0.8-noise0.05,1299,MICE-PMM,1.6081601231716705
+x from altitude and y,completion0.8-noise0.05,1299,Masked MLP,1.7190146266358737
+x from altitude and y,completion0.8-noise0.05,1299,Median,24.711316397228636
+x from altitude and y,completion0.8-noise0.05,1299,Predictive MissForest,1.924557351809084
+x from altitude and y,completion0.8-noise0.05,1299,Random Forest,0.30484988452655887
+x from altitude and y,completion0.8-noise0.05,1299,miceforest direct,1.1077752117013087
+x from altitude and y,completion0.8-noise0.05,1299,Formula,0.0
+y from altitude and x,completion0.8-noise0.05,1278,CatBoost,0.017996870109546165
+y from altitude and x,completion0.8-noise0.05,1278,Gaussian EM,0.02190923317683881
+y from altitude and x,completion0.8-noise0.05,1278,HistGradientBoosting,0.018779342723004695
+y from altitude and x,completion0.8-noise0.05,1278,IterativeImputer,0.34976525821596244
+y from altitude and x,completion0.8-noise0.05,1278,KNN imputer,0.23161189358372458
+y from altitude and x,completion0.8-noise0.05,1278,LightGBM chained,0.7629107981220657
+y from altitude and x,completion0.8-noise0.05,1278,MICE-PMM,1.255868544600939
+y from altitude and x,completion0.8-noise0.05,1278,Masked MLP,1.8810641627543037
+y from altitude and x,completion0.8-noise0.05,1278,Median,25.280125195618155
+y from altitude and x,completion0.8-noise0.05,1278,Predictive MissForest,5.16510172143975
+y from altitude and x,completion0.8-noise0.05,1278,Random Forest,0.10719874804381847
+y from altitude and x,completion0.8-noise0.05,1278,miceforest direct,1.2762128325508608
+y from altitude and x,completion0.8-noise0.05,1278,Formula,0.0
+total_gas from gas readings,completion0.8-noise0.05,1030,CatBoost,176.02074740774808
+total_gas from gas readings,completion0.8-noise0.05,1030,Gaussian EM,209.84757753473883
+total_gas from gas readings,completion0.8-noise0.05,1030,HistGradientBoosting,175.20176963848095
+total_gas from gas readings,completion0.8-noise0.05,1030,IterativeImputer,183.97644703216938
+total_gas from gas readings,completion0.8-noise0.05,1030,KNN imputer,180.9602605634566
+total_gas from gas readings,completion0.8-noise0.05,1030,LightGBM chained,201.41247569868543
+total_gas from gas readings,completion0.8-noise0.05,1030,MICE-PMM,218.5918147816629
+total_gas from gas readings,completion0.8-noise0.05,1030,Masked MLP,226.8159811949986
+total_gas from gas readings,completion0.8-noise0.05,1030,Median,1109.2345288373288
+total_gas from gas readings,completion0.8-noise0.05,1030,Predictive MissForest,204.7315790925952
+total_gas from gas readings,completion0.8-noise0.05,1030,Random Forest,176.38337027536082
+total_gas from gas readings,completion0.8-noise0.05,1030,miceforest direct,191.28445749520816
+total_gas from gas readings,completion0.8-noise0.05,1030,Formula,387.3207696540891
+gas a from total and other readings,completion0.8-noise0.05,1018,CatBoost,112.21941317478104
+gas a from total and other readings,completion0.8-noise0.05,1018,Gaussian EM,97.14171942137918
+gas a from total and other readings,completion0.8-noise0.05,1018,HistGradientBoosting,109.26112675493911
+gas a from total and other readings,completion0.8-noise0.05,1018,IterativeImputer,132.95299098530276
+gas a from total and other readings,completion0.8-noise0.05,1018,KNN imputer,121.07888825929794
+gas a from total and other readings,completion0.8-noise0.05,1018,LightGBM chained,109.20112964174501
+gas a from total and other readings,completion0.8-noise0.05,1018,MICE-PMM,147.11085263657716
+gas a from total and other readings,completion0.8-noise0.05,1018,Masked MLP,176.53485908701202
+gas a from total and other readings,completion0.8-noise0.05,1018,Median,1251.1819821184904
+gas a from total and other readings,completion0.8-noise0.05,1018,Predictive MissForest,112.78553642783493
+gas a from total and other readings,completion0.8-noise0.05,1018,Random Forest,114.62984025412491
+gas a from total and other readings,completion0.8-noise0.05,1018,miceforest direct,112.05757693714173
+gas a from total and other readings,completion0.8-noise0.05,1018,Formula,322.2551046873733
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,CatBoost,0.0168463703477904
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,Gaussian EM,0.05519367593155763
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,HistGradientBoosting,0.0169663845080878
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,IterativeImputer,0.031096912530052884
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,KNN imputer,0.024184867860500257
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,LightGBM chained,0.018203632741579625
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,MICE-PMM,0.04164356823785968
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,Masked MLP,0.04239478582990615
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,Median,0.30702768368880956
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,Predictive MissForest,0.05195667967160629
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,Random Forest,0.017092695344336564
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,miceforest direct,0.020348854163459072
+overgrowth from humidity and salt,completion0.8-noise0.05,1244,Formula,0.014864910129605672
+life from all its inputs,completion0.8-noise0.05,537,CatBoost,14.579699106443293
+life from all its inputs,completion0.8-noise0.05,537,Gaussian EM,105.80561553434003
+life from all its inputs,completion0.8-noise0.05,537,HistGradientBoosting,14.406844278526739
+life from all its inputs,completion0.8-noise0.05,537,IterativeImputer,36.86579693241772
+life from all its inputs,completion0.8-noise0.05,537,KNN imputer,23.134755145462123
+life from all its inputs,completion0.8-noise0.05,537,LightGBM chained,29.243038342396872
+life from all its inputs,completion0.8-noise0.05,537,MICE-PMM,137.66330943417267
+life from all its inputs,completion0.8-noise0.05,537,Masked MLP,50.96354130164019
+life from all its inputs,completion0.8-noise0.05,537,Median,294.55936580015316
+life from all its inputs,completion0.8-noise0.05,537,Predictive MissForest,48.94330566209979
+life from all its inputs,completion0.8-noise0.05,537,Random Forest,17.278877582390226
+life from all its inputs,completion0.8-noise0.05,537,miceforest direct,26.468336666424413
+life from all its inputs,completion0.8-noise0.05,537,Formula,8.484432824220685
+"leakage from gases, date and model",completion0.8-noise0.05,608,CatBoost,0.07772495997921125
+"leakage from gases, date and model",completion0.8-noise0.05,608,Gaussian EM,0.08030663224737443
+"leakage from gases, date and model",completion0.8-noise0.05,608,HistGradientBoosting,0.07842548628662993
+"leakage from gases, date and model",completion0.8-noise0.05,608,IterativeImputer,0.07781921930892759
+"leakage from gases, date and model",completion0.8-noise0.05,608,KNN imputer,0.07756420997318551
+"leakage from gases, date and model",completion0.8-noise0.05,608,LightGBM chained,0.07882537948494042
+"leakage from gases, date and model",completion0.8-noise0.05,608,MICE-PMM,0.08573863194631066
+"leakage from gases, date and model",completion0.8-noise0.05,608,Masked MLP,0.09062961617996172
+"leakage from gases, date and model",completion0.8-noise0.05,608,Median,0.09686220948847471
+"leakage from gases, date and model",completion0.8-noise0.05,608,Predictive MissForest,0.08100488470720621
+"leakage from gases, date and model",completion0.8-noise0.05,608,Random Forest,0.07886051593353949
+"leakage from gases, date and model",completion0.8-noise0.05,608,miceforest direct,0.07954148963842672
+altitude from x and y,completion0.8-noise0.1,1308,CatBoost,0.020642201834862386
+altitude from x and y,completion0.8-noise0.1,1308,Gaussian EM,0.008409785932721712
+altitude from x and y,completion0.8-noise0.1,1308,HistGradientBoosting,0.0290519877675841
+altitude from x and y,completion0.8-noise0.1,1308,IterativeImputer,0.20565749235474007
+altitude from x and y,completion0.8-noise0.1,1308,KNN imputer,0.1651376146788991
+altitude from x and y,completion0.8-noise0.1,1308,LightGBM chained,0.6995412844036697
+altitude from x and y,completion0.8-noise0.1,1308,MICE-PMM,1.2178899082568808
+altitude from x and y,completion0.8-noise0.1,1308,Masked MLP,1.6200305810397553
+altitude from x and y,completion0.8-noise0.1,1308,Median,34.02446483180428
+altitude from x and y,completion0.8-noise0.1,1308,Predictive MissForest,4.7370030581039755
+altitude from x and y,completion0.8-noise0.1,1308,Random Forest,0.10015290519877676
+altitude from x and y,completion0.8-noise0.1,1308,miceforest direct,0.9464831804281345
+altitude from x and y,completion0.8-noise0.1,1308,Formula,0.0
+x from altitude and y,completion0.8-noise0.1,1299,CatBoost,0.13163972286374134
+x from altitude and y,completion0.8-noise0.1,1299,Gaussian EM,0.08468052347959969
+x from altitude and y,completion0.8-noise0.1,1299,HistGradientBoosting,0.1401077752117013
+x from altitude and y,completion0.8-noise0.1,1299,IterativeImputer,0.41878367975365666
+x from altitude and y,completion0.8-noise0.1,1299,KNN imputer,0.4257120862201694
+x from altitude and y,completion0.8-noise0.1,1299,LightGBM chained,1.071593533487298
+x from altitude and y,completion0.8-noise0.1,1299,MICE-PMM,1.5712086220169361
+x from altitude and y,completion0.8-noise0.1,1299,Masked MLP,1.7251732101616628
+x from altitude and y,completion0.8-noise0.1,1299,Median,24.711316397228636
+x from altitude and y,completion0.8-noise0.1,1299,Predictive MissForest,1.9822940723633564
+x from altitude and y,completion0.8-noise0.1,1299,Random Forest,0.3441108545034642
+x from altitude and y,completion0.8-noise0.1,1299,miceforest direct,1.1454965357967668
+x from altitude and y,completion0.8-noise0.1,1299,Formula,0.0
+y from altitude and x,completion0.8-noise0.1,1278,CatBoost,0.01564945226917058
+y from altitude and x,completion0.8-noise0.1,1278,Gaussian EM,0.019561815336463225
+y from altitude and x,completion0.8-noise0.1,1278,HistGradientBoosting,0.026604068857589983
+y from altitude and x,completion0.8-noise0.1,1278,IterativeImputer,0.35289514866979654
+y from altitude and x,completion0.8-noise0.1,1278,KNN imputer,0.2323943661971831
+y from altitude and x,completion0.8-noise0.1,1278,LightGBM chained,0.7378716744913928
+y from altitude and x,completion0.8-noise0.1,1278,MICE-PMM,1.3270735524256652
+y from altitude and x,completion0.8-noise0.1,1278,Masked MLP,1.794209702660407
+y from altitude and x,completion0.8-noise0.1,1278,Median,25.280125195618155
+y from altitude and x,completion0.8-noise0.1,1278,Predictive MissForest,5.26056338028169
+y from altitude and x,completion0.8-noise0.1,1278,Random Forest,0.10328638497652583
+y from altitude and x,completion0.8-noise0.1,1278,miceforest direct,1.3082942097026604
+y from altitude and x,completion0.8-noise0.1,1278,Formula,0.0
+total_gas from gas readings,completion0.8-noise0.1,1030,CatBoost,191.36556190848046
+total_gas from gas readings,completion0.8-noise0.1,1030,Gaussian EM,236.17299762247467
+total_gas from gas readings,completion0.8-noise0.1,1030,HistGradientBoosting,195.3941411171305
+total_gas from gas readings,completion0.8-noise0.1,1030,IterativeImputer,204.6959781401543
+total_gas from gas readings,completion0.8-noise0.1,1030,KNN imputer,200.6164068846165
+total_gas from gas readings,completion0.8-noise0.1,1030,LightGBM chained,215.89082698728276
+total_gas from gas readings,completion0.8-noise0.1,1030,MICE-PMM,250.3255091485825
+total_gas from gas readings,completion0.8-noise0.1,1030,Masked MLP,237.50972325158355
+total_gas from gas readings,completion0.8-noise0.1,1030,Median,1109.2345288373288
+total_gas from gas readings,completion0.8-noise0.1,1030,Predictive MissForest,222.31958271811638
+total_gas from gas readings,completion0.8-noise0.1,1030,Random Forest,196.13380258851743
+total_gas from gas readings,completion0.8-noise0.1,1030,miceforest direct,210.54592183868957
+total_gas from gas readings,completion0.8-noise0.1,1030,Formula,774.641539308178
+gas a from total and other readings,completion0.8-noise0.1,1018,CatBoost,127.01625365273755
+gas a from total and other readings,completion0.8-noise0.1,1018,Gaussian EM,117.02696334697315
+gas a from total and other readings,completion0.8-noise0.1,1018,HistGradientBoosting,129.18406516455335
+gas a from total and other readings,completion0.8-noise0.1,1018,IterativeImputer,161.76121642305108
+gas a from total and other readings,completion0.8-noise0.1,1018,KNN imputer,144.71264255984983
+gas a from total and other readings,completion0.8-noise0.1,1018,LightGBM chained,149.258402875494
+gas a from total and other readings,completion0.8-noise0.1,1018,MICE-PMM,235.57665000662297
+gas a from total and other readings,completion0.8-noise0.1,1018,Masked MLP,246.80585774107243
+gas a from total and other readings,completion0.8-noise0.1,1018,Median,1251.8067515780294
+gas a from total and other readings,completion0.8-noise0.1,1018,Predictive MissForest,141.58440399517653
+gas a from total and other readings,completion0.8-noise0.1,1018,Random Forest,142.45529966310434
+gas a from total and other readings,completion0.8-noise0.1,1018,miceforest direct,155.40612158532352
+gas a from total and other readings,completion0.8-noise0.1,1018,Formula,644.5102093747466
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,CatBoost,0.027365106906486573
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,Gaussian EM,0.05867537275859254
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,HistGradientBoosting,0.027192392080625228
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,IterativeImputer,0.0385652255148005
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,KNN imputer,0.03253972520001259
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,LightGBM chained,0.030715337398733434
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,MICE-PMM,0.049056376846765774
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,Masked MLP,0.049045586216960535
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,Median,0.3070078926060442
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,Predictive MissForest,0.05577262489205105
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,Random Forest,0.026567134197362424
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,miceforest direct,0.029726070999638286
+overgrowth from humidity and salt,completion0.8-noise0.1,1244,Formula,0.02983358063965842
+life from all its inputs,completion0.8-noise0.1,537,CatBoost,21.56525308268664
+life from all its inputs,completion0.8-noise0.1,537,Gaussian EM,107.42689402925286
+life from all its inputs,completion0.8-noise0.1,537,HistGradientBoosting,22.210998181217764
+life from all its inputs,completion0.8-noise0.1,537,IterativeImputer,40.91999325752518
+life from all its inputs,completion0.8-noise0.1,537,KNN imputer,27.975456351195206
+life from all its inputs,completion0.8-noise0.1,537,LightGBM chained,33.135236592878115
+life from all its inputs,completion0.8-noise0.1,537,MICE-PMM,132.05423359670993
+life from all its inputs,completion0.8-noise0.1,537,Masked MLP,56.90135899474994
+life from all its inputs,completion0.8-noise0.1,537,Median,294.55936580015316
+life from all its inputs,completion0.8-noise0.1,537,Predictive MissForest,53.043618861319096
+life from all its inputs,completion0.8-noise0.1,537,Random Forest,23.993616629829226
+life from all its inputs,completion0.8-noise0.1,537,miceforest direct,30.101882803105898
+life from all its inputs,completion0.8-noise0.1,537,Formula,16.96886564844096
+"leakage from gases, date and model",completion0.8-noise0.1,608,CatBoost,0.0797834075597498
+"leakage from gases, date and model",completion0.8-noise0.1,608,Gaussian EM,0.08221118191582714
+"leakage from gases, date and model",completion0.8-noise0.1,608,HistGradientBoosting,0.07961220289390064
+"leakage from gases, date and model",completion0.8-noise0.1,608,IterativeImputer,0.08005464794934543
+"leakage from gases, date and model",completion0.8-noise0.1,608,KNN imputer,0.07982174560534934
+"leakage from gases, date and model",completion0.8-noise0.1,608,LightGBM chained,0.08173408840865418
+"leakage from gases, date and model",completion0.8-noise0.1,608,MICE-PMM,0.08858283323007765
+"leakage from gases, date and model",completion0.8-noise0.1,608,Masked MLP,0.09228392361258018
+"leakage from gases, date and model",completion0.8-noise0.1,608,Median,0.09686220948847471
+"leakage from gases, date and model",completion0.8-noise0.1,608,Predictive MissForest,0.0838873199362591
+"leakage from gases, date and model",completion0.8-noise0.1,608,Random Forest,0.08021150148302636
+"leakage from gases, date and model",completion0.8-noise0.1,608,miceforest direct,0.08095107237520578

@@ -1,0 +1,9 @@
+# Provenance and saved-run contracts hash exact bytes. Preserve original line
+# endings on every platform, including CSVs supplied with Windows line endings.
+* -text
+
+# Keep the PR focused on source and instructions; archived evidence is retained.
+data/** linguist-generated=true
+reference_results/** linguist-generated=true
+reports/published/** linguist-generated=true
+PACKAGE_MANIFEST.json linguist-generated=true

@@ -1,0 +1,212 @@
+{
+  "run_id": "20261115-121714",
+  "report_kind": "Published full-study results",
+  "quick": false,
+  "refitted": false,
+  "population_rows": 10000,
+  "reference_scenario": "completion0.8-noise0.05",
+  "seed": 219,
+  "numeric_fields_in_mean": 13,
+  "recorded_successful_tasks": 3580,
+  "charts": 54,
+  "csv_exports": 58,
+  "leaderboard": [
+    {
+      "method": "HistGradientBoosting",
+      "label": "HistGradientBoosting",
+      "skill": 0.7971562183218597,
+      "percent": 79.71562183218597,
+      "width": 79.71562183218597,
+      "seconds": 3.3606529882963296,
+      "accuracy": 0.9806615776081424,
+      "style": ""
+    },
+    {
+      "method": "CatBoost",
+      "label": "CatBoost",
+      "skill": 0.7970010378539727,
+      "percent": 79.70010378539727,
+      "width": 79.70010378539727,
+      "seconds": 6.852134272592569,
+      "accuracy": 0.9791348600508906,
+      "style": ""
+    },
+    {
+      "method": "Random Forest",
+      "label": "Random Forest",
+      "skill": 0.7946782485050904,
+      "percent": 79.46782485050903,
+      "width": 79.46782485050903,
+      "seconds": 7.64601087437036,
+      "accuracy": 0.9786259541984732,
+      "style": "forest"
+    },
+    {
+      "method": "KNN imputer",
+      "label": "KNN imputer",
+      "skill": 0.7814436892087234,
+      "percent": 78.14436892087234,
+      "width": 78.14436892087234,
+      "seconds": 18.32210577911114,
+      "accuracy": 0.978117048346056,
+      "style": ""
+    },
+    {
+      "method": "LightGBM chained",
+      "label": "LightGBM chained",
+      "skill": 0.776010117213001,
+      "percent": 77.6010117213001,
+      "width": 77.6010117213001,
+      "seconds": 0.4371414817777609,
+      "accuracy": 0.976590330788804,
+      "style": ""
+    },
+    {
+      "method": "miceforest direct",
+      "label": "miceforest direct",
+      "skill": 0.7754916809723481,
+      "percent": 77.54916809723481,
+      "width": 77.54916809723481,
+      "seconds": 0.7687440235555039,
+      "accuracy": 0.9837150127226464,
+      "style": ""
+    },
+    {
+      "method": "IterativeImputer",
+      "label": "IterativeImputer",
+      "skill": 0.7604925882985925,
+      "percent": 76.04925882985924,
+      "width": 76.04925882985924,
+      "seconds": 0.6576459025396847,
+      "accuracy": null,
+      "style": ""
+    },
+    {
+      "method": "Gaussian EM",
+      "label": "GMM (Gaussian EM)",
+      "skill": 0.7389234103335048,
+      "percent": 73.89234103335049,
+      "width": 73.89234103335049,
+      "seconds": 0.1165110940740797,
+      "accuracy": 0.9842239185750636,
+      "style": "gmm"
+    },
+    {
+      "method": "Predictive MissForest",
+      "label": "Predictive MissForest",
+      "skill": 0.7213622629325614,
+      "percent": 72.13622629325614,
+      "width": 72.13622629325614,
+      "seconds": 3.4055576438518647,
+      "accuracy": 0.981679389312977,
+      "style": ""
+    },
+    {
+      "method": "Masked MLP",
+      "label": "Masked MLP",
+      "skill": 0.7064593567980189,
+      "percent": 70.64593567980188,
+      "width": 70.64593567980188,
+      "seconds": 0.5621942321481442,
+      "accuracy": 0.983206106870229,
+      "style": ""
+    },
+    {
+      "method": "MICE-PMM",
+      "label": "MICE-PMM",
+      "skill": 0.6929298986669902,
+      "percent": 69.29298986669902,
+      "width": 69.29298986669902,
+      "seconds": 1.2341002915555577,
+      "accuracy": 0.9760814249363868,
+      "style": ""
+    },
+    {
+      "method": "Median",
+      "label": "Median",
+      "skill": 0.0,
+      "percent": 0.0,
+      "width": 0,
+      "seconds": 0.0109745328571338,
+      "accuracy": 0.2809160305343511,
+      "style": ""
+    }
+  ],
+  "gmm_to_forest_runtime_ratio": 65.62474530973762,
+  "minimum_prediction_coverage": 1.0,
+  "tasks_with_warnings": 175,
+  "completed_tables": [
+    {
+      "file": "CatBoost.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/CatBoost.csv"
+    },
+    {
+      "file": "Gaussian_EM.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/Gaussian_EM.csv"
+    },
+    {
+      "file": "HistGradientBoosting.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/HistGradientBoosting.csv"
+    },
+    {
+      "file": "IterativeImputer.csv",
+      "rows": 10000,
+      "missing": 1965,
+      "href": "../../reference_results/tables/6_completed_tables/IterativeImputer.csv"
+    },
+    {
+      "file": "KNN_imputer.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/KNN_imputer.csv"
+    },
+    {
+      "file": "LightGBM_chained.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/LightGBM_chained.csv"
+    },
+    {
+      "file": "MICE-PMM.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/MICE-PMM.csv"
+    },
+    {
+      "file": "Masked_MLP.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/Masked_MLP.csv"
+    },
+    {
+      "file": "Median.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/Median.csv"
+    },
+    {
+      "file": "Predictive_MissForest.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/Predictive_MissForest.csv"
+    },
+    {
+      "file": "Random_Forest.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/Random_Forest.csv"
+    },
+    {
+      "file": "miceforest_direct.csv",
+      "rows": 10000,
+      "missing": 0,
+      "href": "../../reference_results/tables/6_completed_tables/miceforest_direct.csv"
+    }
+  ]
+}

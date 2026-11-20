@@ -57,6 +57,22 @@ The first overhead-conductor experiment is controlled material reconstruction:
 hide known synthetic material values, apply comparable imputation methods, and
 measure recovery accuracy and coverage against the hidden truth.
 
+## Final shared study and client handover
+
+The [combined final study](experiments/shared_final_study/START_HERE.md) contains
+the team's eleven-imputer comparison, median/mode baseline, synthetic inputs,
+archived results, completed datasets and automated offline report. Its
+[submission guide](experiments/shared_final_study/SUBMISSION.md) explains the
+GitHub/Jira handover and the optional original saved-prediction package.
+
+Run this study in its own **Python 3.12** environment, using its local
+`requirements.txt`; the root setup above does not install its dependencies.
+From the `experiments/shared_final_study` folder, `python run_study.py` regenerates
+the archived-results report without fitting. Quick/full modes fit fresh models.
+The earlier Subteam A benchmark below uses a separate **Python 3.11** environment
+and a different evaluation protocol; its figures are supporting evidence, not
+interchangeable scores for the shared final study.
+
 ## Subteam A transformer benchmark and product review
 
 The [integrated transformer benchmark](experiments/subteam_a_transformer_benchmark/README.md) contains Rishank Goyal's existing Gaussian EM, Predictive MissForest, masked MLP and reference-method study using Subteam C's synthetic data. The [integration record](experiments/subteam_a_transformer_benchmark/INTEGRATION.md) identifies the source repository and imported commit.

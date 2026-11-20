@@ -1,0 +1,25 @@
+# Local environments, package builds and notebook caches.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.DS_Store
+._*
+__MACOSX/
+
+# Fresh experiment outputs are local; archived evidence is in reference_results/.
+!outputs/
+outputs/*
+!outputs/imputation-study/
+outputs/imputation-study/*
+!outputs/imputation-study/runs/
+outputs/imputation-study/runs/*
+!outputs/imputation-study/runs/README.md
+reports/*
+!reports/published/
+!reports/selection_audit.json

@@ -1,0 +1,45 @@
+# Verification of the automated handover
+
+The original numerical/model code and scientific inputs were kept intact. `ORIGINAL_SOURCES.json` records the hashes from the two supplied archives. The package builder checks all **25 original Python package modules**, **30 input CSVs** and **58 result CSVs** before writing a client archive.
+
+## Completed checks
+
+- **68 tests passed:** the original 62 model/study tests plus six new checks of reporting, provenance, configuration and selection.
+- **Fresh quick-study workflow:** all **3,060 tasks succeeded**, with zero failed tasks. The quick profile uses 600 sampled rows and small models; these results are diagnostic, not final research findings. Model iteration warnings are retained in `execution.log` rather than interpreted as task failures.
+- **Saved-prediction reevaluation:** the completed quick run was reevaluated and reported without refitting. A clean extracted archive also completed a fresh 3,060-task quick run. All twelve completed datasets agreed between the two seeded executions within numerical tolerance.
+- **Selection audit:** all eight published tuned choices match the declared rule when reapplied to the supplied candidate scores.
+- **Replacement tuning runner:** a two-candidate, three-fold, three-scenario GMM diagnostic completed on 600 rows. It writes its new selection separately. It uses measured data only and does not claim to reproduce unrecorded historical remasking draws.
+- **Published report:** all 54 supplied charts decoded in browser testing. Method/field filters, full-size chart inspection, PNG downloads and local result-file links worked. No JavaScript page errors were observed.
+- **Responsive and print layout:** checked at 1440-pixel desktop width and 390-pixel mobile width, with no page-level horizontal overflow. Charts remain visible in print styling.
+- **Reference-result consistency, before the update:** all twelve completed datasets matched 179 target/model score groups. The 29,928 GMM-imputed reference cells matched an independent five-fold rerun; numeric skill was 0.7389234103 and model-ID accuracy 98.4224%.
+
+The assembled archive is also verified from a fresh extraction. Machine-readable details are in `verification.json`.
+
+## What these checks do not claim
+
+The supplied full-study results are the original archived run **20261115-121714**, not a newly completed 3,580-task full refit. The automated full command is provided; the end-to-end execution test uses the quick profile. The new report distinguishes those sources prominently.
+
+The original separate Subteam A repository's 32 tests also passed during the earlier review, but that repository is not needed to execute this integrated shared-study package. No model is certified for operational SAPN use by these synthetic checks.
+
+## Final-submission check — 20 November 2026
+
+The PGS219-265 integration was checked again before submission:
+
+- All **68 tests passed** in 38.02 seconds using Python 3.12.11; `pip check`
+  reported no broken requirements.
+- All 25 original scientific modules, 30 input CSVs and 58 result CSVs retained
+  their recorded SHA-256 hashes. Their staged Git blobs also matched, and
+  `.gitattributes` now prevents checkout line-ending conversion on other platforms.
+- The selection audit recovered all eight recorded choices without new tuning.
+- A fresh extraction completed the **3,060-task quick workflow with zero failed
+  tasks**, including CSVs, figures and the automatically generated report.
+- The published report decoded all 54 embedded charts, used no network requests,
+  produced no JavaScript errors and had 72 valid local report/download links.
+- The client ZIP was rebuilt with the package builder to exclude macOS metadata,
+  local environments, build/cache files and generated quick-run predictions.
+
+The existing pinned dependency environment was checked and reused; no new
+installation was claimed. No new 3,580-task full refit was performed. Package 03
+was unavailable, so the original full run's raw-prediction reevaluation was not
+tested in this final check. See `FINAL_SUBMISSION_AUDIT.json` for the new run ID,
+warning counts and runtime file hashes.
