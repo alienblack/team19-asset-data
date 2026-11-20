@@ -1,6 +1,6 @@
 # Phase 1 pilot evidence manifest
 
-Most synthetic pilot output is Git-ignored. The two per-seed metric CSVs below are committed so reviewers can inspect the report's inputs without rerunning the pilot. These SHA-256 hashes identify the verified local run and its key summaries. Re-run the command in `overhead_v3_phase1_runbook.md` in a new output directory, then compare the generated files. The five-seed test data and tuning-only tree-count check are separate experiments.
+Most synthetic pilot output is Git-ignored. The two per-seed metric CSVs below are committed so reviewers can inspect the report's inputs without rerunning the pilot. These SHA-256 hashes identify the original Phase 1 run at commit `2d7e370` and its key summaries; later evaluation work adds metrics to the source. Re-run the command in `overhead_v3_phase1_runbook.md` from that commit in a new output directory, then compare the generated files. The five-seed test data and tuning-only tree-count check are separate experiments.
 
 | File | SHA-256 |
 | --- | --- |

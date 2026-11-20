@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +17,7 @@ import pandas as pd
 import sklearn
 from matplotlib import pyplot as plt
 from scipy.stats import wasserstein_distance
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, mean_absolute_error, recall_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, mean_absolute_error, recall_score
 from sklearn.model_selection import train_test_split
 
 from team19_asset_data.imputation.predictive_missforest import (
@@ -182,6 +183,40 @@ def _covered_probability(year: int) -> float:
     return .08 if year >= 1995 else .035 if year >= 1980 else .008
 
 
+@lru_cache(maxsize=1)
+def _generator_year_components() -> tuple[Config, StrengthConfig, np.ndarray, np.ndarray]:
+    config = Config.from_yaml(ROOT / "config/overhead_conductors/generation.yaml")
+    strength = StrengthConfig.from_yaml(
+        ROOT / "config/overhead_conductors/relationship_strength/strength_100.yaml"
+    )
+    years, prior = exact_year_prior()
+    return config, strength, years, prior
+
+
+def generator_year_pmf(row: pd.Series) -> np.ndarray:
+    """Evaluator-only conditional year law given recorded generator predictors."""
+    config, strength, years, prior = _generator_year_components()
+    voltage = row["voltage_category"]
+    corrosion = row["corrosion_zone"]
+    covering = row["covering"]
+    posterior = prior * np.array([
+        config.voltage_distribution_for_era(_voltage_era(int(year)))[voltage]
+        for year in years
+    ], dtype=float)
+    posterior *= np.array([
+        _covered_probability(int(year)) if covering == "Covered" else 1 - _covered_probability(int(year))
+        for year in years
+    ], dtype=float)
+    if pd.notna(row["material"]):
+        posterior *= np.array([
+            configured_material_probabilities(int(year), voltage, corrosion, config, strength)[
+                MATERIALS.index(str(row["material"]))
+            ]
+            for year in years
+        ], dtype=float)
+    return posterior / posterior.sum()
+
+
 def generator_reference_predictions(observed: pd.DataFrame, masks: pd.DataFrame) -> pd.DataFrame:
     """Exact Phase 1 conditional reference, computed only by the evaluator.
 
@@ -339,7 +374,8 @@ class ConditionalBaseline:
         return {"prediction": MATERIALS[int(np.argmax(probs))], "probabilities": probs,
                 "evidence": f"{level};n={n}", "fallback_reason": fallback_reason}
 
-    def year(self, row: pd.Series) -> dict[str, object]:
+    def year_samples(self, row: pd.Series) -> tuple[str, np.ndarray, str]:
+        """Select the fitting-year sample using the point model's backoff."""
         selected = ("global", self.global_years)
         fallback_reason = ""
         for keys, groups in zip(self.year_levels, self.year_groups):
@@ -353,6 +389,10 @@ class ConditionalBaseline:
                 break
             selected = ("x".join(keys), years)
         level, years = selected
+        return level, years, fallback_reason
+
+    def year(self, row: pd.Series) -> dict[str, object]:
+        level, years, fallback_reason = self.year_samples(row)
         point = int(np.rint(np.median(years)))
         return {"prediction": point, "q10": float(np.quantile(years, .10)),
                 "q50": float(np.median(years)), "q90": float(np.quantile(years, .90)),
@@ -605,6 +645,8 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
             {"method": method, "target": "material", "measure": "brier", "value": float(np.mean(np.sum((probs - (actual_m[:, None] == np.array(MATERIALS))) ** 2, axis=1)))},
             {"method": method, "target": "material", "measure": "accuracy", "value": float(accuracy_score(actual_m, predicted_m))},
             {"method": method, "target": "material", "measure": "balanced_accuracy", "value": float(balanced_accuracy_score(actual_m, predicted_m))},
+            {"method": method, "target": "material", "measure": "macro_f1", "value": float(f1_score(actual_m, predicted_m, labels=MATERIALS, average="macro", zero_division=0))},
+            {"method": method, "target": "material", "measure": "fill_coverage", "value": float(np.mean(pd.notna(predicted_m)))},
         ])
         recalls = recall_score(actual_m, predicted_m, labels=MATERIALS, average=None, zero_division=0)
         rows.extend({"method": method, "target": "material", "measure": f"recall_{label.lower()}", "value": float(value)} for label, value in zip(MATERIALS, recalls))
@@ -614,6 +656,7 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
         q90 = years["year_q90"].to_numpy(dtype=float)
         rows.extend([
             {"method": method, "target": "installation_year", "measure": "mae_years", "value": float(mean_absolute_error(actual_y, predicted_y))},
+            {"method": method, "target": "installation_year", "measure": "fill_coverage", "value": float(np.mean(np.isfinite(predicted_y)))},
             {"method": method, "target": "installation_year", "measure": "signed_bias_years", "value": float(np.mean(predicted_y - actual_y))},
             {"method": method, "target": "installation_year", "measure": "age_band_accuracy", "value": float(np.mean(_age_band(pd.Series(actual_y)).to_numpy() == _age_band(pd.Series(predicted_y)).to_numpy()))},
             {"method": method, "target": "installation_year", "measure": "raw_q10_q90_empirical_coverage", "value": float(np.mean((q10 <= actual_y) & (actual_y <= q90)))},
@@ -647,6 +690,7 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
                                "value": float(weighted_expected - np.average(truth_test["material"].eq(label), weights=weights))})
         population.extend([
             {"method": method, "measure": "aged_50_or_older_share_error", "value": float((SNAPSHOT_YEAR - filled["installation_year"].astype(float)).ge(50).mean() - (SNAPSHOT_YEAR - truth_test["installation_year"].astype(float)).ge(50).mean())},
+            {"method": method, "measure": "year_std_error", "value": float(filled["installation_year"].astype(float).std(ddof=0) - truth_test["installation_year"].astype(float).std(ddof=0))},
             {"method": method, "measure": "year_wasserstein", "value": float(wasserstein_distance(filled["installation_year"].astype(float), truth_test["installation_year"].astype(float)))},
             {"method": method, "measure": "length_weighted_aged_50_or_older_share_error", "value": float(np.average((SNAPSHOT_YEAR - filled["installation_year"].astype(float)).ge(50), weights=weights) - np.average((SNAPSHOT_YEAR - truth_test["installation_year"].astype(float)).ge(50), weights=weights))},
             {"method": method, "measure": "length_weighted_year_wasserstein", "value": float(wasserstein_distance(filled["installation_year"].astype(float), truth_test["installation_year"].astype(float), u_weights=weights, v_weights=weights))},
@@ -667,6 +711,8 @@ def evaluate(predictions: pd.DataFrame, reference: pd.DataFrame, observed: pd.Da
     ])
     population.append({"method": "complete_case", "measure": "aged_50_or_older_share_error",
                        "value": float((SNAPSHOT_YEAR - complete["installation_year"].astype(float)).ge(50).mean() - (SNAPSHOT_YEAR - truth_test["installation_year"].astype(float)).ge(50).mean())})
+    population.append({"method": "complete_case", "measure": "year_std_error",
+                       "value": float(complete["installation_year"].astype(float).std(ddof=0) - truth_test["installation_year"].astype(float).std(ddof=0))})
     population.append({"method": "complete_case", "measure": "year_wasserstein",
                        "value": float(wasserstein_distance(complete["installation_year"].astype(float), truth_test["installation_year"].astype(float)))})
     population.append({"method": "complete_case", "measure": "length_weighted_aged_50_or_older_share_error",
