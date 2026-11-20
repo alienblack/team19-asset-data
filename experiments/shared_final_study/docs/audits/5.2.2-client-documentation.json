@@ -1,0 +1,25 @@
+{
+  "version": "5.2.2",
+  "checked_utc": "2026-11-20T12:10:27.758551+00:00",
+  "scope": "Client README, screenshots, transformer preset and version-control handover guide; no model changes",
+  "local_markdown_links_and_anchors_checked": 26,
+  "broken_links": [],
+  "screenshots": {
+    "transformer-report.png": {
+      "width": 3018,
+      "height": 1646,
+      "sha256": "bc7f9c8bec182aae9339f3a7fb290bdd82a9e365e57464bcef1d53f32bb10d27"
+    },
+    "dataset-workbench.png": {
+      "width": 3024,
+      "height": 1626,
+      "sha256": "700f41793afa6d0023f73b46c4629e32a3fbe4811d05b15ab93908a98dc17fb9"
+    }
+  },
+  "transformer_configuration": "Validated against matching 10000-row, 15-column input/truth; matches demonstrated run after removing profiling-only metadata",
+  "backend_and_saved_result_files_unchanged": 200,
+  "scientific_code_changed": false,
+  "new_model_refit_in_this_documentation_update": false,
+  "previous_validation": "91 Python tests and 12 browser checks passed in version 5.2.1; preserved in UI_REVIEW_AUDIT.json",
+  "transformer_product_demonstration": "Nine validation fits and three full 10000-row exports succeeded; evidence in docs/transformer-example-run.json"
+}

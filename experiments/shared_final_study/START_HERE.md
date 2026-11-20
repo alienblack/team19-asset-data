@@ -77,3 +77,11 @@ file map, commands, troubleshooting and limits. [SUBMISSION.md](SUBMISSION.md)
 maps this release to GitHub and Jira. [The testing guide](docs/TESTING.md) gives
 a browser checklist and optional automated UI checks. Validation is recorded in `VERIFICATION.md`
 and the audit JSON files.
+
+## Try transformer data next
+
+The [README transformer walkthrough](README.md#try-the-supplied-transformer-dataset)
+identifies the matching input/truth files, field types, groups and tolerances.
+It also explains existing gaps versus additional masking, and how to compare
+0/5/10% added noise without accidentally compounding the input's existing noise.
+The README includes screenshots of the workbench and generated report.

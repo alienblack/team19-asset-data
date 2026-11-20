@@ -25,3 +25,17 @@ python run_study.py --mode dataset --dataset examples/example_assets.csv \
 
 In PowerShell or Command Prompt, enter that command on one line. Choose another
 output folder for the next run; an existing run is not silently overwritten.
+
+## Transformer product walkthrough
+
+`transformer_workbench_config.json` is the reusable configuration from the
+first product run on the bundled transformer data. It uses the existing
+20%-gap, 5%-noise measured CSV and its matching truth, evaluates 1,000 rows
+with three folds, adds 20% extra scattered masking and adds no further noise.
+It sets explicit per-field tolerances, groups and bounds and excludes the
+random placebo from mean numeric skill. These are example evaluation settings,
+not a calibrated auto-fill policy.
+
+See the [README walkthrough](../README.md#try-the-supplied-transformer-dataset)
+for the CLI command or corresponding browser steps. The browser currently
+accepts CSV uploads; it does not import this JSON automatically.

@@ -1,5 +1,28 @@
 # Verification of the automated handover
 
+## Version 5.2.2 - client documentation and transformer walkthrough
+
+- Added the supplied workbench/report screenshots, a transformer walkthrough,
+  field tolerances and groups, noise/masking comparisons, report interpretation,
+  sharing instructions and a client release/version-control checklist.
+- Checked **26 local Markdown links/anchors** with no unresolved targets. Both
+  supplied PNGs decode correctly and retain their exact source bytes.
+- Validated `examples/transformer_workbench_config.json` against the supplied
+  10,000-row, 15-column input/truth pair. Its modelling settings match the actual
+  product demonstration after removing profiling-only column metadata.
+- The preceding transformer product demonstration succeeded: **nine validation
+  fits**, **three 10,000-row completion exports**, no model-stage failures and
+  recorded values retained. Its example metadata is in
+  `docs/transformer-example-run.json`; this is one diagnostic condition.
+- All **200 protected backend/result files remain byte-identical**. No model,
+  metric, UI or dependency-pin change was made in this documentation update.
+  The 91 Python tests and 12 browser checks below refer to version 5.2.1; they
+  have not been relabelled as fresh runs for a documentation-only change.
+
+The documentation audit is `docs/audits/5.2.2-client-documentation.json`.
+PR merge, release tagging and client publication remain distinct steps; a
+built ZIP or pushed documentation commit does not imply they have occurred.
+
 ## Version 5.2.1 - documentation and workbench usability
 
 The README now includes a first-run walkthrough, navigation and troubleshooting.

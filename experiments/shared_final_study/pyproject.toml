@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synthetic-imputation-study"
-version = "5.2.1"
+version = "5.2.2"
 description = "Synthetic asset imputation study with automated execution and reporting"
 requires-python = ">=3.12,<3.13"
 

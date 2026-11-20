@@ -1,0 +1,193 @@
+{
+  "title": "Transformer data \u2014 20% existing gaps, \u00b15% recorded noise",
+  "columns": [
+    {
+      "name": "x",
+      "type": "numeric",
+      "group": "location",
+      "tolerance_kind": "absolute",
+      "tolerance": 5,
+      "lower": 0,
+      "upper": 99,
+      "integer": true,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "y",
+      "type": "numeric",
+      "group": "location",
+      "tolerance_kind": "absolute",
+      "tolerance": 5,
+      "lower": 0,
+      "upper": 99,
+      "integer": true,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "install_date",
+      "type": "numeric",
+      "group": "dates",
+      "tolerance_kind": "absolute",
+      "tolerance": 30,
+      "lower": 0,
+      "upper": null,
+      "integer": true,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "model_id",
+      "type": "categorical",
+      "group": "dates",
+      "tolerance_kind": "none",
+      "tolerance": null,
+      "lower": null,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "altitude",
+      "type": "numeric",
+      "group": "location",
+      "tolerance_kind": "absolute",
+      "tolerance": 5,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "measured_humid",
+      "type": "numeric",
+      "group": "environment",
+      "tolerance_kind": "relative",
+      "tolerance": 0.15,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "measured_salt",
+      "type": "numeric",
+      "group": "environment",
+      "tolerance_kind": "relative",
+      "tolerance": 0.15,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "measured_overgrowth",
+      "type": "numeric",
+      "group": "environment",
+      "tolerance_kind": "relative",
+      "tolerance": 0.15,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "life",
+      "type": "numeric",
+      "group": "",
+      "tolerance_kind": "absolute",
+      "tolerance": 500,
+      "lower": 0,
+      "upper": 100000,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "random_placebo",
+      "type": "numeric",
+      "group": "",
+      "tolerance_kind": "relative",
+      "tolerance": 0.15,
+      "lower": 0,
+      "upper": 1,
+      "integer": false,
+      "exclude_from_mean": true
+    },
+    {
+      "name": "measured_gas_a",
+      "type": "numeric",
+      "group": "gases",
+      "tolerance_kind": "relative",
+      "tolerance": 0.1,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "measured_gas_b",
+      "type": "numeric",
+      "group": "gases",
+      "tolerance_kind": "relative",
+      "tolerance": 0.1,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "measured_gas_c",
+      "type": "numeric",
+      "group": "gases",
+      "tolerance_kind": "relative",
+      "tolerance": 0.1,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "total_gas",
+      "type": "numeric",
+      "group": "gases",
+      "tolerance_kind": "relative",
+      "tolerance": 0.05,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "leakage",
+      "type": "numeric",
+      "group": "",
+      "tolerance_kind": "relative",
+      "tolerance": 0.1,
+      "lower": 0.8,
+      "upper": 1.2,
+      "integer": false,
+      "exclude_from_mean": false
+    }
+  ],
+  "methods": [
+    "median",
+    "forest",
+    "gaussian"
+  ],
+  "folds": 3,
+  "repeats": 1,
+  "seed": 219,
+  "mask_rate": 0.2,
+  "masking": "scattered",
+  "noise": 0,
+  "noise_columns": [],
+  "evaluation_rows": 1000,
+  "trees": 50,
+  "passes": 3,
+  "clusters": 4,
+  "em_steps": 12,
+  "regularisation": 0.025,
+  "epochs": 30,
+  "neighbors": 15,
+  "ridge_alpha": 10,
+  "chains": 3,
+  "donors": 5
+}
