@@ -1,0 +1,7 @@
+{
+  "name": "team19-workbench-ui-tests",
+  "private": true,
+  "description": "Optional browser smoke checks for the local Team 19 workbench",
+  "scripts": { "test": "node smoke.mjs" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

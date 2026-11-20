@@ -23,3 +23,6 @@ outputs/imputation-study/runs/*
 reports/*
 !reports/published/
 !reports/selection_audit.json
+
+# Optional browser-test dependencies.
+node_modules/

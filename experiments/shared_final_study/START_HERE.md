@@ -45,8 +45,9 @@ python run_study.py --mode guided
 ```
 
 Your browser opens at `http://127.0.0.1:8765`. Choose a CSV, confirm field types,
-choose methods and parameters, then press **Run study & generate report**. The
-synthetic example button is an easy first check. A matching clean truth CSV is
+choose methods and parameters, then press **Run study & generate report**. Click
+**Use example data** for a first check: expect 240 records, 7 columns and 207
+missing cells. For uploads, choose the file and click **Load dataset**. A matching clean truth CSV is
 optional. Without it, validation hides known recorded values on held-out rows.
 
 After setup, macOS users can also open `Start_Workbench.command`; Windows users
@@ -73,5 +74,6 @@ original run's saved per-cell predictions without fitting.
 
 Read [README.md](README.md) for the full methodology, field/parameter reference,
 file map, commands, troubleshooting and limits. [SUBMISSION.md](SUBMISSION.md)
-maps this release to GitHub and Jira. Validation is recorded in `VERIFICATION.md`
+maps this release to GitHub and Jira. [The testing guide](docs/TESTING.md) gives
+a browser checklist and optional automated UI checks. Validation is recorded in `VERIFICATION.md`
 and the audit JSON files.

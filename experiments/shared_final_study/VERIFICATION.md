@@ -1,5 +1,31 @@
 # Verification of the automated handover
 
+## Version 5.2.1 - documentation and workbench usability
+
+The README now includes a first-run walkthrough, navigation and troubleshooting.
+[docs/TESTING.md](docs/TESTING.md) provides manual checks and the optional
+Playwright browser test. Advanced field controls, evaluation settings and extra
+methods are collapsed until requested. Upload selection and validation states
+were clarified; the modelling and scoring code is unchanged.
+
+- **91 Python tests passed**, with the same one expected small-budget
+  IterativeImputer convergence warning. `pip check` found no broken requirements.
+- **12 browser checks passed**: example loading, uploads with aligned truth,
+  scattered/grouped runs, selected-field noise, invalid uploads/settings, report
+  filters, enlarged charts, downloads, print preparation and responsive layout.
+- A separate run with the unmodified default UI settings completed successfully
+  on the 240-row example. No uncaught browser JavaScript errors were observed.
+- Desktop (1512 px) and mobile (390 px) screenshots were visually inspected.
+  Tables scroll within their panels on small screens.
+- **200 protected backend/result files retain their exact SHA-256 hashes**,
+  including all model Python, archived results and saved example report outputs.
+  Completed synthetic exports retain the supplied observed inputs.
+
+`UI_REVIEW_AUDIT.json` records this follow-up. `FINAL_SUBMISSION_AUDIT.json` and
+existing generated reports remain historical version-5.2.0 records; they have
+not been relabelled as new scientific runs. The optional browser-test runtime is
+excluded from the handover archive.
+
 ## Version 5.2 - guided datasets and report redesign
 
 - **91 tests passed**, with one expected IterativeImputer convergence warning
@@ -22,7 +48,7 @@
   their exact hashes. The original published scientific summary is identical.
   Dependency pins are unchanged; the existing Python 3.12 environment was reused.
 
-The current audit is `FINAL_SUBMISSION_AUDIT.json`. The earlier version-5.1 audit
+The version-5.2 audit is `FINAL_SUBMISSION_AUDIT.json`. The earlier version-5.1 audit
 is retained in `docs/audits/5.1-final-submission.json`; its code hashes refer to that
 earlier release. New-dataset reports use their own schemas and generic settings.
 They are not relabelled reproductions of the original benchmark. No new full

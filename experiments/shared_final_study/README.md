@@ -1,14 +1,57 @@
-# Team 19 asset-data imputation
+# Team 19 · Asset data imputation
 
-Version 5.2 - guided CSV experiments and generated reports, alongside the
-preserved final synthetic benchmark.
+A local workbench for comparing ways to fill missing asset attributes. Load a
+CSV, check its fields, run a controlled comparison and download completed data
+with a report of what worked and where it failed.
 
-This project compares ways to fill missing asset attributes and measures where
-their estimates become unreliable. It includes the team's original transformer
-study and a separate, configurable workflow for other tabular CSV datasets.
+**Version 5.2.1 · Python 3.12 · Local browser interface**
 
-**Open [START_HERE.md](START_HERE.md) for setup, or
-[the supplied report](reports/published/report.html) to read the original results.**
+## Start here
+
+| What you want to do | Where to go |
+| --- | --- |
+| Try the app for the first time | [Install](#2-installation), then follow the [five-minute test](#your-first-test-about-five-minutes) |
+| Run your own CSV | [Browser walkthrough](#3-guided-browser-workflow) and [input requirements](#4-input-requirements) |
+| Understand the results | [Metrics and interpretation](#8-metrics-and-interpretation) |
+| Repeat a run from a saved configuration | [Command-line workflow](#10-repeat-a-new-csv-run-from-the-command-line) |
+| Read the original study | [Published report](reports/published/report.html) |
+| Test uploads, settings and downloads | [Testing guide](docs/TESTING.md) |
+| Prepare the final submission | [Submission checklist](SUBMISSION.md) |
+
+### Launch after installation
+
+From this project's folder, with its environment activated:
+
+```sh
+python run_study.py --mode guided
+```
+
+Open **http://127.0.0.1:8765** if your browser does not open automatically. Keep
+the terminal running while you use the app. Press **Ctrl+C** to stop it.
+
+### Your first test (about five minutes)
+
+1. Click **Use example data**. This loads the supplied synthetic demonstration;
+   no upload or reference file is needed.
+2. Check that the summary shows **240 records, 7 columns and 207 missing cells**.
+   `asset_id` should be ignored and `material` categorical. Open **Advanced field
+   settings** if you want to inspect limits, integer rounding or field groups.
+3. Keep the three selected methods: **Median / mode**, **Predictive MissForest**
+   and **Gaussian EM**. Leave **20%** additional masking and **Scattered gaps**.
+4. Click **Run study & generate report** and wait for **Report ready**. Then
+   select **Open report**. Inspect the method comparison, field results and
+   limitations; an error from a method must be visible rather than silently ignored.
+5. Download a completed CSV and the run configuration from the report. The CSV
+   should have the same **240 records and 7 columns**, with recorded values
+   retained. For a PDF, use the report's print action and choose **Save as PDF**.
+
+The demonstration has weakly predictable material labels: a low material score
+can be a valid finding. There is no fixed skill value every successful run must
+reach. Check completion, preserved inputs and honest reporting of failures.
+
+The app runs on your computer and does not send your dataset to a hosted model.
+New runs are saved under `outputs/dataset-workbench/`; the original published
+results are retained separately.
 
 ## 1. Choose the correct workflow
 
@@ -92,16 +135,21 @@ does not preserve executable permissions, use the terminal command above.
 ### Step 1 - choose data
 
 Select the CSV containing your recorded values and gaps. A second clean truth CSV
-is optional. Click **Read dataset**. The app reports row count, fields, missing
-cells and suggested column types. Changing a selected file requires reading it
+is available under **Reference data (optional)**. Click **Load dataset**. The app reports row count, fields, missing
+cells and suggested column types. Changing a selected file requires loading it
 again before a run can start.
 
-For a first demonstration, click **Try the synthetic asset example**. The example
+For a first demonstration, click **Use example data**. The example
 has seven columns, five text-valued material labels and 240 records. It is a new
 demonstration, not SAPN data or the archived study. Its independently drawn
 material labels deliberately have little predictable signal.
 
 ### Step 2 - confirm fields
+
+The main table shows column names, suggested types and tolerances. Use
+**Advanced field settings** for bounds, groups, integer rounding and controls.
+Choosing **Grouped gaps** also reveals these settings. The app suggests field
+types; you remain responsible for confirming their meaning.
 
 | Setting | Meaning | Example |
 | --- | --- | --- |
@@ -131,9 +179,14 @@ them blank is usually clearer than imposing an arbitrary date range.
 
 ### Step 3 - configure the experiment
 
-Select the methods. Median/mode is always retained as the common reference.
-Choose folds, repetitions, a seed and an additional masking rate. The optional
-noise test perturbs only explicitly selected numeric fields.
+The three initial choices are median/mode, Predictive MissForest and Gaussian EM.
+Open **More methods** to choose additional models. Median/mode is always retained
+as the common reference.
+
+Set the additional masking rate, missingness pattern and evaluation sample.
+**Evaluation settings** contains folds, repetitions and seed; **Model settings**
+contains model sizes and iteration budgets. Their defaults are recorded in every
+run. The optional noise test perturbs only explicitly selected numeric fields.
 
 ### Step 4 - run and review
 
@@ -461,7 +514,8 @@ and are never silently substituted into published results.
 
 ```text
 START_HERE.md                 Short setup and run guide
-README.md                     This detailed guide
+README.md                     Setup, usage and methodology guide
+docs/TESTING.md               Browser test checklist and automated UI checks
 SUBMISSION.md                 GitHub/Jira/client submission map
 run_study.py                  One entry point; adds local src to the import path
 Start_Workbench.command       macOS launcher after setup
@@ -499,6 +553,11 @@ formatting, not those EM equations.
 
 ## 14. Verification and release construction
 
+Use the [testing guide](docs/TESTING.md) for the browser walkthrough, negative
+checks, grouped/noise tests and the optional Playwright browser smoke test.
+The Python tests cover the scientific workflow and server behaviour; browser
+tests also check the controls, progress, report and downloads as a user sees them.
+
 ```sh
 python -m pip check
 python -m pytest -q
@@ -530,7 +589,7 @@ diagnostics as the full research experiment.
 | Wrong Python version | Check `python --version`; do not reuse the separate Subteam A Python 3.11 environment. |
 | Compiled-library loading error | Check the installed wheel/platform and the model library's required system runtime. Preserve the pinned package versions when resolving environment issues. |
 | Workbench port is already used | Reuse the existing workbench or start with `--port 8766`. |
-| Run button stays disabled | Choose the file and click Read dataset. Changing a file invalidates the previous inspection. |
+| Run button stays disabled | Choose the file and click Load dataset. Changing a file invalidates the previous inspection. |
 | Column cannot parse numerically | Change its role to categorical/date or correct its values; do not silently coerce errors into missing values. |
 | Date cannot parse | Use ISO dates, or explicitly convert the source before running. Numeric years should remain numeric. |
 | Grouped-mask error | Give at least two related modelled fields the same nonempty group name. |

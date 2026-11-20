@@ -226,7 +226,7 @@ def test_local_workbench_requires_its_token_and_blocks_path_escape():
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     base=f'http://127.0.0.1:{server.server_port}'
     try:
-        with urlopen(base) as response:assert b'Run an imputation study' in response.read()
+        with urlopen(base) as response:assert b'Fill missing asset data' in response.read()
         with pytest.raises(HTTPError) as error:
             urlopen(Request(base+'/api/run',data=b'{}',headers={'Content-Type':'application/json'}))
         assert error.value.code==403

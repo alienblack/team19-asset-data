@@ -14,7 +14,7 @@ ARCHIVE_ROOT=Path('Team19_Automated_Handover')
 def included(path):
     parts=path.relative_to(ROOT).parts
     if any(p in ('__pycache__','.pytest_cache','.venv','.git','.DS_Store','build','dist',
-                  '__MACOSX','.ipynb_checkpoints')
+                  '__MACOSX','.ipynb_checkpoints','node_modules')
            or p.endswith('.egg-info') or p.startswith('._') for p in parts):
         return False
     if path.suffix in ('.pyc','.pyo','.log'):

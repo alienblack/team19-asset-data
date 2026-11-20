@@ -2,7 +2,7 @@
 
 This folder is the combined Team 19 final study: the original code/input package
 01, result/figure package 02, and the automated execution/reporting handover.
-Version 5.2 also adds a local guided workflow for new CSV datasets, with a
+Version 5.2.1 includes a local guided workflow for new CSV datasets, with a
 separate configurable evaluation and report. It preserves the archived study.
 It is independent of the earlier Subteam A study elsewhere in this repository.
 Start with [START_HERE.md](START_HERE.md).
