@@ -574,6 +574,7 @@ class TransformResult:
     unknown_category_counts: dict[str, int]
     runtime_seconds: float
     scores: pd.DataFrame | None = None
+    final_pass_features: dict[str, pd.DataFrame] | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -1061,6 +1062,7 @@ class PredictiveMissForest:
         self,
         X_new: pd.DataFrame,
         capture_scores: bool,
+        feature_targets: tuple[str, ...] = (),
     ) -> TransformResult:
         self._require_fitted()
         started = perf_counter()
@@ -1080,12 +1082,16 @@ class PredictiveMissForest:
         )
 
         score_rows: list[dict[str, Any]] = []
+        feature_views: dict[str, pd.DataFrame] = {}
         index_values = X_new.index.to_numpy()
 
         for pass_number in range(1, config.n_passes + 1):
             for target in self.target_order_:
                 if target in self.unmodelled_targets_:
                     continue
+
+                if pass_number == config.n_passes and target in feature_targets:
+                    feature_views[target] = working.loc[:, list(self.features_[target])].copy()
 
                 rows = missing[target].to_numpy()
                 if not rows.any():
@@ -1148,7 +1154,22 @@ class PredictiveMissForest:
             unknown_category_counts=unknown_counts,
             runtime_seconds=perf_counter() - started,
             scores=scores,
+            final_pass_features=feature_views if feature_targets else None,
         )
+
+    def final_pass_features(self, X_new: pd.DataFrame, target: str) -> pd.DataFrame:
+        """Return the exact pre-update predictors used by a saved target forest.
+
+        Replays fitted models without refitting. Rows retain positional order and
+        include both observed and missing target rows for leaf-support audits.
+        """
+        self._require_fitted()
+        if target not in self.features_ or target in self.unmodelled_targets_:
+            raise ValueError(f"No fitted target forest for {target}")
+        result = self._replay(X_new, capture_scores=False, feature_targets=(target,))
+        if result.final_pass_features is None or target not in result.final_pass_features:
+            raise AssertionError(f"Final-pass predictors unavailable for {target}")
+        return result.final_pass_features[target]
 
     def _score_rows(
         self,

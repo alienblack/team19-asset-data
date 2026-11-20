@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -182,6 +183,40 @@ def _covered_probability(year: int) -> float:
     return .08 if year >= 1995 else .035 if year >= 1980 else .008
 
 
+@lru_cache(maxsize=1)
+def _generator_year_components() -> tuple[Config, StrengthConfig, np.ndarray, np.ndarray]:
+    config = Config.from_yaml(ROOT / "config/overhead_conductors/generation.yaml")
+    strength = StrengthConfig.from_yaml(
+        ROOT / "config/overhead_conductors/relationship_strength/strength_100.yaml"
+    )
+    years, prior = exact_year_prior()
+    return config, strength, years, prior
+
+
+def generator_year_pmf(row: pd.Series) -> np.ndarray:
+    """Evaluator-only conditional year law given recorded generator predictors."""
+    config, strength, years, prior = _generator_year_components()
+    voltage = row["voltage_category"]
+    corrosion = row["corrosion_zone"]
+    covering = row["covering"]
+    posterior = prior * np.array([
+        config.voltage_distribution_for_era(_voltage_era(int(year)))[voltage]
+        for year in years
+    ], dtype=float)
+    posterior *= np.array([
+        _covered_probability(int(year)) if covering == "Covered" else 1 - _covered_probability(int(year))
+        for year in years
+    ], dtype=float)
+    if pd.notna(row["material"]):
+        posterior *= np.array([
+            configured_material_probabilities(int(year), voltage, corrosion, config, strength)[
+                MATERIALS.index(str(row["material"]))
+            ]
+            for year in years
+        ], dtype=float)
+    return posterior / posterior.sum()
+
+
 def generator_reference_predictions(observed: pd.DataFrame, masks: pd.DataFrame) -> pd.DataFrame:
     """Exact Phase 1 conditional reference, computed only by the evaluator.
 
@@ -339,7 +374,8 @@ class ConditionalBaseline:
         return {"prediction": MATERIALS[int(np.argmax(probs))], "probabilities": probs,
                 "evidence": f"{level};n={n}", "fallback_reason": fallback_reason}
 
-    def year(self, row: pd.Series) -> dict[str, object]:
+    def year_samples(self, row: pd.Series) -> tuple[str, np.ndarray, str]:
+        """Select the fitting-year sample using the point model's backoff."""
         selected = ("global", self.global_years)
         fallback_reason = ""
         for keys, groups in zip(self.year_levels, self.year_groups):
@@ -353,6 +389,10 @@ class ConditionalBaseline:
                 break
             selected = ("x".join(keys), years)
         level, years = selected
+        return level, years, fallback_reason
+
+    def year(self, row: pd.Series) -> dict[str, object]:
+        level, years, fallback_reason = self.year_samples(row)
         point = int(np.rint(np.median(years)))
         return {"prediction": point, "q10": float(np.quantile(years, .10)),
                 "q50": float(np.median(years)), "q90": float(np.quantile(years, .90)),
