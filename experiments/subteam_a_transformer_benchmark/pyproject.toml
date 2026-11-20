@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sapn-subteam-a-imputation"
+version = "1.0.0"
+description = "Leakage-controlled synthetic asset imputation benchmark"
+requires-python = ">=3.11,<3.12"
+dependencies = ["numpy==1.24.3", "pandas==1.5.3", "scipy==1.10.1", "scikit-learn==1.3.0", "torch==2.0.1", "matplotlib==3.7.1", "threadpoolctl==2.2.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=7,<9"]
+
+[project.scripts]
+asset-impute = "subteam_a.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

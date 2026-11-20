@@ -1,0 +1,5 @@
+asset_id,target,component,posterior_weight,conditional_mean_days,conditional_sd_days,weighted_mean_contribution,selection
+3825,install_date,1,0.25474592391980166,474.1111687022608,106.14323367557819,120.77788771175437,Maximum component-membership entropy among hidden dates
+3825,install_date,2,7.34363373782164e-06,597.7504941801529,106.14323367557819,0.004389660695860929,Maximum component-membership entropy among hidden dates
+3825,install_date,3,0.1833963367216728,538.4080407366771,106.14323367557819,98.74206233259976,Maximum component-membership entropy among hidden dates
+3825,install_date,4,0.5618503957247877,514.0546152910287,106.14323367557819,288.82178902541796,Maximum component-membership entropy among hidden dates
