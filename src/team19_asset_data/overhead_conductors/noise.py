@@ -4,6 +4,13 @@ The module keeps the complete clean reference untouched and creates separate
 observed views with documented errors. Legacy predictor-noise scenarios leave
 material untouched; explicitly configured mixed-noise scenarios may corrupt
 material as an imputation target. The leakage field conductor_type is protected.
+
+Random numeric levels specify both the selected fraction and the maximum
+relative perturbation. Categorical levels specify the selected fraction.
+Same-seed random_numeric and categorical_replacement scenarios use nested
+row selections and independent streams per column. Mixed-noise scenarios
+retain their separate, previously published stream and year/age coupling.
+Installation-year corruption uses year_step, never a relative percent.
 """
 
 from __future__ import annotations
@@ -156,17 +163,39 @@ def _replace_categories(
         values.loc[index] = rng.choice(alternatives)
 
 
+def _stable_column_rng(seed: int, family: str, column: str) -> np.random.Generator:
+    """Stable independent stream per column, unaffected by other columns/rates."""
+    tag = f"{int(seed)}|{family}|{column}".encode("utf-8")
+    derived_seed = int.from_bytes(hashlib.sha256(tag).digest()[:8], "big")
+    return np.random.default_rng(derived_seed)
+
+
+
 def _apply_random_numeric(
     observed: pd.DataFrame,
     scenario: NoiseScenario,
-    rng: np.random.Generator,
     changed: dict[str, int],
+    columns: tuple[str, ...] | None = None,
 ) -> None:
-    for column in scenario.columns:
-        if column not in NUMERIC_BOUNDS or column in PROTECTED_COLUMNS:
-            raise ValueError(f"Unsupported or protected numeric noise column: {column}")
-        indices = _sample_indices(rng, observed.index[observed[column].notna()], scenario.noise_level)
-        relative_error = rng.uniform(-scenario.noise_level, scenario.noise_level, size=len(indices))
+    """Use stable nested samples and per-record relative-error draws."""
+    for column in (scenario.columns if columns is None else columns):
+        if column not in {"length_km", "distance_to_sea_km"}:
+            raise ValueError(
+                f"Unsupported random numeric noise column '{column}'. "
+                "For installation_year use installation_year_error so asset_age stays consistent."
+            )
+        if column not in observed.columns:
+            raise ValueError(f"Unknown numeric noise column: {column}")
+        rng = _stable_column_rng(scenario.seed, "random_numeric", column)
+        eligible = observed.index[observed[column].notna()]
+        indices = _nested_sample_indices(rng, eligible, scenario.noise_level)
+        # Generate one full-length set of signed coefficients independent of rate.
+        # Draws for a selected row are then stable across scenarios with same seed.
+        coefficients = pd.Series(
+            rng.uniform(-1.0, 1.0, size=len(eligible)),
+            index=eligible,
+        )
+        relative_error = coefficients.loc[indices].to_numpy() * scenario.noise_level
         observed.loc[indices, column] = _clip_numeric(
             column,
             observed.loc[indices, column].astype(float) * (1.0 + relative_error),
@@ -222,13 +251,18 @@ def _apply_year_error(
 def _apply_categorical_replacement(
     observed: pd.DataFrame,
     scenario: NoiseScenario,
-    rng: np.random.Generator,
     changed: dict[str, int],
+    columns: tuple[str, ...] | None = None,
 ) -> None:
-    for column in scenario.columns:
-        if column not in CATEGORICAL_VALUES or column in PROTECTED_COLUMNS:
+    """Replace a nested, reproducible subset with alternative valid categories."""
+    for column in (scenario.columns if columns is None else columns):
+        if column not in CATEGORICAL_VALUES or column in PROTECTED_COLUMNS or column == "material":
             raise ValueError(f"Unsupported or protected categorical noise column: {column}")
-        indices = _sample_indices(rng, observed.index, scenario.noise_level)
+        if column not in observed.columns:
+            raise ValueError(f"Unknown categorical noise column: {column}")
+        rng = _stable_column_rng(scenario.seed, "categorical_replacement", column)
+        eligible = observed.index[observed[column].notna()]
+        indices = _nested_sample_indices(rng, eligible, scenario.noise_level)
         values = observed[column].copy()
         _replace_categories(values, indices, rng)
         observed.loc[:, column] = values
@@ -357,7 +391,7 @@ def apply_noise(
     if scenario.strategy == "clean":
         pass
     elif scenario.strategy == "random_numeric":
-        _apply_random_numeric(observed, scenario, rng, changed)
+        _apply_random_numeric(observed, scenario, changed)
     elif scenario.strategy == "random_mixed":
         _apply_random_mixed(observed, scenario, changed, snapshot_year)
     elif scenario.strategy == "systematic_numeric":
@@ -365,7 +399,7 @@ def apply_noise(
     elif scenario.strategy == "installation_year_error":
         _apply_year_error(observed, scenario, rng, changed, snapshot_year)
     elif scenario.strategy == "categorical_replacement":
-        _apply_categorical_replacement(observed, scenario, rng, changed)
+        _apply_categorical_replacement(observed, scenario, changed)
     elif scenario.strategy == "group_numeric":
         _apply_group_numeric(observed, scenario, rng, changed)
     else:
@@ -381,6 +415,14 @@ def apply_noise(
         "strategy": scenario.strategy,
         "seed": scenario.seed,
         "noise_level": scenario.noise_level,
+        "noise_level_meaning": (
+            "selected_fraction_and_max_relative_error_numeric;year_step_for_year"
+            if scenario.strategy in {"random_numeric", "random_mixed"}
+            else "selected_fraction_or_strategy_specific"
+        ),
+        "nested_selection": scenario.strategy in {
+            "random_numeric", "categorical_replacement", "random_mixed"
+        },
         "columns": list(scenario.columns),
         "snapshot_year": snapshot_year,
         "selected_counts": changed,
@@ -571,7 +613,9 @@ def _write_markdown_report(
         "",
         "## Interpretation",
         "",
-        "- Random scenarios change a controlled fraction of predictor cells and are suitable for robustness curves.",
+        "- Numeric noise levels specify selected fraction and maximum relative error; categorical levels specify selected fraction; installation-year errors use year_step.",
+        "- Same-seed random scenarios use nested selections within each family; apply the same MF01 missingness mask downstream.",
+        "- 100% categorical replacement is an extreme stress test, not an estimated real-world error rate.",
         "- Systematic and group-dependent scenarios represent structured data-quality problems and should not be averaged together with random noise.",
         "- Installation-year noise is propagated to asset age to preserve the source data contract.",
         "- `conductor_type` remains protected in every scenario; `material` may change only when explicitly listed in a mixed-noise scenario.",

@@ -58,6 +58,22 @@ methods:
     random_state: 219
     max_depth: 4
     min_samples_leaf: 1
+execution:
+  mode: fit_transform
+  model_path: placeholder.joblib
+tuning:
+  enabled: false
+evaluation:
+  enabled: true
+  mask_rate: 0.30
+  mask_seed: 219
+data_split:
+  train: 0.60
+  validation: 0.10
+  calibration: 0.10
+  test: 0.20
+  random_seed: 219
+  strategy: row
 """, encoding="utf-8")
     return path
 
@@ -79,19 +95,21 @@ def test_runner_disjoint_fit_and_heldout_scoring(tmp_path, monkeypatch):
 
     monkeypatch.setattr(PredictiveMissForest, "fit", check_fit)
     runner.main(["--input-csv", str(csv), "--config", str(cfg),
-                 "--output-dir", str(out), "--mask-rate", "0.30",
-                 "--seed", "219"])
+                 "--output-dir", str(out), "--model-path", str(out / "final.joblib")])
 
     manifest = pd.read_csv(out / "partition_manifest.csv")
     assert manifest["segment_id"].is_unique
     assert set(manifest["segment_id"]) == set(truth["segment_id"])
     assert manifest["partition"].value_counts().to_dict() == {
-        "fit": 60, "test": 20, "tune": 10, "calibration": 10
+        "train": 60, "test": 20, "validation": 10, "calibration": 10
     }
-    fitting_rows = set(manifest.loc[manifest.partition == "fit", "source_row"])
-    test_rows = set(manifest.loc[manifest.partition == "test", "source_row"])
+    row_by_id = dict(zip(truth.segment_id, truth.index))
+    fitting_rows = set(manifest.loc[manifest.partition == "train", "segment_id"].map(row_by_id))
+    test_rows = set(manifest.loc[manifest.partition == "test", "segment_id"].map(row_by_id))
     assert fitting_rows.isdisjoint(test_rows)
-    assert fit_indices == [fitting_rows]  # No fitting on tuning/calibration/test data.
+    # The held-out model uses train only. A separate deployment model is fitted
+    # on all input rows AFTER scoring and cannot be reused to evaluate those rows.
+    assert fit_indices == [fitting_rows, set(truth.index)]
 
     masked = pd.read_csv(out / "masked_test.csv")
     imputed = pd.read_csv(out / "predictive_imputed_test.csv")
@@ -144,13 +162,20 @@ def test_runner_disjoint_fit_and_heldout_scoring(tmp_path, monkeypatch):
     pd.testing.assert_frame_equal(expected, revised)
 
 
-def test_runner_rejects_incomplete_reference_before_training(tmp_path):
+def test_runner_existing_missing_values_are_excluded_from_evaluation(tmp_path):
+    """The current runner accepts incomplete inputs, never scores unknown truth."""
     bad = complete_fixture(100)
-    bad.loc[0, "material"] = np.nan
+    bad.loc[::3, "material"] = np.nan
     csv = tmp_path / "not_complete.csv"
     bad.to_csv(csv, index=False)
-    with pytest.raises(ValueError, match="COMPLETE truth"):
-        runner.main([
-            "--input-csv", str(csv), "--config", str(config_yaml(tmp_path / "config.yaml")),
-            "--output-dir", str(tmp_path / "output"), "--n-estimators", "5",
-        ])
+    out = tmp_path / "output"
+    runner.main([
+        "--input-csv", str(csv), "--config", str(config_yaml(tmp_path / "config.yaml")),
+        "--output-dir", str(out), "--model-path", str(out / "final.joblib"),
+    ])
+    mask = pd.read_csv(out / "test_hidden_mask.csv")
+    original = bad.set_index("segment_id").loc[mask.segment_id]
+    assert not (mask.material.to_numpy(bool) & original.material.isna().to_numpy()).any()
+    metrics = pd.read_csv(out / "metrics_test.csv")
+    scored = metrics[(metrics.method == "predictive_missforest") & (metrics.variable == "material")]
+    assert scored.iloc[0].n_masked == mask.material.sum()

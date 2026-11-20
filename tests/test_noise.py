@@ -2,6 +2,7 @@
 
 import pandas as pd
 import pytest
+import numpy as np
 
 from team19_asset_data.overhead_conductors.noise import (
     NoiseScenario,
@@ -92,3 +93,38 @@ def test_protected_target_cannot_be_used_as_noise_column() -> None:
     )
     with pytest.raises(ValueError, match="protected"):
         apply_noise(frame, scenario)
+
+
+@pytest.mark.parametrize("strategy,column", [
+    ("random_numeric", "length_km"),
+    ("categorical_replacement", "location_group"),
+])
+def test_same_seed_noise_levels_have_nested_selections(strategy, column):
+    frame = sample_frame()
+    outputs = []
+    for rate in (0.20, 0.50):
+        observed, meta = apply_noise(frame, NoiseScenario(
+            "nested", "nested", strategy, (column,), rate, 323))
+        outputs.append((observed, set(frame.index[observed[column] != frame[column]])))
+        assert meta["nested_selection"]
+    assert outputs[0][1] <= outputs[1][1]
+    if strategy == "random_numeric":
+        low, high = [out[0][column] / frame[column] - 1 for out in outputs]
+        indices = list(outputs[0][1])
+        np.testing.assert_allclose(low.loc[indices] / .20, high.loc[indices] / .50)
+
+
+def test_mixed_noise_still_allows_explicit_material_and_coupled_year():
+    frame = sample_frame()
+    observed, meta = apply_noise(frame, NoiseScenario(
+        "mixed", "mixed", "random_mixed",
+        ("installation_year", "material"), .50, 329, 2))
+    assert meta["changed_counts"]["material"] == 10
+    assert (observed.asset_age == 2014 - observed.installation_year).all()
+    pd.testing.assert_series_equal(frame.conductor_type, observed.conductor_type)
+
+
+def test_numeric_year_noise_requires_age_consistent_strategy():
+    with pytest.raises(ValueError, match="installation_year_error"):
+        apply_noise(sample_frame(), NoiseScenario(
+            "year", "year", "random_numeric", ("installation_year",), .20, 323))
