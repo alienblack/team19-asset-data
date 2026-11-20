@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "conditional_calculation": {
+    "expected_missing_mean": 0.6,
+    "expected_missing_variance": 1.64,
+    "passed": true
+  },
+  "spatial_partitions_disjoint": true,
+  "fresh_model_fits": 8,
+  "settings": {
+    "missing": 0.3,
+    "noise": 0.05,
+    "train_rows": 1500,
+    "calibration_rows": 600,
+    "test_rows": 600,
+    "seed": 219,
+    "split_seed": 617,
+    "no_gas_correction": false,
+    "out": "/Users/alien/Desktop/Final submission/output/Sprint 6/PGS219-258 Product Review/demo_runs/run_20261119_122548_038266"
+  },
+  "model_parameters": {
+    "floor": {},
+    "ridge": {
+      "alpha": 15.0,
+      "passes": 3
+    },
+    "forest": {
+      "trees": 16,
+      "depth": 11,
+      "leaf": 7,
+      "features": 0.75,
+      "passes": 2
+    },
+    "mixture": {
+      "clusters": 4,
+      "steps": 12,
+      "reg": 0.025,
+      "class_weight": 1.8
+    }
+  },
+  "source_sha256": {
+    "scripts/product_review_demo.py": "bd2c6ee3d53213ffa9dfb6f4f1c1dd73cc4a6c2047909af93695866a7770c7c7",
+    "src/subteam_a/__init__.py": "99ce12a537f49b0c8df3e580b14a389b49449afe75b03b9ec1236ba7bb9a5fa6",
+    "src/subteam_a/cli.py": "323434ed7bbde460c9790f1edbfa22f84fc1f9f932cbea8f9646d3b66a5b5205",
+    "src/subteam_a/data.py": "ae4db356106a39108f3cc1ca2ab1060a4cfd82b5081987cf9dee86e585f5d40a",
+    "src/subteam_a/diagnostics.py": "f73b1238d6da0c4e2d2c996fbafef7804d2a12d185495781028a726bbe7f3647",
+    "src/subteam_a/evaluate.py": "0ba54055c5db915776fc8b9897c6a0c80cbd32553e15051a65c3cd154fb47799",
+    "src/subteam_a/failures.py": "8877f0674e4debee1438db721250ff1408b5beaf2a6a0f048ad8e5712d19a671",
+    "src/subteam_a/features.py": "ffa653909d0fecb1750affdcd50c51422108e21386d55a3859e0fed972ba7354",
+    "src/subteam_a/generator.py": "8a2d9a435ea848b9b54d010a880a5baba53b6c5965f54b7bfbef961c136ead95",
+    "src/subteam_a/mixture.py": "30a522483c1c11792d5f471a236d798544c2e44e1ea34bc9afee1f52f0ecb17d",
+    "src/subteam_a/models.py": "0d27fd82ad5a0cc32c5c07fa303920fc2e2d6f248e58de12b816e457326b6087",
+    "src/subteam_a/screening.py": "f5e7289fd6de0a9a8bb7568bcbb40f7b2f53b052eb4169d26d900c35d763ea2b",
+    "src/subteam_a/stress.py": "581d1710939cd05a76b4f9ee193826cdbb05084597943a8d3918962da1703b41",
+    "src/subteam_a/study.py": "df158a870d8bd691a9a1c5cb131b0a7d56a7da3a9f9d5e7bfeb8ba4c23203f16"
+  },
+  "metric_rows_recomputed": 120,
+  "hidden_predictions_checked": 21632,
+  "saved_observations_preserved": true,
+  "elapsed_seconds": 3.8226869580103084,
+  "scope": "Single-split subset demonstration with fixed defaults; see final report for tuned repeated results."
+}
