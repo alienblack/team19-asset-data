@@ -1,0 +1,13 @@
+method,stage,repeat,fold,seconds
+median,validation,1.0,1.0,0.013870875001884997
+forest,validation,1.0,1.0,0.43392670899629593
+gaussian,validation,1.0,1.0,0.10684333299286664
+median,validation,1.0,2.0,0.014453499927185476
+forest,validation,1.0,2.0,0.2620246249716729
+gaussian,validation,1.0,2.0,0.023526040953584015
+median,validation,1.0,3.0,0.013104375102557242
+forest,validation,1.0,3.0,0.25686191709246486
+gaussian,validation,1.0,3.0,0.02379895793274045
+median,completion,,,0.010750249959528446
+forest,completion,,,0.2693762080743909
+gaussian,completion,,,0.020499292062595487

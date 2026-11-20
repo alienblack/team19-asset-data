@@ -1,0 +1,1 @@
+{"base": "block", "linear_alpha": 30.0, "max_samples": 0.5, "min_samples_leaf": 2, "n_estimators": 100, "passes": 4}

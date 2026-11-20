@@ -1,0 +1,340 @@
+scenario,experiment,variant,seed,target,method,n,coverage,accuracy,macro F1,balanced accuracy,completion,noise,mechanism
+completion0.7-noise0.0,main,all predictors,219,model_id,Mode,2968,1.0,0.2756064690026954,0.17486832458274382,0.2460933545081908,0.7,0.0,random
+completion0.7-noise0.05,main,all predictors,219,model_id,Mode,2968,1.0,0.2756064690026954,0.17486832458274382,0.2460933545081908,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,Mode,2968,1.0,0.2756064690026954,0.17486832458274382,0.2460933545081908,0.7,0.1,random
+completion0.8-noise0.0,main,all predictors,219,model_id,Mode,1965,1.0,0.28091603053435116,0.17741690079965422,0.24833225578934995,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,Mode,1965,1.0,0.28091603053435116,0.17741690079965422,0.24833225578934995,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,Mode,1965,1.0,0.27989821882951654,0.16409468219339998,0.25116570667293603,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,Mode,1965,1.0,0.2824427480916031,0.1795947783984465,0.25151345950393794,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,Mode,1965,1.0,0.255470737913486,0.16183431952662722,0.22596342227969124,0.8,0.05,random
+completion0.8-noise0.1,main,all predictors,219,model_id,Mode,1965,1.0,0.28091603053435116,0.17741690079965422,0.24833225578934995,0.8,0.1,random
+completion0.9-noise0.0,main,all predictors,219,model_id,Mode,995,1.0,0.26532663316582916,0.1680794909740645,0.2388034322189086,0.9,0.0,random
+completion0.9-noise0.05,main,all predictors,219,model_id,Mode,995,1.0,0.26532663316582916,0.1680794909740645,0.2388034322189086,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,Mode,995,1.0,0.26532663316582916,0.1680794909740645,0.2388034322189086,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,Mode,1972,1.0,0.18864097363083165,0.07935153583617748,0.25,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,Mode,1995,1.0,0.2882205513784461,0.16859078859162654,0.2567684466473394,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,Mode,1949,1.0,0.27090815802975887,0.1619711725944665,0.251808404943264,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,Mode,1965,1.0,0.28091603053435116,0.17741690079965422,0.24833225578934995,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,Mode,4954,1.0,0.27654420670165525,0.10831752055660974,0.25,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,Mode,6877,1.0,0.28035480587465467,0.10948324815445769,0.25,0.3,0.05,sparse
+completion0.7-noise0.05,main,all predictors,219,model_id,KNN imputer,2968,1.0,0.9359838274932615,0.933594742529321,0.933677827053073,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,KNN imputer,2968,1.0,0.8965633423180593,0.89338110249808,0.8917406431230674,0.7,0.1,random
+completion0.7-noise0.0,main,all predictors,219,model_id,KNN imputer,2968,1.0,0.9413746630727763,0.9389751777029556,0.9391004562833614,0.7,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,KNN imputer,1965,1.0,0.978117048346056,0.9770698335776895,0.9772788535055186,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,KNN imputer,1965,1.0,0.9791348600508906,0.977985483718642,0.9783460547785611,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,KNN imputer,1965,1.0,0.9765903307888041,0.975194582702707,0.9753044572358085,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,KNN imputer,1965,1.0,0.9801526717557252,0.9790380955958681,0.9791982941108757,0.8,0.05,random
+completion0.8-noise0.05,structure,no ridge base,219,model_id,KNN imputer,1965,1.0,0.978117048346056,0.9770698335776895,0.9772788535055186,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,KNN imputer,1965,1.0,0.6478371501272264,0.624046061035527,0.6267269014644726,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,KNN imputer,1965,1.0,0.9750636132315522,0.9737680767224184,0.9739599739811462,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,KNN imputer,1965,1.0,0.9745547073791349,0.9733992403789993,0.9732650174141195,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,KNN imputer,1965,1.0,0.9694656488549618,0.96803408883313,0.968031867520048,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,KNN imputer,1965,1.0,0.9760814249363867,0.9750002120085559,0.9748807842942218,0.8,0.05,random
+completion0.8-noise0.0,main,all predictors,219,model_id,KNN imputer,1965,1.0,0.983206106870229,0.9820211540094184,0.9820341894800042,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,KNN imputer,1965,1.0,0.6442748091603053,0.619869471688301,0.6230085708040953,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,KNN imputer,1965,1.0,0.9806615776081425,0.9794330782997488,0.9794856397772942,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,KNN imputer,1965,1.0,0.9765903307888041,0.9751506942358881,0.9749918090595968,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,KNN imputer,1965,1.0,0.9750636132315522,0.97340849140429,0.973259581160604,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,KNN imputer,1965,1.0,0.9791348600508906,0.977942386704424,0.9776285192128287,0.8,0.0,random
+completion0.9-noise0.0,main,all predictors,219,model_id,KNN imputer,995,1.0,0.9969849246231156,0.9968724694476198,0.9967532467532467,0.9,0.0,random
+completion0.9-noise0.05,main,all predictors,219,model_id,KNN imputer,995,1.0,0.9959798994974874,0.9958788317100475,0.9958474496517975,0.9,0.05,random
+completion0.8-noise0.1,main,all predictors,219,model_id,KNN imputer,1965,1.0,0.9450381679389313,0.9435839191698701,0.9430443516581549,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,KNN imputer,1965,1.0,0.9486005089058525,0.9469807679963473,0.9468875749840049,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,KNN imputer,1965,1.0,0.6519083969465649,0.6290517473985625,0.6313627675928329,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,KNN imputer,1965,1.0,0.9414758269720102,0.9406180320411134,0.9397632850529452,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,KNN imputer,1965,1.0,0.932824427480916,0.9310505664362747,0.9301157672272581,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,KNN imputer,1965,1.0,0.9435114503816794,0.9422024644288309,0.9409894118981514,0.8,0.1,random
+completion0.9-noise0.1,main,all predictors,219,model_id,KNN imputer,995,1.0,0.9698492462311558,0.9696650000511281,0.9689153872777405,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,KNN imputer,1972,1.0,0.9766734279918864,0.9774317724112878,0.975824858952089,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,KNN imputer,1995,1.0,0.9804511278195489,0.9794004475765035,0.9786553396140599,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,KNN imputer,1949,1.0,0.9184197024114931,0.917400230066632,0.916994338921573,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,KNN imputer,1965,1.0,0.9791348600508906,0.9781496466733475,0.9782826540334579,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,KNN imputer,4954,1.0,0.578118691966088,0.5634718425664602,0.5652529799174435,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,KNN imputer,6877,1.0,0.4577577432019776,0.4371193864013323,0.4416644433021338,0.3,0.05,sparse
+completion0.8-noise0.05,calibration,all predictors,219,model_id,Random Forest calibrated,1965,1.0,0.9806615776081425,0.9794620777306047,0.9788924589771975,0.8,0.05,random
+completion0.8-noise0.05,calibration,without gas columns,219,model_id,Random Forest calibrated,1965,1.0,0.7521628498727735,0.7387517797487368,0.7389154332347259,0.8,0.05,random
+completion0.8-noise0.05,main,all predictors,219,model_id,Random Forest,1965,1.0,0.9786259541984733,0.9774319551111468,0.9763479988059336,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,Random Forest,1965,1.0,0.9796437659033079,0.9785055724149296,0.9772396938642864,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,Random Forest,1965,1.0,0.9796437659033079,0.9784778172357993,0.9774152000789762,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,Random Forest,1965,1.0,0.9791348600508906,0.9778811243603034,0.9767621459625584,0.8,0.05,random
+completion0.8-noise0.05,structure,no ridge base,219,model_id,Random Forest,1965,1.0,0.9786259541984733,0.9774319551111468,0.9763479988059336,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,Random Forest,1965,1.0,0.7419847328244275,0.7259655335214977,0.726728638907601,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,Random Forest,1965,1.0,0.9796437659033079,0.9785217908643933,0.9777079819989104,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,Random Forest,1965,1.0,0.9811704834605598,0.9800807143751261,0.9789966814686978,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,Random Forest,1965,1.0,0.9791348600508906,0.9780165208586038,0.9768084039624714,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,Random Forest,1965,1.0,0.9801526717557252,0.9792655193203579,0.9781683871554482,0.8,0.05,random
+completion0.7-noise0.0,main,all predictors,219,model_id,Random Forest,2968,1.0,0.9693396226415094,0.9677335797727254,0.9666098273665579,0.7,0.0,random
+completion0.7-noise0.05,main,all predictors,219,model_id,Random Forest,2968,1.0,0.9673180592991913,0.9655437340993951,0.9640855836846307,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,Random Forest,2968,1.0,0.9369946091644205,0.9347619824999926,0.9330684919802922,0.7,0.1,random
+completion0.8-noise0.0,main,all predictors,219,model_id,Random Forest,1965,1.0,0.9826972010178117,0.9814795006370374,0.9805019749174302,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,Random Forest,1965,1.0,0.7557251908396947,0.739633908860201,0.740676548007579,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,Random Forest,1965,1.0,0.9852417302798983,0.984370630288171,0.9834434395001286,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,Random Forest,1965,1.0,0.9847328244274809,0.9837059671385332,0.9827365104235695,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,Random Forest,1965,1.0,0.9821882951653944,0.9811161910516957,0.9798489208010125,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,Random Forest,1965,1.0,0.9826972010178117,0.9817137853715374,0.9804557169175173,0.8,0.0,random
+completion0.8-noise0.1,main,all predictors,219,model_id,Random Forest,1965,1.0,0.9587786259541985,0.9575005378805104,0.9564839606589276,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,Random Forest,1965,1.0,0.7521628498727735,0.7370799890400321,0.7378858057313247,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,Random Forest,1965,1.0,0.9603053435114504,0.9592551919058986,0.9582118330086163,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,Random Forest,1965,1.0,0.9572519083969465,0.9562295082733878,0.955263832169901,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,Random Forest,1965,1.0,0.9521628498727736,0.9510042356276397,0.9498372186295958,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,Random Forest,1965,1.0,0.9557251908396946,0.9545959054695133,0.9533629003300931,0.8,0.1,random
+completion0.9-noise0.0,main,all predictors,219,model_id,Random Forest,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.0,random
+completion0.9-noise0.05,main,all predictors,219,model_id,Random Forest,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,Random Forest,995,1.0,0.9778894472361809,0.9776509636571556,0.9775733959357491,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,Random Forest,1972,1.0,0.9852941176470589,0.9849184753404131,0.9838669203761867,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,Random Forest,1995,1.0,0.9869674185463659,0.9861619466133424,0.9858528779119028,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,Random Forest,1949,1.0,0.9558748075936377,0.9549362759165428,0.9529852974742262,0.8,0.05,group
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,Random Forest,4954,1.0,0.8976584578118691,0.8918169088091761,0.8894110514441411,0.5,0.05,sparse
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,Random Forest,1965,1.0,0.981679389312977,0.9806997193332435,0.97976701129036,0.8,0.05,errors
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,Random Forest,6877,1.0,0.753235422422568,0.7388728019074327,0.7378255916637478,0.3,0.05,sparse
+completion0.7-noise0.05,main,all predictors,219,model_id,HistGradientBoosting,2968,1.0,0.9666442048517521,0.964701610341838,0.9652271608704477,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,HistGradientBoosting,2968,1.0,0.9440700808625337,0.9423333476295956,0.9425013030002505,0.7,0.1,random
+completion0.7-noise0.0,main,all predictors,219,model_id,HistGradientBoosting,2968,1.0,0.9693396226415094,0.9676704046211088,0.9680743789239517,0.7,0.0,random
+completion0.8-noise0.0,main,all predictors,219,model_id,HistGradientBoosting,1965,1.0,0.9842239185750636,0.9830342612516136,0.9826766371072486,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,HistGradientBoosting,1965,1.0,0.9867684478371501,0.9857409181150061,0.9858183676100553,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,HistGradientBoosting,1965,1.0,0.7908396946564885,0.7799332985363701,0.7796007582109863,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,HistGradientBoosting,1965,1.0,0.981679389312977,0.9804665246858133,0.9802282203645927,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,HistGradientBoosting,1965,1.0,0.9842239185750636,0.9830842237455223,0.9827228951071615,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,HistGradientBoosting,1965,1.0,0.9862595419847329,0.9853463366132317,0.9852039545333221,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,HistGradientBoosting,1965,1.0,0.9806615776081425,0.9794187091035406,0.9793563915625174,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,HistGradientBoosting,1965,1.0,0.9821882951653944,0.9810765136195627,0.9807667222868532,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,HistGradientBoosting,1965,1.0,0.9826972010178117,0.9814423995892136,0.9813735184033581,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,HistGradientBoosting,1965,1.0,0.9826972010178117,0.9814357838955674,0.9814273933634994,0.8,0.05,random
+completion0.8-noise0.05,structure,no ridge base,219,model_id,HistGradientBoosting,1965,1.0,0.9806615776081425,0.9794187091035406,0.9793563915625174,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,HistGradientBoosting,1965,1.0,0.9842239185750636,0.9834071086461902,0.9836287240834698,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,HistGradientBoosting,1965,1.0,0.7760814249363868,0.7633951210534047,0.7633927634159239,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,HistGradientBoosting,1965,1.0,0.981679389312977,0.9805599491473692,0.9806872595007714,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,HistGradientBoosting,1965,1.0,0.9740458015267176,0.9726365734418952,0.9726024375127399,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,HistGradientBoosting,1965,1.0,0.9821882951653944,0.9813434438564224,0.9815577222824878,0.8,0.05,random
+completion0.8-noise0.1,main,all predictors,219,model_id,HistGradientBoosting,1965,1.0,0.9653944020356234,0.9644524256563026,0.9647050857193001,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,HistGradientBoosting,1965,1.0,0.9679389312977099,0.9670993586578505,0.9673023401464935,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,HistGradientBoosting,1965,1.0,0.7760814249363868,0.7653083345895244,0.765354073739432,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,HistGradientBoosting,1965,1.0,0.9623409669211196,0.9615344803281471,0.9615421229398569,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,HistGradientBoosting,1965,1.0,0.9475826972010178,0.9463890474638201,0.9468998000772268,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,HistGradientBoosting,1965,1.0,0.9633587786259542,0.9624776391308454,0.9630441415434965,0.8,0.1,random
+completion0.9-noise0.05,main,all predictors,219,model_id,HistGradientBoosting,995,1.0,0.9979899497487437,0.9978699473637939,0.9978354978354979,0.9,0.05,random
+completion0.9-noise0.0,main,all predictors,219,model_id,HistGradientBoosting,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.0,random
+completion0.9-noise0.1,main,all predictors,219,model_id,HistGradientBoosting,995,1.0,0.9869346733668342,0.9867307605720362,0.9869607477144052,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,HistGradientBoosting,1972,1.0,0.9858012170385395,0.9846968684141901,0.9849969652430361,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,HistGradientBoosting,1995,1.0,0.9874686716791979,0.9864331382986113,0.9866175721374382,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,HistGradientBoosting,1949,1.0,0.9574140584915342,0.9563818350735147,0.956051400490546,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,HistGradientBoosting,1965,1.0,0.9842239185750636,0.9831762997487026,0.9831476487529597,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,HistGradientBoosting,4954,1.0,0.8986677432377876,0.8938101478986684,0.8939215784767482,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,HistGradientBoosting,6877,1.0,0.7461102224807329,0.7363507927925789,0.7361808254324543,0.3,0.05,sparse
+completion0.7-noise0.05,main,all predictors,219,model_id,CatBoost,2968,1.0,0.9626010781671159,0.9608779705165466,0.9613427928939551,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,CatBoost,2968,1.0,0.9349730458221024,0.9329281241650467,0.9331048208811579,0.7,0.1,random
+completion0.7-noise0.0,main,all predictors,219,model_id,CatBoost,2968,1.0,0.9666442048517521,0.9648167686133982,0.9650769447854315,0.7,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,CatBoost,1965,1.0,0.9791348600508906,0.9777785940210182,0.9778211681727087,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,CatBoost,1965,1.0,0.981679389312977,0.9804946041021397,0.9805237257956141,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,CatBoost,1965,1.0,0.9811704834605598,0.9797829372053815,0.980092435893799,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,CatBoost,1965,1.0,0.9821882951653944,0.9808932222353174,0.9809302559920106,0.8,0.05,random
+completion0.8-noise0.05,structure,no ridge base,219,model_id,CatBoost,1965,1.0,0.9791348600508906,0.9777785940210182,0.9778211681727087,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,CatBoost,1965,1.0,0.7638676844783715,0.749162045803969,0.7494704690102233,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,CatBoost,1965,1.0,0.9806615776081425,0.9794024493219076,0.9795103994827127,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,CatBoost,1965,1.0,0.981679389312977,0.9805159230694742,0.9805161088353858,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,CatBoost,1965,1.0,0.9765903307888041,0.9753366077536065,0.9753093506849496,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,CatBoost,1965,1.0,0.9786259541984733,0.9775157222337161,0.9773145050162579,0.8,0.05,random
+completion0.8-noise0.0,main,all predictors,219,model_id,CatBoost,1965,1.0,0.9837150127226463,0.9824499611236617,0.9824431664009713,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,CatBoost,1965,1.0,0.9852417302798983,0.9840914890076331,0.984124780750747,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,CatBoost,1965,1.0,0.7618320610687023,0.7474363754820148,0.7478995941096751,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,CatBoost,1965,1.0,0.9796437659033079,0.9782623512559796,0.9782497345634364,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,CatBoost,1965,1.0,0.9837150127226463,0.9824880887157,0.9821794997357598,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,CatBoost,1965,1.0,0.983206106870229,0.9820957604358297,0.9818192275392762,0.8,0.0,random
+completion0.8-noise0.1,main,all predictors,219,model_id,CatBoost,1965,1.0,0.9597964376590331,0.9586594110229725,0.9586640591022616,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,CatBoost,1965,1.0,0.7592875318066158,0.7442087720339639,0.7445967766262817,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,CatBoost,1965,1.0,0.9638676844783715,0.9630080533174951,0.9632699952895456,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,CatBoost,1965,1.0,0.9592875318066157,0.9583711134106526,0.9581421620253543,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,CatBoost,1965,1.0,0.9531806615776082,0.952120741433548,0.9519830315825494,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,CatBoost,1965,1.0,0.9572519083969465,0.9561972381405784,0.956255098085644,0.8,0.1,random
+completion0.9-noise0.05,main,all predictors,219,model_id,CatBoost,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.05,random
+completion0.9-noise0.0,main,all predictors,219,model_id,CatBoost,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.0,random
+completion0.9-noise0.1,main,all predictors,219,model_id,CatBoost,995,1.0,0.9839195979899498,0.9837797059221215,0.9838165775086236,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,CatBoost,1972,1.0,0.9847870182555781,0.9842872605707901,0.9839352540678896,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,CatBoost,1995,1.0,0.9874686716791979,0.986666417160715,0.9869892836325942,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,CatBoost,1949,1.0,0.9574140584915342,0.9564770655069921,0.9550608068518419,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,CatBoost,1965,1.0,0.9801526717557252,0.9789995867620198,0.9793351592858808,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,CatBoost,4954,1.0,0.8986677432377876,0.8938391477913273,0.8935657228185498,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,CatBoost,6877,1.0,0.7520721244728806,0.739177807311548,0.7383401734446795,0.3,0.05,sparse
+completion0.7-noise0.05,main,all predictors,219,model_id,miceforest direct,2968,1.0,0.9669811320754716,0.9652149841561235,0.9657093783657351,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,miceforest direct,2968,1.0,0.9433962264150944,0.9417990116883803,0.9419322158724259,0.7,0.1,random
+completion0.7-noise0.0,main,all predictors,219,model_id,miceforest direct,2968,1.0,0.9683288409703504,0.9666954761244759,0.9669442762766589,0.7,0.0,random
+completion0.8-noise0.0,main,all predictors,219,model_id,miceforest direct,1965,1.0,0.9842239185750636,0.9830602527188583,0.9826227621471073,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,miceforest direct,1965,1.0,0.9837150127226463,0.9826795087914203,0.9828336345563891,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,miceforest direct,1965,1.0,0.9811704834605598,0.9800286773456967,0.979863054718968,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,miceforest direct,1965,1.0,0.9837150127226463,0.9826563435610494,0.9825408526364549,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,miceforest direct,1965,1.0,0.9857506361323155,0.9845608417900562,0.9842385290272094,0.8,0.05,random
+completion0.9-noise0.0,main,all predictors,219,model_id,miceforest direct,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.0,random
+completion0.8-noise0.1,main,all predictors,219,model_id,miceforest direct,1965,1.0,0.9659033078880407,0.9649072778491518,0.9651020901307347,0.8,0.1,random
+completion0.9-noise0.05,main,all predictors,219,model_id,miceforest direct,995,1.0,0.9969849246231156,0.996825679338584,0.9966506637122751,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,miceforest direct,995,1.0,0.9849246231155779,0.9846873723760516,0.9849726995307049,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,miceforest direct,1972,1.0,0.9842799188640974,0.9827957514460761,0.9829381689059489,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,miceforest direct,1995,1.0,0.9859649122807017,0.98489224335002,0.9850614506802632,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,miceforest direct,1949,1.0,0.9538224730631093,0.9526532371222847,0.9523511178311287,0.8,0.05,group
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,miceforest direct,4954,1.0,0.9020993136859103,0.8976126586765948,0.897333767752269,0.5,0.05,sparse
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,miceforest direct,1965,1.0,0.9837150127226463,0.9826927444874404,0.9829971682615464,0.8,0.05,errors
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,miceforest direct,6877,1.0,0.7481459938926858,0.7387262844037119,0.7383947192246705,0.3,0.05,sparse
+completion0.7-noise0.0,main,all predictors,219,model_id,Gaussian EM,2968,1.0,0.9740566037735849,0.9724801426265727,0.9723274452123841,0.7,0.0,random
+completion0.7-noise0.05,main,all predictors,219,model_id,Gaussian EM,2968,1.0,0.9706873315363881,0.9690679053287072,0.9689109919179355,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,Gaussian EM,2968,1.0,0.9420485175202157,0.9401206435124602,0.9394177164223786,0.7,0.1,random
+completion0.8-noise0.0,main,all predictors,219,model_id,Gaussian EM,1965,1.0,0.9877862595419847,0.9867249091316077,0.9866314280028483,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,Gaussian EM,1965,1.0,0.9867684478371501,0.9857016499422322,0.9856104847297187,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,Gaussian EM,1965,1.0,0.6829516539440204,0.6500457625219361,0.6575501157940871,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,Gaussian EM,1965,1.0,0.9826972010178117,0.9813807748052366,0.981241546677494,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,Gaussian EM,1965,1.0,0.9862595419847329,0.9851845109029641,0.9849035556531595,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,Gaussian EM,1965,1.0,0.9842239185750636,0.9829803485855596,0.9830080600668674,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,Gaussian EM,1965,1.0,0.9842239185750636,0.9831942517825543,0.983059488302438,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,Gaussian EM,1965,1.0,0.983206106870229,0.9820823933265221,0.9821729634797429,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,Gaussian EM,1965,1.0,0.9837150127226463,0.982665149374699,0.9827163588511447,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,Gaussian EM,1965,1.0,0.9842239185750636,0.9832032633391454,0.9832940397129268,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,Gaussian EM,1965,1.0,0.9842239185750636,0.9831609253723097,0.9831133632625793,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,Gaussian EM,1965,1.0,0.6748091603053435,0.6447678413355908,0.6507196750530047,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,Gaussian EM,1965,1.0,0.9842239185750636,0.9831543631169721,0.9829960875573349,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,Gaussian EM,1965,1.0,0.9796437659033079,0.9783821597682253,0.9785109545040773,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,Gaussian EM,1965,1.0,0.9837150127226463,0.982742624708315,0.9825990831459002,0.8,0.05,random
+completion0.9-noise0.0,main,all predictors,219,model_id,Gaussian EM,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.0,random
+completion0.8-noise0.1,main,all predictors,219,model_id,Gaussian EM,1965,1.0,0.9633587786259542,0.9624378873355932,0.9622670228821282,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,Gaussian EM,1965,1.0,0.6798982188295165,0.6478823057458524,0.6545814313472311,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,Gaussian EM,1965,1.0,0.9603053435114504,0.9593458318191537,0.9588232506922831,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,Gaussian EM,1965,1.0,0.9608142493638677,0.959940464676293,0.9593007985940112,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,Gaussian EM,1965,1.0,0.95470737913486,0.9536062836442847,0.953532136306624,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,Gaussian EM,1965,1.0,0.9618320610687023,0.9607201056732586,0.9606683987472163,0.8,0.1,random
+completion0.9-noise0.05,main,all predictors,219,model_id,Gaussian EM,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,Gaussian EM,995,1.0,0.9839195979899498,0.9838030987643991,0.9837427065687936,0.9,0.1,random
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,Gaussian EM,1995,1.0,0.993483709273183,0.9928869766205678,0.9929354277268,0.8,0.05,value
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,Gaussian EM,1972,1.0,0.9893509127789046,0.9883562976772909,0.9872292212256839,0.8,0.05,age
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,Gaussian EM,1949,1.0,0.961518727552591,0.9597326303570092,0.9592276780182296,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,Gaussian EM,1965,1.0,0.9842239185750636,0.9832051882255612,0.9831596212624922,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,Gaussian EM,4954,1.0,0.910173597093258,0.9053213576594608,0.9049111495585674,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,Gaussian EM,6877,1.0,0.7517812999854587,0.7361279813041978,0.7352273392619905,0.3,0.05,sparse
+completion0.7-noise0.1,main,all predictors,219,model_id,Masked MLP,2968,1.0,0.933288409703504,0.9311522958849183,0.9314555076106692,0.7,0.1,random
+completion0.7-noise0.05,main,all predictors,219,model_id,Masked MLP,2968,1.0,0.9659703504043127,0.9643791195473621,0.9647589499621634,0.7,0.05,random
+completion0.7-noise0.0,main,all predictors,219,model_id,Masked MLP,2968,1.0,0.9700134770889488,0.9683504358720152,0.9684842101539782,0.7,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,Masked MLP,1965,1.0,0.983206106870229,0.9822703496085823,0.9826660113197855,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,Masked MLP,1965,1.0,0.9821882951653944,0.9812930304556247,0.9820140379075792,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,Masked MLP,1965,1.0,0.9852417302798983,0.9844067740020345,0.9850178225311693,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,Masked MLP,1965,1.0,0.9837150127226463,0.9828523709901197,0.9829919980258885,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,Masked MLP,1965,1.0,0.9811704834605598,0.9801594133297077,0.980858676184015,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,Masked MLP,1965,1.0,0.6987277353689567,0.6770102385540541,0.67979850739958,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,Masked MLP,1965,1.0,0.9735368956743002,0.972170053519529,0.9727080067263099,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,Masked MLP,1965,1.0,0.981679389312977,0.9805956318293976,0.9809628986755154,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,Masked MLP,1965,1.0,0.9770992366412213,0.9760260875872699,0.9763528729567853,0.8,0.05,random
+completion0.8-noise0.0,main,all predictors,219,model_id,Masked MLP,1965,1.0,0.9857506361323155,0.9847418589042637,0.984987626572235,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,Masked MLP,1965,1.0,0.9847328244274809,0.9838092409769765,0.9841840919644039,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,Masked MLP,1965,1.0,0.6936386768447838,0.6717285372016896,0.6745063123097094,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,Masked MLP,1965,1.0,0.9796437659033079,0.9783357998648541,0.9785305439738382,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,Masked MLP,1965,1.0,0.9862595419847329,0.9851263808893501,0.9851500795731809,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,Masked MLP,1965,1.0,0.9837150127226463,0.9825154646002315,0.9825895573609383,0.8,0.0,random
+completion0.8-noise0.1,main,all predictors,219,model_id,Masked MLP,1965,1.0,0.956234096692112,0.9551307345666225,0.9562659705926754,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,Masked MLP,1965,1.0,0.9577608142493639,0.9568714404255796,0.9578498987069676,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,Masked MLP,1965,1.0,0.6982188295165395,0.6772151600278088,0.6797653026134112,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,Masked MLP,1965,1.0,0.9440203562340967,0.9429143902041262,0.9439400927468372,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,Masked MLP,1965,1.0,0.9592875318066157,0.9582690318740573,0.9586188818065602,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,Masked MLP,1965,1.0,0.956234096692112,0.9552934798447559,0.9559198516124369,0.8,0.1,random
+completion0.9-noise0.0,main,all predictors,219,model_id,Masked MLP,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.0,random
+completion0.9-noise0.05,main,all predictors,219,model_id,Masked MLP,995,1.0,0.9979899497487437,0.9978730118611185,0.9980119518162996,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,Masked MLP,995,1.0,0.9809045226130654,0.9806715875236056,0.9812017692452475,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,Masked MLP,1972,1.0,0.9842799188640974,0.9833552983758819,0.9831458361815826,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,Masked MLP,1995,1.0,0.9859649122807017,0.9851457427314425,0.9850596300899696,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,Masked MLP,1949,1.0,0.9584402257567983,0.9569054370001105,0.9562808035608528,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,Masked MLP,1965,1.0,0.9821882951653944,0.9812567004592263,0.981708468791759,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,Masked MLP,4954,1.0,0.8994751715785224,0.8950126492400847,0.8954696290760042,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,Masked MLP,6877,1.0,0.7522175367165915,0.7392008654815674,0.7386773371099217,0.3,0.05,sparse
+completion0.7-noise0.05,main,all predictors,219,model_id,LightGBM chained,2968,1.0,0.9609164420485176,0.9600408652428326,0.9571804448249421,0.7,0.05,random
+completion0.7-noise0.0,main,all predictors,219,model_id,LightGBM chained,2968,1.0,0.9693396226415094,0.9678178998064071,0.9663780301976412,0.7,0.0,random
+completion0.7-noise0.1,main,all predictors,219,model_id,LightGBM chained,2968,1.0,0.9454177897574124,0.9439620593761946,0.9409708024846902,0.7,0.1,random
+completion0.8-noise0.0,main,all predictors,219,model_id,LightGBM chained,1965,1.0,0.9801526717557252,0.9791122842097206,0.9784021238795834,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,LightGBM chained,1965,1.0,0.9801526717557252,0.9792681699046568,0.9785485148395504,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,LightGBM chained,1965,1.0,0.7908396946564885,0.7790268401526756,0.7790862147419589,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,LightGBM chained,1965,1.0,0.9786259541984733,0.9775173860071894,0.9764892195302429,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,LightGBM chained,1965,1.0,0.983206106870229,0.9823988662238693,0.9817577356189067,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,LightGBM chained,1965,1.0,0.9796437659033079,0.9788893643687419,0.9778954607231327,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,LightGBM chained,1965,1.0,0.9765903307888041,0.9761784454068532,0.973954285143941,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,LightGBM chained,1965,1.0,0.9750636132315522,0.974217686046794,0.9723436884994967,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,LightGBM chained,1965,1.0,0.9796437659033079,0.9787287473498338,0.9769632400031887,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,LightGBM chained,1965,1.0,0.9725190839694656,0.9720381017366618,0.9697464340723032,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,LightGBM chained,1965,1.0,0.9750636132315522,0.9745526348884568,0.9721338967944264,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,LightGBM chained,1965,1.0,0.7928753180661577,0.7800028053859233,0.7799011898236067,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,LightGBM chained,1965,1.0,0.9765903307888041,0.9761674176315186,0.973954285143941,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,LightGBM chained,1965,1.0,0.9750636132315522,0.9748432634036474,0.9722802877543935,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,LightGBM chained,1965,1.0,0.9735368956743002,0.9732929717766782,0.9709085980697422,0.8,0.05,random
+completion0.8-noise0.1,main,all predictors,219,model_id,LightGBM chained,1965,1.0,0.9597964376590331,0.9591797427344106,0.9567422045047917,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,LightGBM chained,1965,1.0,0.7852417302798982,0.7728121384953324,0.7727709015363671,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,LightGBM chained,1965,1.0,0.9577608142493639,0.9572010282100716,0.9544733835082719,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,LightGBM chained,1965,1.0,0.9577608142493639,0.9572902766405111,0.9546712027038097,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,LightGBM chained,1965,1.0,0.9521628498727736,0.9515021390659166,0.9489820032025045,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,LightGBM chained,1965,1.0,0.956234096692112,0.9557746448301668,0.9534654934488862,0.8,0.1,random
+completion0.9-noise0.05,main,all predictors,219,model_id,LightGBM chained,995,1.0,0.9959798994974874,0.9956936828509658,0.9955684126300239,0.9,0.05,random
+completion0.9-noise0.0,main,all predictors,219,model_id,LightGBM chained,995,1.0,0.9979899497487437,0.997733798195242,0.9978354978354979,0.9,0.0,random
+completion0.9-noise0.1,main,all predictors,219,model_id,LightGBM chained,995,1.0,0.9819095477386934,0.9818547653566458,0.9812704552813764,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,LightGBM chained,1972,1.0,0.9822515212981744,0.9818477515291082,0.9801490774239255,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,LightGBM chained,1995,1.0,0.9774436090225563,0.9766561727193808,0.9745806733280717,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,LightGBM chained,1949,1.0,0.9430477167778348,0.9423711164258137,0.9375601913610311,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,LightGBM chained,1965,1.0,0.9765903307888041,0.9756916931366879,0.9740715608491853,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,LightGBM chained,4954,1.0,0.8720226079935406,0.868265872801434,0.8617952269125071,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,LightGBM chained,6877,1.0,0.7260433328486259,0.7059932941137977,0.7026676993845584,0.3,0.05,sparse
+completion0.7-noise0.05,main,all predictors,219,model_id,Predictive MissForest,2968,1.0,0.9659703504043127,0.9643209639297636,0.9627452185318903,0.7,0.05,random
+completion0.7-noise0.0,main,all predictors,219,model_id,Predictive MissForest,2968,1.0,0.9690026954177897,0.9673359721290452,0.9660524277722023,0.7,0.0,random
+completion0.7-noise0.1,main,all predictors,219,model_id,Predictive MissForest,2968,1.0,0.9390161725067385,0.937067400678342,0.9345380015493767,0.7,0.1,random
+completion0.8-noise0.0,main,all predictors,219,model_id,Predictive MissForest,1965,1.0,0.9842239185750636,0.9832368434843431,0.9822374642273473,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,Predictive MissForest,1965,1.0,0.9806615776081425,0.9796656987584778,0.9784753222916275,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,Predictive MissForest,1965,1.0,0.761323155216285,0.7467541428978065,0.7468865370132433,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,Predictive MissForest,1965,1.0,0.981679389312977,0.9806478416748255,0.9793422576445617,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,Predictive MissForest,1965,1.0,0.9847328244274809,0.9837973289279794,0.9827441273837979,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,Predictive MissForest,1965,1.0,0.9821882951653944,0.9810787886894731,0.9799490537610666,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,Predictive MissForest,1965,1.0,0.981679389312977,0.9806543366664981,0.9795596663098602,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,Predictive MissForest,1965,1.0,0.9796437659033079,0.9783875136131286,0.9766780750434829,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,Predictive MissForest,1965,1.0,0.9801526717557252,0.9788332993670481,0.9776949287851664,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,Predictive MissForest,1965,1.0,0.9776081424936387,0.9764616343596159,0.9750342736128697,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,Predictive MissForest,1965,1.0,0.9801526717557252,0.9793344863159552,0.9781245758801058,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,Predictive MissForest,1965,1.0,0.759796437659033,0.744581996583228,0.7448049287230876,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,Predictive MissForest,1965,1.0,0.981679389312977,0.9808293410210517,0.9797694580149305,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,Predictive MissForest,1965,1.0,0.9801526717557252,0.9790742870308065,0.9775852700401504,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,Predictive MissForest,1965,1.0,0.978117048346056,0.9770746151537603,0.9755852859444997,0.8,0.05,random
+completion0.8-noise0.1,main,all predictors,219,model_id,Predictive MissForest,1965,1.0,0.9572519083969465,0.9563878031851023,0.9544701086631793,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,Predictive MissForest,1965,1.0,0.7552162849872773,0.7401149903801771,0.7404046947094278,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,Predictive MissForest,1965,1.0,0.9582697201017811,0.9574541755863515,0.955766691111053,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,Predictive MissForest,1965,1.0,0.9618320610687023,0.9611513580363495,0.9591726503817354,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,Predictive MissForest,1965,1.0,0.9521628498727736,0.9514146394938032,0.9490067629079231,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,Predictive MissForest,1965,1.0,0.956234096692112,0.9556297184425417,0.9536665740553483,0.8,0.1,random
+completion0.9-noise0.0,main,all predictors,219,model_id,Predictive MissForest,995,1.0,0.9989949748743718,0.9990056210847555,0.998917748917749,0.9,0.0,random
+completion0.9-noise0.05,main,all predictors,219,model_id,Predictive MissForest,995,1.0,0.9989949748743718,0.9988666841022958,0.998917748917749,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,Predictive MissForest,995,1.0,0.9819095477386934,0.9818348100359866,0.9811965843415462,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,Predictive MissForest,1972,1.0,0.9852941176470589,0.984725599415474,0.983659253100553,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,Predictive MissForest,1995,1.0,0.9829573934837093,0.9821443484905953,0.9807245465683803,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,Predictive MissForest,1949,1.0,0.9538224730631093,0.9526551466854171,0.9502578295332381,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,Predictive MissForest,1965,1.0,0.9837150127226463,0.9830838082517019,0.9818576025611029,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,Predictive MissForest,4954,1.0,0.8883730318934194,0.8835287345511923,0.8814991829916285,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,Predictive MissForest,6877,1.0,0.7481459938926858,0.7300596491053783,0.7279599616874594,0.3,0.05,sparse
+completion0.7-noise0.0,main,all predictors,219,model_id,MICE-PMM,2968,1.0,0.9501347708894878,0.9477909719834655,0.9471174347295652,0.7,0.0,random
+completion0.7-noise0.05,main,all predictors,219,model_id,MICE-PMM,2968,1.0,0.9508086253369272,0.9482584082382103,0.9474484679354109,0.7,0.05,random
+completion0.7-noise0.1,main,all predictors,219,model_id,MICE-PMM,2968,1.0,0.9272237196765498,0.9249519316150976,0.9242411998871446,0.7,0.1,random
+completion0.8-noise0.0,main,all predictors,219,model_id,MICE-PMM,1965,1.0,0.9776081424936387,0.976373348458693,0.9756952107073738,0.8,0.0,random
+completion0.8-noise0.0,ablation,without total_gas and leakage,219,model_id,MICE-PMM,1965,1.0,0.9765903307888041,0.9752561926714826,0.9745893683946465,0.8,0.0,random
+completion0.8-noise0.0,ablation,without gas columns,219,model_id,MICE-PMM,1965,1.0,0.6610687022900763,0.6373694644087863,0.6387259972161434,0.8,0.0,random
+completion0.8-noise0.0,ablation,without life,219,model_id,MICE-PMM,1965,1.0,0.978117048346056,0.9771755792011041,0.9765441751945958,0.8,0.0,random
+completion0.8-noise0.0,ablation,without location,219,model_id,MICE-PMM,1965,1.0,0.9765903307888041,0.9752999975651179,0.9746527691397497,0.8,0.0,random
+completion0.8-noise0.0,ablation,without install_date,219,model_id,MICE-PMM,1965,1.0,0.9740458015267176,0.9726244773165594,0.9712764872264541,0.8,0.0,random
+completion0.8-noise0.05,main,all predictors,219,model_id,MICE-PMM,1965,1.0,0.9760814249363867,0.97465509825365,0.9743191654734182,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,220,model_id,MICE-PMM,1965,1.0,0.9750636132315522,0.9739212329581959,0.973452230120484,0.8,0.05,random
+completion0.8-noise0.05,stability,all predictors,221,model_id,MICE-PMM,1965,1.0,0.9791348600508906,0.9780821343068906,0.9773134243120464,0.8,0.05,random
+completion0.8-noise0.05,spatial,all predictors,219,model_id,MICE-PMM,1965,1.0,0.9786259541984733,0.9772379814825229,0.9769088029403835,0.8,0.05,random
+completion0.8-noise0.05,ablation,without total_gas and leakage,219,model_id,MICE-PMM,1965,1.0,0.9740458015267176,0.9730009712633931,0.9726582212976147,0.8,0.05,random
+completion0.8-noise0.05,ablation,without gas columns,219,model_id,MICE-PMM,1965,1.0,0.6666666666666666,0.6417198986500668,0.6441387428563512,0.8,0.05,random
+completion0.8-noise0.05,ablation,without life,219,model_id,MICE-PMM,1965,1.0,0.978117048346056,0.9767779440612416,0.9762881254896125,0.8,0.05,random
+completion0.8-noise0.05,ablation,without location,219,model_id,MICE-PMM,1965,1.0,0.9760814249363867,0.9748238147711641,0.974302022728228,0.8,0.05,random
+completion0.8-noise0.05,ablation,without install_date,219,model_id,MICE-PMM,1965,1.0,0.9704834605597964,0.968917757458936,0.9684903772860206,0.8,0.05,random
+completion0.8-noise0.1,main,all predictors,219,model_id,MICE-PMM,1965,1.0,0.9592875318066157,0.958811142971468,0.9590137055112822,0.8,0.1,random
+completion0.8-noise0.1,ablation,without total_gas and leakage,219,model_id,MICE-PMM,1965,1.0,0.9603053435114504,0.9595570295644794,0.9595636371387006,0.8,0.1,random
+completion0.8-noise0.1,ablation,without gas columns,219,model_id,MICE-PMM,1965,1.0,0.6600508905852417,0.6370113179400518,0.638066944743546,0.8,0.1,random
+completion0.8-noise0.1,ablation,without location,219,model_id,MICE-PMM,1965,1.0,0.9511450381679389,0.9501993128633086,0.9505490218570064,0.8,0.1,random
+completion0.8-noise0.1,ablation,without life,219,model_id,MICE-PMM,1965,1.0,0.9501272264631043,0.9489688921342946,0.948695990823987,0.8,0.1,random
+completion0.8-noise0.1,ablation,without install_date,219,model_id,MICE-PMM,1965,1.0,0.9592875318066157,0.9579682062056403,0.9576148286949312,0.8,0.1,random
+completion0.9-noise0.0,main,all predictors,219,model_id,MICE-PMM,995,1.0,0.9959798994974874,0.9958742259866482,0.9956709956709957,0.9,0.0,random
+completion0.9-noise0.05,main,all predictors,219,model_id,MICE-PMM,995,1.0,0.9969849246231156,0.996876288302365,0.9969297007340485,0.9,0.05,random
+completion0.9-noise0.1,main,all predictors,219,model_id,MICE-PMM,995,1.0,0.9819095477386934,0.9816653490396309,0.9816520753441215,0.9,0.1,random
+completion0.8-noise0.05-age,mechanism,all predictors,219,model_id,MICE-PMM,1972,1.0,0.9761663286004056,0.9762175399958668,0.9741730218997471,0.8,0.05,age
+completion0.8-noise0.05-value,mechanism,all predictors,219,model_id,MICE-PMM,1995,1.0,0.9794486215538847,0.9779509507346268,0.9771619062463833,0.8,0.05,value
+completion0.8-noise0.05-group,mechanism,all predictors,219,model_id,MICE-PMM,1949,1.0,0.93945613134941,0.9378844017105077,0.9372736539460133,0.8,0.05,group
+completion0.8-noise0.05-errors,mechanism,all predictors,219,model_id,MICE-PMM,1965,1.0,0.9750636132315522,0.9738017012882535,0.9740062319810592,0.8,0.05,errors
+completion0.5-noise0.05-sparse,mechanism,all predictors,219,model_id,MICE-PMM,4954,1.0,0.8589018974566007,0.8530863759233551,0.8524114514985416,0.5,0.05,sparse
+completion0.3-noise0.05-sparse,mechanism,all predictors,219,model_id,MICE-PMM,6877,1.0,0.6854733168532791,0.6721587401978489,0.6724767935119675,0.3,0.05,sparse

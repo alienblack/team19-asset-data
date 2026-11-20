@@ -1,0 +1,1 @@
+{"feature_fraction": 0.7, "iterations": 3, "learning_rate": 0.05, "min_data_in_leaf": 50, "num_leaves": 7, "rounds": 100}

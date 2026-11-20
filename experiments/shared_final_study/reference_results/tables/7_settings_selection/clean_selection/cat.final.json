@@ -1,0 +1,1 @@
+{"base": "block", "classifier_rounds": 500, "depth": 4, "iterations": 800, "learning_rate": 0.1, "linear_alpha": 30.0, "passes": 6, "patience": 30}

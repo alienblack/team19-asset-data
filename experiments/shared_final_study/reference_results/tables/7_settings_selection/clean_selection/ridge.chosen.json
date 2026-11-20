@@ -1,0 +1,1 @@
+{"curve_alpha": 1000.0, "initial_strategy": "median", "linear_alpha": 30.0, "max_iter": 10, "tol": 0.001}

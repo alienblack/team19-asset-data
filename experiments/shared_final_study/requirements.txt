@@ -1,0 +1,23 @@
+# Exact versions used for the study, on Python 3.12.
+numpy==2.5.4
+pandas==2.3.3
+scipy==1.18.1
+scikit-learn==1.9.1
+matplotlib==3.11.2
+pyarrow==26.0.1
+joblib==1.6.0
+psutil==7.2.2
+threadpoolctl==3.7.0
+catboost==1.2.10
+lightgbm==4.5.0  # 4.6 and later break miceforest
+miceforest==6.0.5  # the compatibility patch in src is audited for this version only
+torch==2.9.1  # the Masked MLP; CPU build: pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
+
+# Running the notebook and the tests.
+ipykernel==7.4.0
+nbconvert==7.17.2
+notebook==7.6.4
+pytest==8.4.2
+
+# Offline report template (also previously installed via the notebook stack).
+Jinja2==3.1.6

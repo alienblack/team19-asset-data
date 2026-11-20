@@ -1,0 +1,198 @@
+{
+  "operation": "Audit of supplied candidate scores; no models refitted",
+  "rule": "Mean numeric MAE ratio; placebo <=1.01; within 0.002 of best; fastest",
+  "models": [
+    {
+      "model": "KNN imputer",
+      "round": 3,
+      "selected": {
+        "base": "block",
+        "linear_alpha": 30.0,
+        "n_neighbors": 80,
+        "passes": 6,
+        "weights": "distance"
+      },
+      "recorded_final": {
+        "base": "block",
+        "linear_alpha": 30.0,
+        "n_neighbors": 80,
+        "passes": 6,
+        "weights": "distance"
+      },
+      "matches_recorded": true,
+      "candidate_settings": 8,
+      "fold_scenario_records": 72
+    },
+    {
+      "model": "IterativeImputer",
+      "round": 3,
+      "selected": {
+        "curve_alpha": 1000.0,
+        "initial_strategy": "median",
+        "linear_alpha": 30.0,
+        "max_iter": 10,
+        "tol": 0.001
+      },
+      "recorded_final": {
+        "curve_alpha": 1000.0,
+        "initial_strategy": "median",
+        "linear_alpha": 30.0,
+        "max_iter": 10,
+        "tol": 0.001
+      },
+      "matches_recorded": true,
+      "candidate_settings": 8,
+      "fold_scenario_records": 72
+    },
+    {
+      "model": "Random Forest",
+      "round": 3,
+      "selected": {
+        "base": "block",
+        "linear_alpha": 30.0,
+        "max_samples": 0.5,
+        "min_samples_leaf": 2,
+        "n_estimators": 100,
+        "passes": 4
+      },
+      "recorded_final": {
+        "base": "block",
+        "linear_alpha": 30.0,
+        "max_samples": 0.5,
+        "min_samples_leaf": 2,
+        "n_estimators": 100,
+        "passes": 4
+      },
+      "matches_recorded": true,
+      "candidate_settings": 8,
+      "fold_scenario_records": 72
+    },
+    {
+      "model": "HistGradientBoosting",
+      "round": 3,
+      "selected": {
+        "base": "block",
+        "classifier_rounds": 200,
+        "early_stopping": true,
+        "l2_regularization": 0.0,
+        "learning_rate": 0.05,
+        "linear_alpha": 30.0,
+        "max_iter": 400,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 20,
+        "n_iter_no_change": 20,
+        "passes": 6,
+        "validation_fraction": 0.15
+      },
+      "recorded_final": {
+        "base": "block",
+        "classifier_rounds": 200,
+        "early_stopping": true,
+        "l2_regularization": 0.0,
+        "learning_rate": 0.05,
+        "linear_alpha": 30.0,
+        "max_iter": 400,
+        "max_leaf_nodes": 31,
+        "min_samples_leaf": 20,
+        "n_iter_no_change": 20,
+        "passes": 6,
+        "validation_fraction": 0.15
+      },
+      "matches_recorded": true,
+      "candidate_settings": 8,
+      "fold_scenario_records": 72
+    },
+    {
+      "model": "CatBoost",
+      "round": 3,
+      "selected": {
+        "base": "block",
+        "classifier_rounds": 500,
+        "depth": 4,
+        "iterations": 800,
+        "learning_rate": 0.1,
+        "linear_alpha": 30.0,
+        "passes": 6,
+        "patience": 30
+      },
+      "recorded_final": {
+        "base": "block",
+        "classifier_rounds": 500,
+        "depth": 4,
+        "iterations": 800,
+        "learning_rate": 0.1,
+        "linear_alpha": 30.0,
+        "passes": 6,
+        "patience": 30
+      },
+      "matches_recorded": true,
+      "candidate_settings": 8,
+      "fold_scenario_records": 72
+    },
+    {
+      "model": "miceforest direct",
+      "round": 3,
+      "selected": {
+        "feature_fraction": 0.7,
+        "iterations": 3,
+        "learning_rate": 0.05,
+        "min_data_in_leaf": 20,
+        "num_leaves": 31,
+        "rounds": 200
+      },
+      "recorded_final": {
+        "feature_fraction": 0.7,
+        "iterations": 3,
+        "learning_rate": 0.05,
+        "min_data_in_leaf": 20,
+        "num_leaves": 31,
+        "rounds": 200
+      },
+      "matches_recorded": true,
+      "candidate_settings": 8,
+      "fold_scenario_records": 72
+    },
+    {
+      "model": "Gaussian EM",
+      "round": 3,
+      "selected": {
+        "class_weight": 1.8,
+        "clusters": 6,
+        "reg": 0.001,
+        "steps": 8
+      },
+      "recorded_final": {
+        "class_weight": 1.8,
+        "clusters": 6,
+        "reg": 0.001,
+        "steps": 8
+      },
+      "matches_recorded": true,
+      "candidate_settings": 17,
+      "fold_scenario_records": 153
+    },
+    {
+      "model": "Masked MLP",
+      "round": 3,
+      "selected": {
+        "decay": 0.0001277,
+        "dropout": 0.0,
+        "epochs": 60,
+        "lr": 0.0015,
+        "remask": 0.4,
+        "width": 256
+      },
+      "recorded_final": {
+        "decay": 0.0001277,
+        "dropout": 0.0,
+        "epochs": 60,
+        "lr": 0.0015,
+        "remask": 0.4,
+        "width": 256
+      },
+      "matches_recorded": true,
+      "candidate_settings": 15,
+      "fold_scenario_records": 135
+    }
+  ]
+}

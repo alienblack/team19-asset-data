@@ -1,0 +1,129 @@
+{
+  "version": "5.2.0",
+  "checked_utc": "2026-11-20T10:28:44.893516+00:00",
+  "ticket": "PGS219-265",
+  "pull_request": "https://github.com/alienblack/team19-asset-data/pull/28",
+  "scope": "Guided new-CSV workflow and redesigned reports; the original scientific benchmark is preserved",
+  "tests": {
+    "passed": 91,
+    "failed": 0,
+    "seconds": 10.5,
+    "warnings": 1,
+    "warning": "IterativeImputer reached its deliberately small test iteration budget"
+  },
+  "original_scientific_preservation": {
+    "modules_matching": 25,
+    "input_csvs_matching": 30,
+    "result_csvs_matching": 58,
+    "published_summary_identical": true,
+    "requirements_unchanged": true,
+    "new_original_full_refit": false
+  },
+  "generic_all_method_run": {
+    "methods": 12,
+    "validation_fits": 24,
+    "completion_exports": 12,
+    "status": {
+      "status": "success",
+      "report": "report.html",
+      "validation_fits_succeeded": 24,
+      "failures": 0,
+      "elapsed_seconds": 4.369881708989851
+    },
+    "conditions": "80 sampled evaluation rows, two folds, grouped extra hiding, 10% added noise on span_m/coastal_index; final completion on all 240 supplied rows",
+    "model_parameters": "Small diagnostic settings; not the historical published experiment"
+  },
+  "included_example": {
+    "rows": 240,
+    "validation_rows": 1371,
+    "methods": 3,
+    "figures": 12,
+    "status": {
+      "status": "success",
+      "report": "report.html",
+      "validation_fits_succeeded": 9,
+      "failures": 0,
+      "elapsed_seconds": 2.7661770419217646
+    },
+    "truth_supplied": true,
+    "purpose": "New synthetic arbitrary-schema demonstration; not SAPN data"
+  },
+  "browser_checks": {
+    "arbitrary_schema_example": true,
+    "transformer_csv_compatibility": {
+      "rows": 10000,
+      "fields": 15,
+      "categorical": [
+        "model_id"
+      ],
+      "failures": [],
+      "methods": 2,
+      "report": "/files/45890740e6c7/report.html",
+      "pageErrors": []
+    },
+    "desktop_width": 1512,
+    "mobile_width": 390,
+    "mobile_document_overflow": false,
+    "javascript_errors": 0,
+    "print_loads_all_figures": true,
+    "print_clears_then_restores_filters": true
+  },
+  "scientific_checks": [
+    "Train/test rows disjoint for validation; clean truth never enters model fitting",
+    "Methods share the same hidden cells",
+    "Noise amplitude does not change masks and scales the same noise draws",
+    "Absolute calendar-year tolerances and relative-zero denominators tested",
+    "All twelve adapters preserve observations and support five category labels",
+    "Identifier leading zeros and numeric category/truth formatting are preserved",
+    "ISO dates use day units and recorded date strings are retained",
+    "Incomplete validation methods excluded from the paired ranking; CLI signals partial results"
+  ],
+  "runtime_sha256": {
+    "src/synthetic_imputation/dataset_models.py": "bb9ca7b0e1687a81372bea9061ff740784ced6918834e6cd2b428457b8ff71b2",
+    "src/synthetic_imputation/runner.py": "ac7fa02cbf52b0c065889826de5dc21cb84e4f96a4a392076eeaad971bf0035c",
+    "src/synthetic_imputation/execution.py": "fa895ee160c73d440031de9d9a2fa7a30bdbc9e3c8822ea548ba23be81896798",
+    "src/synthetic_imputation/models.py": "2c60934ebf56bbd24fcde79b11968657be7c75ad34b06b483101ab10affb32e8",
+    "src/synthetic_imputation/evaluation.py": "43faed4d25b8d3f664581ffba5efafdac2ba2696841697e05cdce6a36ef06dcc",
+    "src/synthetic_imputation/__init__.py": "881148bd3a8537d18d0f8e7184768f4b4a7462f4e8fa1870c4c357a647c10087",
+    "src/synthetic_imputation/dataset.py": "7c112c016dd16387ff36564c3e1d9bf6d77b7e4907e1dad46a618f5ba747e779",
+    "src/synthetic_imputation/columns.py": "c7668f65c6efef9aa91d810b5e179177d91bce2bce153b5cf1f9eff847c8ae1b",
+    "src/synthetic_imputation/cli.py": "0821774100ac71e21611e21f699dd20f6bf44bd5afc38eff424e0ec83f1f198b",
+    "src/synthetic_imputation/failure.py": "8b2f42705a026e3a06518a47c7da1e2254c7033af6a00ae66373203c78d9c382",
+    "src/synthetic_imputation/figures.py": "9ca872356f289db9cd9e42d4e4428a5dc46522ea3fb634d95c523fd290627368",
+    "src/synthetic_imputation/dataset_app.py": "0881869f597d4c5a7854f14624ab1b40cf5a10d77defb8dab4fcc02c363756bf",
+    "src/synthetic_imputation/selection.py": "fde779afe1b9fe40f85125448ccc7a0ad5eb37114d52832a334fb38740df9f12",
+    "src/synthetic_imputation/dataset_reporting.py": "94d717248bf47e88cca96da5444b7baca2587906e484d7ff4a2096f0bc6809c7",
+    "src/synthetic_imputation/mechanisms.py": "ea88d8edc320e9af5c97022550b39b122d51e7002be83967474650468573c773",
+    "src/synthetic_imputation/data.py": "46c8f256e11b57301d9a73bb0d4320957ad352218eaafe239f62fd727ee3f7a5",
+    "src/synthetic_imputation/study.py": "4d6aa7a8894169d48b4bf3ef149197449019345b9a3d1da422428ffa69548db5",
+    "src/synthetic_imputation/miceforest_compat.py": "732b4b8e625e45984ad56b0abab66218eda8626c6376b7067b4107008e9a0455",
+    "src/synthetic_imputation/relationships.py": "748e511155f882a89749000917b877f481dd447b52cc09de69e60304727a8840",
+    "src/synthetic_imputation/models_external.py": "f8b3954662688da0711a260ada13ebd59b18add3b0e7f11d34af27929f2e7bbf",
+    "src/synthetic_imputation/reporting.py": "03a40fca2d423571e7859c6a5243709a24917d3d51f31835daa704dc4a641f1f",
+    "src/synthetic_imputation/templates/dataset_report.html": "4aa963e90a6e68722b34dfe7bf3cb6444048286232f5783b5cc1b8af7f13bae0",
+    "src/synthetic_imputation/templates/workbench.html": "c49b53fc5918e3cbfd37802a2b66ca61924bb1edd0a5899e08f17b8eedb08177",
+    "src/synthetic_imputation/templates/report_interactions.html": "fcc4606bb6213f6fc8e866ba604f5571b516a246d457321a207716a20a652649",
+    "src/synthetic_imputation/templates/report_style.css": "5d453edc79afade382556565af2078a98cbe7cb4aae2f021d0f2568e3479712d",
+    "src/synthetic_imputation/templates/report.html": "5635842c572d8d5a7aa1fa5a6bc97a50c7a1913a46e5dfa6ca0e86dc4fd7affe",
+    "src/synthetic_imputation/vendor/__init__.py": "09b4886ee29610336ab46358eb3a2cb429747469443b04b6c67eafe45cf22f16",
+    "src/synthetic_imputation/vendor/pipeline/postprocess.py": "c3add23bee1d8027c47d31d8912e35caae2d00a3fdfe2d13d0b2770044de3178",
+    "src/synthetic_imputation/vendor/pipeline/predictive_missforest.py": "b0b54e30ae74873b77753ad7f99f4aa167391956deaee60719f1adcfa27bc687",
+    "src/synthetic_imputation/vendor/pipeline/__init__.py": "51a5a474d1696802f4e407e016204470e28855500218dd68897149307c7e65d7",
+    "src/synthetic_imputation/vendor/pipeline/mice_pmm_logistic.py": "c87d5dc839f0fd7fe781e940fd904ae8aee8993f5c79d17b689774a408651362",
+    "src/synthetic_imputation/vendor/pipeline/comparison_models.py": "45b0c71dd47fea8b17ad23c97554c0bd4d39735555bfca7509f7572384ed69fe",
+    "src/synthetic_imputation/vendor/pipeline/simple_imputer.py": "53f972ef4c0c909e8dcba37860d3d08efa72cdee763e177994ca8e7e966b1f10",
+    "src/synthetic_imputation/vendor/subteam_a/mixture.py": "30a522483c1c11792d5f471a236d798544c2e44e1ea34bc9afee1f52f0ecb17d",
+    "src/synthetic_imputation/vendor/subteam_a/models.py": "0d27fd82ad5a0cc32c5c07fa303920fc2e2d6f248e58de12b816e457326b6087",
+    "src/synthetic_imputation/vendor/subteam_a/__init__.py": "3eb0242e509b8c34243aefc51ab8077cf65928ec1d746e4b71a79767f6369a94",
+    "src/synthetic_imputation/vendor/subteam_a/features.py": "ffa653909d0fecb1750affdcd50c51422108e21386d55a3859e0fed972ba7354",
+    "src/synthetic_imputation/vendor/subteam_a/data.py": "d8a719c3ecfc183d47310e72132319b310674c8d77c9f18d784ad4dba21ef445"
+  },
+  "limits": [
+    "Supported tabular CSV schemas; one dataset per run",
+    "Generic adapters/settings are distinct from the original benchmark",
+    "No production auto-fill calibration is claimed for new CSVs",
+    "Original package 03 is not included; it remains necessary for original raw-prediction reevaluation",
+    "The installed pinned environment was reused; no fresh dependency download was claimed"
+  ],
+  "previous_release_audit": "docs/audits/5.1-final-submission.json"
+}

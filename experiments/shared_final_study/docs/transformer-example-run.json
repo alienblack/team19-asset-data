@@ -1,0 +1,58 @@
+{
+  "run_id": "20261120-115901-d42c41e759eb",
+  "dataset": "completion0.8-noise0.05-measured.csv",
+  "rows": 10000,
+  "evaluation_rows": 1000,
+  "columns": 15,
+  "natural_missing": 29928,
+  "score_reference": "Supplied truth at held-out missing cells",
+  "truth_supplied": true,
+  "leaderboard": [
+    {
+      "method": "gaussian",
+      "label": "Gaussian EM",
+      "skill": 0.6018650638249278,
+      "macro_f1": 0.7742883892736367,
+      "within_tolerance": 0.6258195471262267,
+      "seconds": 0.6706757509382442,
+      "below_floor": 1,
+      "completion_available": true
+    },
+    {
+      "method": "forest",
+      "label": "Predictive MissForest",
+      "skill": 0.5452979222408353,
+      "macro_f1": 0.9104685405782612,
+      "within_tolerance": 0.5726323013221716,
+      "seconds": 6.236325167003088,
+      "below_floor": 1,
+      "completion_available": true
+    },
+    {
+      "method": "median",
+      "label": "Median / mode",
+      "skill": 0.0,
+      "macro_f1": 0.1734641310900422,
+      "within_tolerance": 0.30630056174656317,
+      "seconds": 0.3196495829615742,
+      "below_floor": 0,
+      "completion_available": true
+    }
+  ],
+  "purpose": "One fresh product demonstration, not the archived benchmark or a multi-condition study",
+  "configuration": "examples/transformer_workbench_config.json",
+  "validation_fits_succeeded": 9,
+  "failures": 0,
+  "completed_exports": {
+    "methods": [
+      "median",
+      "forest",
+      "gaussian"
+    ],
+    "rows_per_export": 10000,
+    "modelled_gaps_remaining": 0,
+    "recorded_numeric_values_preserved": true
+  },
+  "input_sha256": "89ca8c16348c7f27dac66e5da28a35bfa2e10f33c9fed565e91696c0a43fdbb5",
+  "truth_sha256": "8f956cb5c9fc9f8337dc7ae15c00cbd9f2d4e1c720c3d39e9b84bc98a492fb52"
+}
