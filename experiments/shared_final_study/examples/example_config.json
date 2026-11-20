@@ -1,0 +1,91 @@
+{
+  "title": "Synthetic overhead asset example",
+  "columns": [
+    {
+      "name": "asset_id",
+      "type": "ignore",
+      "group": "",
+      "tolerance_kind": "none",
+      "tolerance": null,
+      "lower": null,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "voltage_kv",
+      "type": "numeric",
+      "group": "",
+      "tolerance_kind": "none",
+      "tolerance": null,
+      "lower": null,
+      "upper": null,
+      "integer": true,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "span_m",
+      "type": "numeric",
+      "group": "location",
+      "tolerance_kind": "absolute",
+      "tolerance": 5,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "installation_year",
+      "type": "numeric",
+      "group": "",
+      "tolerance_kind": "absolute",
+      "tolerance": 5,
+      "lower": 1900,
+      "upper": 2026,
+      "integer": true,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "material",
+      "type": "categorical",
+      "group": "",
+      "tolerance_kind": "none",
+      "tolerance": null,
+      "lower": null,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "coastal_index",
+      "type": "numeric",
+      "group": "location",
+      "tolerance_kind": "absolute",
+      "tolerance": 0.1,
+      "lower": 0,
+      "upper": 1,
+      "integer": false,
+      "exclude_from_mean": false
+    },
+    {
+      "name": "condition_index",
+      "type": "numeric",
+      "group": "",
+      "tolerance_kind": "absolute",
+      "tolerance": 5,
+      "lower": 0,
+      "upper": null,
+      "integer": false,
+      "exclude_from_mean": false
+    }
+  ],
+  "methods": [
+    "median",
+    "forest",
+    "gaussian"
+  ],
+  "folds": 3,
+  "mask_rate": 0.2,
+  "trees": 30,
+  "passes": 2
+}

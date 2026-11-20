@@ -1,0 +1,321 @@
+{
+  "checked_utc": "2026-11-20T09:19:28.831216+00:00",
+  "ticket": "PGS219-265",
+  "branch": "PGS219-265-final-product-handover",
+  "base_main_commit": "ba89edfb67d6153cf6fb1327be13764a43a7b422",
+  "scope": "Final code packaging and runnable quick workflow; no new full research refit",
+  "unit_tests": {
+    "passed": 68,
+    "failed": 0,
+    "seconds": 38.02,
+    "python": "3.12.11"
+  },
+  "dependency_check": "No broken requirements found",
+  "original_files_matching_sha256": {
+    "prediction_modules": 25,
+    "input_csvs": 30,
+    "result_csvs": 58,
+    "staged_git_blobs_also_match": true
+  },
+  "selection_audit": {
+    "choices": 8,
+    "matches_recorded": 8,
+    "new_tuning_performed": false
+  },
+  "fresh_extraction_quick_run": {
+    "run_id": "20261120-201342",
+    "tasks": 3060,
+    "failed_tasks": 0,
+    "rows": 600,
+    "charts": 31,
+    "csv_exports": 52,
+    "tasks_with_warnings": 154,
+    "diagnostic_only": true,
+    "run_status": {
+      "status": "success",
+      "mode": "quick",
+      "generated_utc": "2026-11-20T09:13:38.569238+00:00",
+      "environment": {
+        "python": "3.12.11",
+        "platform": "macOS-15.5-arm64-arm-64bit",
+        "packages": {
+          "numpy": "2.5.4",
+          "pandas": "2.3.3",
+          "scipy": "1.18.1",
+          "scikit-learn": "1.9.1",
+          "torch": "2.9.1",
+          "lightgbm": "4.5.0",
+          "miceforest": "6.0.5",
+          "catboost": "1.2.10",
+          "matplotlib": "3.11.2",
+          "joblib": "1.6.0",
+          "Jinja2": "3.1.6"
+        }
+      },
+      "refitted": true,
+      "run_id": "20261120-201342",
+      "quick": true,
+      "config": {
+        "data_directory": "data/datasets",
+        "mechanism_directory": "data/datasets_mechanisms",
+        "mechanisms": [
+          "age",
+          "value",
+          "group",
+          "errors"
+        ],
+        "sparse_completions": [
+          0.5,
+          0.3
+        ],
+        "output_directory": "outputs/imputation-study/runs",
+        "representative": "completion0.8-noise0.05",
+        "noise_series": [
+          "completion0.8-noise0.0",
+          "completion0.8-noise0.05",
+          "completion0.8-noise0.1"
+        ],
+        "scenarios": [
+          "completion0.7-noise0.05",
+          "completion0.8-noise0.0",
+          "completion0.8-noise0.05",
+          "completion0.8-noise0.1",
+          "completion0.9-noise0.05"
+        ],
+        "seed": 219,
+        "stability_seeds": [
+          220,
+          221
+        ],
+        "folds": 5,
+        "rows": 600,
+        "iterative_budgets": [
+          5,
+          30
+        ],
+        "bootstrap_draws": 50,
+        "small_group": 30,
+        "material_gap": 0.05,
+        "parameters": {
+          "KNN imputer": {
+            "passes": 2,
+            "linear_alpha": 30.0,
+            "curve_alpha": 300.0,
+            "n_neighbors": 80,
+            "weights": "distance"
+          },
+          "IterativeImputer": {
+            "max_iter": 3,
+            "tol": 0.001,
+            "initial_strategy": "median",
+            "linear_alpha": 30.0,
+            "curve_alpha": 1000.0
+          },
+          "Random Forest": {
+            "passes": 2,
+            "linear_alpha": 30.0,
+            "curve_alpha": 300.0,
+            "n_estimators": 10,
+            "min_samples_leaf": 2,
+            "max_samples": 0.5
+          },
+          "HistGradientBoosting": {
+            "passes": 2,
+            "linear_alpha": 30.0,
+            "curve_alpha": 300.0,
+            "max_iter": 10,
+            "classifier_rounds": 10,
+            "early_stopping": true,
+            "n_iter_no_change": 20,
+            "validation_fraction": 0.15,
+            "learning_rate": 0.05,
+            "max_leaf_nodes": 31,
+            "min_samples_leaf": 20,
+            "l2_regularization": 0.0
+          },
+          "CatBoost": {
+            "passes": 2,
+            "linear_alpha": 30.0,
+            "curve_alpha": 300.0,
+            "iterations": 10,
+            "depth": 4,
+            "learning_rate": 0.1,
+            "patience": 30,
+            "classifier_rounds": 10
+          },
+          "miceforest direct": {
+            "iterations": 2,
+            "rounds": 10,
+            "learning_rate": 0.05,
+            "num_leaves": 31,
+            "min_data_in_leaf": 20,
+            "feature_fraction": 0.7
+          },
+          "Gaussian EM": {
+            "clusters": 6,
+            "steps": 8,
+            "reg": 0.001,
+            "class_weight": 1.8
+          },
+          "Masked MLP": {
+            "width": 32,
+            "epochs": 3,
+            "dropout": 0.0,
+            "lr": 0.0015,
+            "decay": 0.0001277,
+            "remask": 0.4
+          },
+          "LightGBM chained": {
+            "passes": 2,
+            "lgbm_estimators": 10,
+            "lgbm_learning_rate": 0.07,
+            "lgbm_num_leaves": 31
+          },
+          "Predictive MissForest": {
+            "n_estimators": 10,
+            "n_passes": 1,
+            "min_samples_leaf": 10,
+            "max_features": "sqrt",
+            "max_depth": null
+          },
+          "MICE-PMM": {
+            "chains": 2,
+            "sweeps": 2,
+            "donors": 5,
+            "ridge": 0.0001,
+            "logistic_C": 1.0,
+            "logistic_max_iter": 500
+          }
+        },
+        "explanation": {
+          "Random Forest": {
+            "n_estimators": 10,
+            "min_samples_leaf": 2
+          },
+          "CatBoost": {
+            "iterations": 10,
+            "depth": 6,
+            "learning_rate": 0.1
+          }
+        },
+        "blocks": {
+          "without total_gas and leakage": [
+            "total_gas",
+            "leakage"
+          ],
+          "without gas columns": [
+            "measured_gas_a",
+            "measured_gas_b",
+            "measured_gas_c",
+            "total_gas"
+          ],
+          "without life": [
+            "life"
+          ],
+          "without location": [
+            "x",
+            "y",
+            "altitude"
+          ],
+          "without install_date": [
+            "install_date"
+          ]
+        }
+      },
+      "tasks": 3060,
+      "failed_tasks": 0,
+      "tasks_with_warnings": 154,
+      "provenance": "Fresh model fits and evaluation",
+      "warning_records": [
+        {
+          "method": "IterativeImputer",
+          "warning_types": "ConvergenceWarning",
+          "tasks": 145,
+          "warning_example": "[IterativeImputer] Early stopping criterion not reached."
+        },
+        {
+          "method": "IterativeImputer (5)",
+          "warning_types": "ConvergenceWarning",
+          "tasks": 5,
+          "warning_example": "[IterativeImputer] Early stopping criterion not reached."
+        },
+        {
+          "method": "IterativeImputer (30)",
+          "warning_types": "ConvergenceWarning",
+          "tasks": 4,
+          "warning_example": "[IterativeImputer] Early stopping criterion not reached."
+        }
+      ],
+      "report": "report.html"
+    }
+  },
+  "published_evidence": {
+    "source_run": "20261115-121714",
+    "charts": 54,
+    "csv_exports": 58,
+    "completed_tables": 12,
+    "full_study_refitted_here": false
+  },
+  "browser_check": {
+    "decoded_charts": 54,
+    "failed_charts": 0,
+    "javascript_errors": 0,
+    "network_requests": 0,
+    "horizontal_overflow": false,
+    "working_local_links": 72
+  },
+  "packaging_changes": [
+    "exclude caches, environments, builds, macOS metadata and generated quick predictions",
+    "preserve exact Git file bytes across operating systems",
+    "declare tested Python 3.12 environment",
+    "document GitHub/Jira submission and optional raw-prediction package"
+  ],
+  "runtime_file_sha256": {
+    "run_study.py": "d2964a1200dcca2b0e10692d41f3af18ba7595f858f573adea907ae682182e64",
+    "requirements.txt": "63448c615b05f94c5d36240fead2d4631594b5326e070a5d27063a483c811694",
+    "pyproject.toml": "8a0473a9f4531922ab9b3285f4268093d9016256bdbe248ce1f5b491a46bcf2f",
+    "tools/build_handover.py": "b8d122bfd8e0fe1733231ffc79fe1273512482dd0e7f990841683f092cb77d2a",
+    "tests/test_automation.py": "27f6be69f1b1f715e961b8da35d69da74d8242ea0b550a43b6ef6b732803950e",
+    "tests/test_imputation_study.py": "7564c9694691ad73524f7f648fb84f344882feef765755a59869d4162416b3ba",
+    "scripts/refit_selection.py": "db50fdf71ae81e9aab13d455ae44fc89f4cd39193abcfb98cb62ca49dc3304f0",
+    "scripts/selection_audit.py": "e7e63d15af72671f3a4f2866901499707e23783ec2664a4e11fd2f5d78030d10",
+    "notebooks/imputation.ipynb": "12f37485187825620cb0c04005f66a260ffcd9774de923ff4d5469a2401623be",
+    "src/synthetic_imputation/runner.py": "ac7fa02cbf52b0c065889826de5dc21cb84e4f96a4a392076eeaad971bf0035c",
+    "src/synthetic_imputation/execution.py": "fa895ee160c73d440031de9d9a2fa7a30bdbc9e3c8822ea548ba23be81896798",
+    "src/synthetic_imputation/models.py": "2c60934ebf56bbd24fcde79b11968657be7c75ad34b06b483101ab10affb32e8",
+    "src/synthetic_imputation/evaluation.py": "43faed4d25b8d3f664581ffba5efafdac2ba2696841697e05cdce6a36ef06dcc",
+    "src/synthetic_imputation/__init__.py": "881148bd3a8537d18d0f8e7184768f4b4a7462f4e8fa1870c4c357a647c10087",
+    "src/synthetic_imputation/columns.py": "c7668f65c6efef9aa91d810b5e179177d91bce2bce153b5cf1f9eff847c8ae1b",
+    "src/synthetic_imputation/cli.py": "100939902f8416baf39e82c7f30313fbbf458dfea773f31c99aab6ed60284919",
+    "src/synthetic_imputation/failure.py": "8b2f42705a026e3a06518a47c7da1e2254c7033af6a00ae66373203c78d9c382",
+    "src/synthetic_imputation/figures.py": "9ca872356f289db9cd9e42d4e4428a5dc46522ea3fb634d95c523fd290627368",
+    "src/synthetic_imputation/selection.py": "fde779afe1b9fe40f85125448ccc7a0ad5eb37114d52832a334fb38740df9f12",
+    "src/synthetic_imputation/mechanisms.py": "ea88d8edc320e9af5c97022550b39b122d51e7002be83967474650468573c773",
+    "src/synthetic_imputation/data.py": "46c8f256e11b57301d9a73bb0d4320957ad352218eaafe239f62fd727ee3f7a5",
+    "src/synthetic_imputation/study.py": "4d6aa7a8894169d48b4bf3ef149197449019345b9a3d1da422428ffa69548db5",
+    "src/synthetic_imputation/miceforest_compat.py": "732b4b8e625e45984ad56b0abab66218eda8626c6376b7067b4107008e9a0455",
+    "src/synthetic_imputation/relationships.py": "748e511155f882a89749000917b877f481dd447b52cc09de69e60304727a8840",
+    "src/synthetic_imputation/models_external.py": "f8b3954662688da0711a260ada13ebd59b18add3b0e7f11d34af27929f2e7bbf",
+    "src/synthetic_imputation/reporting.py": "5c570b759e83450e12af8e063489eb7660606338dc2be49d2e15478f84690e8d",
+    "src/synthetic_imputation/vendor/__init__.py": "09b4886ee29610336ab46358eb3a2cb429747469443b04b6c67eafe45cf22f16",
+    "src/synthetic_imputation/vendor/pipeline/postprocess.py": "c3add23bee1d8027c47d31d8912e35caae2d00a3fdfe2d13d0b2770044de3178",
+    "src/synthetic_imputation/vendor/pipeline/predictive_missforest.py": "b0b54e30ae74873b77753ad7f99f4aa167391956deaee60719f1adcfa27bc687",
+    "src/synthetic_imputation/vendor/pipeline/__init__.py": "51a5a474d1696802f4e407e016204470e28855500218dd68897149307c7e65d7",
+    "src/synthetic_imputation/vendor/pipeline/mice_pmm_logistic.py": "c87d5dc839f0fd7fe781e940fd904ae8aee8993f5c79d17b689774a408651362",
+    "src/synthetic_imputation/vendor/pipeline/comparison_models.py": "45b0c71dd47fea8b17ad23c97554c0bd4d39735555bfca7509f7572384ed69fe",
+    "src/synthetic_imputation/vendor/pipeline/simple_imputer.py": "53f972ef4c0c909e8dcba37860d3d08efa72cdee763e177994ca8e7e966b1f10",
+    "src/synthetic_imputation/vendor/subteam_a/mixture.py": "30a522483c1c11792d5f471a236d798544c2e44e1ea34bc9afee1f52f0ecb17d",
+    "src/synthetic_imputation/vendor/subteam_a/models.py": "0d27fd82ad5a0cc32c5c07fa303920fc2e2d6f248e58de12b816e457326b6087",
+    "src/synthetic_imputation/vendor/subteam_a/__init__.py": "3eb0242e509b8c34243aefc51ab8077cf65928ec1d746e4b71a79767f6369a94",
+    "src/synthetic_imputation/vendor/subteam_a/features.py": "ffa653909d0fecb1750affdcd50c51422108e21386d55a3859e0fed972ba7354",
+    "src/synthetic_imputation/vendor/subteam_a/data.py": "d8a719c3ecfc183d47310e72132319b310674c8d77c9f18d784ad4dba21ef445",
+    "data/datasets/generator/SyntheticDataset.ipynb": "18206cb4f0b3916c68b3dfe0dacebdb4b1f9e9e17a154d9857ff6d2c73b19353"
+  },
+  "raw_original_predictions_included": false,
+  "limitations": [
+    "Original package 03 was not supplied, so original-run per-cell reevaluation was not tested.",
+    "Fresh end-to-end validation uses the quick profile, not a new 3580-task full refit.",
+    "Existing dependency environment was checked and reused; no new dependency download/installation was performed.",
+    "Archived original scientific code and results remain unchanged."
+  ]
+}

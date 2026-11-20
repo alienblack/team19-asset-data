@@ -26,7 +26,7 @@ def main(argv=None, project_root=None):
     os.environ['MPLBACKEND']='Agg'
     root = Path(project_root or Path(__file__).resolve().parents[2]).resolve()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=('report','quick','full','evaluate'), default='report',
+    parser.add_argument('--mode', choices=('report','quick','full','evaluate','guided','dataset'), default='report',
                         help='Default: present the supplied full-study results, without refitting')
     parser.add_argument('--source', type=Path, help='Result tables/figures directory for report mode')
     parser.add_argument('--out', type=Path, help='Report output directory')
@@ -36,7 +36,35 @@ def main(argv=None, project_root=None):
     parser.add_argument('--quick-evaluation', action='store_true', help='Evaluate saved quick-run predictions')
     parser.add_argument('--config', type=Path, help='JSON StudyConfig overrides (recorded in the run contract)')
     parser.add_argument('--keep-inputs', action='store_true', help='Use supplied inputs instead of regenerating them')
+    parser.add_argument('--dataset', type=Path, help='CSV for the separate schema-configured dataset mode')
+    parser.add_argument('--truth', type=Path, help='Optional matching truth CSV for dataset mode')
+    parser.add_argument('--port', type=int, default=8765, help='Local guided-workbench port')
+    parser.add_argument('--no-browser', action='store_true', help='Do not open the guided workbench automatically')
     args = parser.parse_args(argv)
+    if args.mode == 'guided':
+        from .dataset_app import serve
+        return serve(root,args.port,open_browser=not args.no_browser)
+    if args.mode == 'dataset':
+        if not args.dataset:
+            parser.error('--mode dataset requires --dataset PATH.csv')
+        from .dataset import run_dataset
+        try:
+            overrides=json.loads(args.config.read_text()) if args.config else {}
+            if not isinstance(overrides,dict):raise ValueError('--config must contain a JSON object')
+            stamp=datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f')
+            report=run_dataset(args.dataset,args.out or root/'outputs/dataset-runs'/stamp,
+                               overrides,args.truth)
+            print(f'Report ready: {report}',flush=True)
+            status=json.loads((report.parent/'run_status.json').read_text())
+            if status['status']=='completed_with_errors':
+                print('Some model stages failed; inspect the report and failures.json.',file=sys.stderr)
+                return 2
+            return 0
+        except Exception as error:
+            print(f'Dataset run failed: {type(error).__name__}: {error}',file=sys.stderr)
+            return 1
+    if args.dataset or args.truth:
+        parser.error('--dataset and --truth are for --mode dataset')
     if args.workers < 1:
         parser.error('--workers must be positive')
     if args.mode == 'evaluate' and not args.run_id:

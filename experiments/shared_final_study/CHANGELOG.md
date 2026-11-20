@@ -1,4 +1,22 @@
-# Handover update — version 5.1
+# Handover updates
+
+## Version 5.2 - guided datasets and reports
+
+- Added a local browser workbench for CSV selection, optional matching truth,
+  field roles/tolerances/bounds/groups, model settings and progress.
+- Added a separate schema-configured runner and twelve method choices, using
+  training-only preprocessing and paired held-out masks. It accepts arbitrary
+  supported field names and category labels; ISO dates use day units.
+- Added full-input completion exports, per-cell fill/validation ledgers,
+  warnings/failures, input/code hashes and a generated field-level report.
+- Redesigned report typography, headings, navigation, figures and print styles.
+  Archived benchmark numbers and original scientific modules remain unchanged.
+- Added a synthetic arbitrary-schema example, Mac/Windows launchers, detailed
+  setup/methodology/parameter documentation and workflow tests.
+- The dataset workflow is a new protocol with generic settings; it is not a
+  substitute for rerunning the fixed original benchmark.
+
+## Version 5.1 - automated execution and reporting
 
 The original eleven-model comparison, baseline, model implementations and selected full-study settings are retained. In particular, the GMM remains six shared-covariance components, at most eight EM steps, regularisation 0.001 and model-ID weight 1.8.
 

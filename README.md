@@ -69,6 +69,10 @@ Run this study in its own **Python 3.12** environment, using its local
 `requirements.txt`; the root setup above does not install its dependencies.
 From the `experiments/shared_final_study` folder, `python run_study.py` regenerates
 the archived-results report without fitting. Quick/full modes fit fresh models.
+`python run_study.py --mode guided` opens the local dataset workbench: choose a
+CSV, define its fields and experiment settings, then generate completed datasets
+and a new report. This new-dataset protocol is documented separately from the
+archived benchmark, whose original scientific modules and scores are preserved.
 The earlier Subteam A benchmark below uses a separate **Python 3.11** environment
 and a different evaluation protocol; its figures are supporting evidence, not
 interchangeable scores for the shared final study.

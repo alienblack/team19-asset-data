@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synthetic-imputation-study"
-version = "5.1.0"
+version = "5.2.0"
 description = "Synthetic asset imputation study with automated execution and reporting"
 requires-python = ">=3.12,<3.13"
 
@@ -19,4 +19,4 @@ where = ["src"]
 imputation-study = "synthetic_imputation.cli:main"
 
 [tool.setuptools.package-data]
-synthetic_imputation = ["templates/*.html"]
+synthetic_imputation = ["templates/*.html", "templates/*.css"]

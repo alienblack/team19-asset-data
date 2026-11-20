@@ -11,9 +11,9 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 REFERENCE = 'completion0.8-noise0.05'
-SECTION_NAMES = {'project-guide':'Presentation figures', 'notebook':'All notebook figures',
-                 'imputation-A-random-forest':'Random Forest: method and comparison',
-                 'imputation-B-gmm':'GMM: method and comparison'}
+SECTION_NAMES = {'project-guide':'Study overview', 'notebook':'Evaluation figures',
+                 'imputation-A-random-forest':'Random Forest: implementation and evaluation',
+                 'imputation-B-gmm':'Gaussian mixture: implementation and evaluation'}
 CAPTIONS = {
  'overall':'Mean numeric skill across models', 'overall_skill':'Performance of every model by field',
  'skill_vs_cost':'Numeric skill and computational cost', 'cost_against_skill':'Numeric skill and computational cost',
@@ -111,7 +111,14 @@ def build_report(source, output, metadata=None, project_root=None):
         caption = CAPTIONS.get(p.stem,p.stem.replace('_',' ').replace('-',' ').capitalize())
         if p.stem.startswith('model_'):
             caption = p.stem[6:].replace('_',' ').title()+' · performance by scenario'
-        chart_groups.setdefault(group,[]).append({'name':p.name,'title':caption,
+        interpretation = ('Point predictions can narrow the completed distribution. Compare the shape and extremes as well as average error.'
+            if any(word in p.stem for word in ('shrink','distribution','pmf','summary_values')) else
+            'Read the conditions and individual fields together: a mean can hide concentrated damage to a subset of records.'
+            if any(word in p.stem for word in ('noise','wrong','condition','mechanism','bias')) else
+            'This is a method or workflow diagram; the scored comparison is reported separately in the tables.'
+            if p.stem in ('idea','fit','fill','workflow','chain','update','rf_full','rf_plain') else
+            'Use the axis labels and scenario definition when comparing this figure with the field-level table. The underlying exports are available below.')
+        chart_groups.setdefault(group,[]).append({'name':p.name,'title':caption,'interpretation':interpretation,
                        'source':str(p.relative_to(source)),
                        'image':'data:image/png;base64,'+base64.b64encode(content).decode('ascii')})
     if not image_paths:
@@ -137,6 +144,7 @@ def build_report(source, output, metadata=None, project_root=None):
                         ([source/'run_metadata.json'] if (source/'run_metadata.json').is_file() else [])))
     model_files = sorted((root / 'src/synthetic_imputation').rglob('*.py'))
     model_files += sorted((root / 'src/synthetic_imputation/templates').glob('*.html'))
+    model_files += sorted((root / 'src/synthetic_imputation/templates').glob('*.css'))
     model_files += [p for p in (root/'run_study.py',root/'notebooks/imputation.ipynb',
                     root/'requirements.txt',root/'pyproject.toml') if p.is_file()]
     model_files += sorted((root/'scripts').glob('*.py'))
@@ -160,12 +168,21 @@ def build_report(source, output, metadata=None, project_root=None):
                              'value':json.dumps(json.loads(p.read_text()),sort_keys=True)})
     if config.get('parameters'):
         settings = [{'name':name,'value':json.dumps(value,sort_keys=True)} for name,value in config['parameters'].items()]
+    insights = [{'title':'Highest mean numeric recovery at the reference condition',
+        'text':f"{leader['method']} leads with mean skill {leader['skill']:.3f}. This is a baseline-relative reduction in MAE averaged over {field_count} numeric fields, not a percentage of correct values."}]
+    if gmm and forest:
+        insights.append({'title':'Accuracy and computation are separate choices',
+            'text':f"Random Forest has mean skill {forest['skill']:.3f}; Gaussian EM has {gmm['skill']:.3f}. "
+                   +(f"The recorded per-target/fold runtime is {speedup:.1f} times lower for Gaussian EM. " if speedup else '')
+                   +'The runtime comparison applies to this recorded protocol and hardware.'})
+    insights.append({'title':'Check field precision before accepting a fill',
+        'text':'Mean skill can improve while individual fills remain outside a useful tolerance. Field metrics, grouped-gap tests and wrong-recorded-value scenarios address different limits. This shared study does not validate per-asset uncertainty intervals.'})
     environment = Environment(loader=FileSystemLoader(Path(__file__).parent/'templates'),
                               autoescape=select_autoescape(['html']))
     html = environment.get_template('report.html').render(
         kind=kind,quick=quick,provenance=provenance,run_id=run_id,created=created,
         reference=reference,seed=seed,population=population,field_count=field_count,
-        ranking=ranking,leader=leader,gmm=gmm,forest=forest,speedup=speedup,
+        ranking=ranking,leader=leader,gmm=gmm,forest=forest,speedup=speedup,insights=insights,
         charts=chart_groups,chart_count=len(image_paths),downloads=csv_downloads,
         metric_rows=metric_rows,methods=sorted({r['method'] for r in metric_rows}),
         targets=list(num.target.unique())+['model_id'],task_counts=rows,

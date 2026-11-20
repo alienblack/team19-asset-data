@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import tomllib
 from pathlib import Path
 from zipfile import ZIP_DEFLATED,ZipFile
 
@@ -38,7 +39,8 @@ def main():
     if not (ROOT/'reports/published/report.html').is_file():
         raise SystemExit('Generate the report before packaging: python run_study.py')
     files=[p for p in sorted(ROOT.rglob('*')) if p.is_file() and included(p)]
-    manifest={'package':'Team19 automated imputation handover','version':'5.1.0',
+    version=tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['version']
+    manifest={'package':'Team19 automated imputation handover','version':version,
               'files':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}}
     (ROOT/'PACKAGE_MANIFEST.json').write_text(json.dumps(manifest,indent=2)+'\n')
     args.out.parent.mkdir(parents=True,exist_ok=True)

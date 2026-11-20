@@ -1,55 +1,77 @@
-# Team 19 — automated study handover
+# Team 19 - start here
 
-Start by opening **[the complete report](reports/published/report.html)** in a web browser. It contains the supplied full-study results, every chart, a searchable field-level table and links to the CSV exports. No installation is needed to read it. The charts are embedded; keep the report inside this folder for CSV links to work.
+This package offers two separate routes:
 
-The report is based on the supplied run **20261115-121714**. It is labelled as archived full-study evidence, rather than a new model fit. `reference_results/` contains the original result tables, completed datasets and figures from package 02.
+| What you want to do | Start with |
+| --- | --- |
+| Read the supplied final comparison | Open [reports/published/report.html](reports/published/report.html); no installation is needed. |
+| Choose your own CSV and generate a new report | Install the environment below, then run `python run_study.py --mode guided`. |
+| Reproduce the original synthetic benchmark | Use `--mode quick` or `--mode full`; see the README. |
 
-## Generate the report again
+The **new dataset workbench does not change the original benchmark's model code,
+inputs or saved scores**. A new CSV run has its own schema, parameters, validation
+protocol and outputs. It is not automatically a reproduction of the old study.
 
-Install Python **3.12**, then run these commands in this folder:
+## Install once
+
+Use **Python 3.12** in this folder. Keep this environment separate from the
+earlier Subteam A benchmark's Python 3.11 environment.
+
+macOS / Linux:
 
 ```sh
-python -m venv .venv
-# macOS / Linux:
+python3.12 -m venv .venv
 source .venv/bin/activate
-# Windows PowerShell instead:
-# .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python run_study.py
+python -m pip check
 ```
 
-Open `reports/published/report.html`. The command reads the supplied result exports, creates the report and records its source hashes. It does not train models.
+Windows PowerShell:
 
-## Run the experiment
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m pip check
+```
+
+If PowerShell activation is restricted, use `.venv\Scripts\python.exe` instead
+of `python` in the subsequent commands; changing execution policy is unnecessary.
+
+## Open the dataset workbench
 
 ```sh
-# Small installation check: all stages, 600 rows, small models.
-python run_study.py --mode quick --workers 2
-
-# Rebuild the full study: inputs, models, evaluation, CSVs, charts and report.
-python run_study.py --mode full --workers 4
+python run_study.py --mode guided
 ```
 
-Each command prints the report location. A quick-run report is prominently marked **not research findings**. The full run has 3,580 tasks; the original full run took about 2 hours 20 minutes with 12 workers. Time depends on hardware. Allow the process to finish; its detailed progress is in the printed `execution.log`.
+Your browser opens at `http://127.0.0.1:8765`. Choose a CSV, confirm field types,
+choose methods and parameters, then press **Run study & generate report**. The
+synthetic example button is an easy first check. A matching clean truth CSV is
+optional. Without it, validation hides known recorded values on held-out rows.
 
-The report offers model/field filtering, full-size chart inspection, PNG downloads, CSV links and **Print / save PDF** through the browser. `summary.json` contains machine-readable results; `manifest.json` records source and code hashes.
+After setup, macOS users can also open `Start_Workbench.command`; Windows users
+can open `Start_Workbench.bat`. Keep the terminal running while the app is in use.
+Ctrl+C stops the local workbench. Uploaded data and generated runs remain local
+under `outputs/dataset-workbench/`; they are excluded from the client ZIP and Git.
 
-## What is included
+The report includes comparison tables, field results, charts with interpretations,
+completed CSVs, fill ledgers, settings, warnings and provenance. Use **Print / save
+PDF** in the report for a printable copy. Keep the HTML with its run folder for
+CSV download links to work; all charts are embedded.
 
-- `run_study.py`: one command for all execution modes.
-- `src/`, `data/`, `notebooks/`: study code, exact synthetic inputs and the interactive notebook.
-- `reference_results/`: supplied full-study results and tuning records.
-- `reports/published/`: generated full-study report, summary and provenance.
-- `scripts/selection_audit.py`: checks the eight published parameter-selection choices.
-- `scripts/refit_selection.py`: a new, explicit measured-data-only tuning runner.
-- `README.md`: resume/evaluation commands, configuration and limitations.
-- `CHANGELOG.md`: exactly what changed in this handover update.
+## The original study
 
-The separate original package 03 is optional for a fresh model run. It is required only to reevaluate its original saved per-cell predictions without refitting. No confidential SAPN records are included.
+```sh
+python run_study.py                           # rebuild archived-results report
+python run_study.py --mode quick --workers 2 # small diagnostic, not research findings
+python run_study.py --mode full --workers 4  # fresh full synthetic benchmark
+```
 
-For GitHub, Jira and client submission, see [SUBMISSION.md](SUBMISSION.md). Build
-the client ZIP with `tools/build_handover.py`; do not compress a working folder
-containing a virtual environment or generated experiment runs.
+The archived full-study result is run `20261115-121714`. Original package 03 is
+not needed to read it or fit models again. It is required to reevaluate that
+original run's saved per-cell predictions without fitting.
 
-`FINAL_SUBMISSION_AUDIT.json` records the latest unit tests, fresh extracted
-quick-run check, original-file integrity checks and report checks.
+Read [README.md](README.md) for the full methodology, field/parameter reference,
+file map, commands, troubleshooting and limits. [SUBMISSION.md](SUBMISSION.md)
+maps this release to GitHub and Jira. Validation is recorded in `VERIFICATION.md`
+and the audit JSON files.

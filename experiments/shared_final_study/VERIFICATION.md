@@ -1,5 +1,35 @@
 # Verification of the automated handover
 
+## Version 5.2 - guided datasets and report redesign
+
+- **91 tests passed**, with one expected IterativeImputer convergence warning
+  under a deliberately small test budget. There were no failed tests.
+- The new checks cover arbitrary schemas, five categorical labels, all twelve
+  model adapters, train/test isolation, absence of truth in fitting, paired masks,
+  independent noise draws, exact year tolerances, date units, preservation of
+  recorded values/identifier text, partial-model failures and local-server bounds.
+- A complete new-schema run with all twelve methods succeeded under grouped gaps
+  and added 10% measurement noise: 24 validation fits and twelve full-input exports,
+  with zero model-stage failures. These are diagnostic settings, not published
+  research findings.
+- The browser also accepted the original 10,000-row, 15-field transformer CSV and
+  matching truth, correctly identifying model ID as categorical. Desktop/mobile
+  rendering produced no page-level overflow or JavaScript errors.
+- Report figures decoded offline. Printing loaded all figures, included every
+  result row and restored the selected screen filters afterwards. The example PDF
+  was rendered and visually checked for pagination/clipping.
+- The original 25 scientific modules, 30 input CSVs and 58 result CSVs retain
+  their exact hashes. The original published scientific summary is identical.
+  Dependency pins are unchanged; the existing Python 3.12 environment was reused.
+
+The current audit is `FINAL_SUBMISSION_AUDIT.json`. The earlier version-5.1 audit
+is retained in `docs/audits/5.1-final-submission.json`; its code hashes refer to that
+earlier release. New-dataset reports use their own schemas and generic settings.
+They are not relabelled reproductions of the original benchmark. No new full
+3,580-task original benchmark was claimed for this interface update.
+
+## Earlier version 5.1 verification
+
 The original numerical/model code and scientific inputs were kept intact. `ORIGINAL_SOURCES.json` records the hashes from the two supplied archives. The package builder checks all **25 original Python package modules**, **30 input CSVs** and **58 result CSVs** before writing a client archive.
 
 ## Completed checks

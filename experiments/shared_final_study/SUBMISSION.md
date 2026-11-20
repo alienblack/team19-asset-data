@@ -2,6 +2,8 @@
 
 This folder is the combined Team 19 final study: the original code/input package
 01, result/figure package 02, and the automated execution/reporting handover.
+Version 5.2 also adds a local guided workflow for new CSV datasets, with a
+separate configurable evaluation and report. It preserves the archived study.
 It is independent of the earlier Subteam A study elsewhere in this repository.
 Start with [START_HERE.md](START_HERE.md).
 
@@ -20,7 +22,7 @@ ZIP is not automatically the same archive as the separately built client ZIP.
 
 The client ZIP contains the code, tests, notebooks, exact synthetic inputs,
 archived tables, twelve completed reference datasets, 54 figures and an offline
-HTML report. It excludes virtual environments, builds, caches, macOS metadata
+HTML report, plus the new dataset workbench and its synthetic example. It excludes virtual environments, builds, caches, macOS metadata
 and generated quick-run predictions. Retain the containing folder when sharing
 the HTML report: its figures are embedded, but CSV download links use nearby files.
 
@@ -84,3 +86,6 @@ records any additional checks and their actual scope.
 
 These files preserve the supplied team source and provenance records. No new
 licence grant is asserted over other contributors' code or third-party libraries.
+
+The integration PR is https://github.com/alienblack/team19-asset-data/pull/28.
+It must be reviewed/merged before these additions are described as present on main.
