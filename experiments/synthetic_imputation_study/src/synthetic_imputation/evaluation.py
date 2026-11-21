@@ -8,7 +8,7 @@ import pandas as pd
 
 from .columns import ABSOLUTE, BY_NAME, CATEGORY_TARGET, NUMERIC_TARGETS, TARGETS
 from .data import RANDOM
-from .models import NUMERIC_METHODS
+from .names import NUMERIC_METHODS
 from .runner import ALL_COLUMNS, ALL_NUMERIC, ITERATIVE, PROBABILITY_COLUMNS
 
 KEYS = ["scenario", "experiment", "variant", "seed", "target", "method"]
@@ -72,6 +72,7 @@ def numeric_scores(name, truth, prediction):
 
 
 def class_scores(truth, prediction):
+    """Accuracy, macro F1 and balanced accuracy of predicted classes against the true classes."""
     y, p = np.asarray(truth, float), np.asarray(prediction, float)
     classes = np.unique(y)
     recall = [np.mean(p[y == c] == c) for c in classes]
@@ -107,6 +108,7 @@ def score_tables(scored):
 
 
 def add_scenario_levels(table, scenarios):
+    """Add the completion level, noise level and missingness mechanism of each row's scenario."""
     table = table.copy()
     table["completion"] = table.scenario.map(lambda s: scenarios[s].completion)
     table["noise"] = table.scenario.map(lambda s: scenarios[s].noise)
@@ -222,6 +224,7 @@ def _loss_any(frame):
 
 
 def complete_table(measured, cells):
+    """The measured table with every hidden cell replaced by its imputed value."""
     frame = measured.copy()
     for target, block in cells.groupby("target"):
         frame.loc[block.row_id.to_numpy(), target] = block.value.to_numpy()
@@ -326,11 +329,13 @@ def cost_table(log):
 
 
 def importance_matrix(importance, scenario, method):
+    """Permutation importance of every predictor for every target, for one model and scenario."""
     block = importance[importance.scenario.eq(scenario) & importance.method.eq(method)]
     return block.pivot(index="target", columns="predictor", values="importance").reindex(list(TARGETS))
 
 
 def run_summary(log, plan):
+    """Planned, finished, failed and warned tasks of a run, in one row."""
     counts = log.status.value_counts()
     return pd.DataFrame([{
         "planned tasks": len(plan), "finished tasks": len(log),

@@ -10,7 +10,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import KFold, cross_val_predict
 
 from .columns import GAS_READINGS, NUMERIC_TARGETS, finalise
-from .models import NUMERIC_METHODS
+from .names import NUMERIC_METHODS
 
 FORMULA = "Formula"
 

@@ -1,13 +1,18 @@
-"""Static figures for the notebook. Every figure is shown and saved to the run folder."""
+"""Static figures and numbered captions for the notebook. Every figure is shown and saved to the run folder.
+
+Tables and figures are numbered by notebook section ("Table 6.3a", "Figure 6.3a"), so the text can cite them. A table's
+caption is shown above it and a figure's caption below it.
+"""
 
 from pathlib import Path
 
+from IPython.display import Markdown, display
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 import numpy as np
 
 from .columns import CATEGORY_TARGET, GENERATOR_LINKS, NAMES, NUMERIC_TARGETS, TARGETS
-from .models import NUMERIC_METHODS
+from .names import NUMERIC_METHODS
 
 INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e6e5e0", "#fcfcfb"
 SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948",
@@ -18,7 +23,19 @@ DIVERGING = LinearSegmentedColormap.from_list("polarity", ["#2a78d6", "#efeeea",
 MARKERS = ("o", "s", "^", "D", "v", "P", "X")
 
 
+def caption(label, text):
+    """Show a numbered caption, such as ``caption("Figure 6.1a", "Skill against the noise bound.")``."""
+    display(Markdown(f"**{label}.** {text}"))
+
+
+def table(label, text, frame):
+    """Show a table under its numbered caption."""
+    caption(label, text)
+    display(frame)
+
+
 def apply_style():
+    """Set the shared chart style: light surface, recessive grid and axes, small type."""
     plt.rcParams.update({
         "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
         "axes.edgecolor": GRID, "axes.labelcolor": MUTED, "axes.titlecolor": INK,
@@ -31,6 +48,7 @@ def apply_style():
 
 
 def finish(figure, folder, name):
+    """Lay out a figure, save it as a PNG in the run's figure folder when one is given, and show it."""
     figure.tight_layout()
     if folder is not None:
         Path(folder).mkdir(parents=True, exist_ok=True)

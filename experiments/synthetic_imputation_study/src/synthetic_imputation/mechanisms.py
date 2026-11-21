@@ -95,6 +95,7 @@ def _read(path):
 
 
 def scenario_names(config):
+    """Names of the added scenarios, built from the representative scenario and the configuration."""
     names = [f"{config.representative}-{m}" for m in config.mechanisms]
     noise = config.representative.split("-noise")[1]
     names += [f"completion{c:g}-noise{noise}-{SPARSE}" for c in config.sparse_completions]

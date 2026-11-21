@@ -11,27 +11,29 @@ import numpy as np
 import pandas as pd
 
 from .columns import (
-    ABSOLUTE, BY_NAME, CATEGORY_TARGET, CO_DEFINING, GENERATOR_LINKS, NAMES, NUMERIC_TARGETS, PARENTS, TARGETS,
+    ABSOLUTE, BY_NAME, CATEGORY_TARGET, CO_DEFINING, GENERATOR_LINKS, NUMERIC_TARGETS, PARENTS, TARGETS,
 )
 from .data import RANDOM
 from .evaluation import BASELINE_EXPERIMENTS, complete_table, fold_design
-from .models import NUMERIC_METHODS
+from .names import NUMERIC_METHODS
 from .runner import NO_BASE, PROBABILITY_COLUMNS, SPATIAL
 
-# The project has three branches. Each comparison of models shows every model; the line charts
-# follow the strongest model of each branch, chosen by ``branch_leads`` from the results.
-BRANCHES = {
-    "this study": ("KNN imputer", "IterativeImputer", "Random Forest", "HistGradientBoosting", "CatBoost",
-                   "miceforest direct"),
-    "Subteam A": ("Gaussian EM", "Masked MLP"),
-    "team pipeline": ("LightGBM chained", "Predictive MissForest", "MICE-PMM"),
+# Models fall into three groups by structure and by the source of their settings.
+MODEL_GROUPS = {
+    "chained, selected settings": ("KNN imputer", "IterativeImputer", "Random Forest", "HistGradientBoosting",
+                                   "CatBoost", "miceforest direct"),
+    "joint models": ("GMM", "Masked MLP"),
+    "chained, documented settings": ("LightGBM chained", "Predictive MissForest", "MICE-PMM"),
 }
-BRANCH_OF = {method: branch for branch, methods in BRANCHES.items() for method in methods}
-# Two of this study's models separate the shared ridge base from the rest: one is the ridge
-# alone, and one is a boosted chain with no ridge.
+GROUP_OF = {method: group for group, methods in MODEL_GROUPS.items() for method in methods}
+# Two models separate the shared ridge base from the rest: one is the ridge alone, and one is a
+# boosted chain with no ridge.
 REFERENCE_METHODS = {"IterativeImputer": "ridge only", "miceforest direct": "boosted chain without the ridge"}
 SHOWN_METHODS = tuple(m for m in NUMERIC_METHODS if m != "Median")
-LEAD_METHOD = "CatBoost"  # replaced by the strongest model of this study in ``branch_leads``
+# The two main models, one tree-based and one not, are compared with the baseline in chapters 6 to 9.
+# Views of a single model follow the first.
+MAIN_METHODS = ("Random Forest", "GMM")
+LEAD_METHOD = MAIN_METHODS[0]
 BASELINE_OF = {True: "Mode", False: "Median"}
 
 # Skill below FAILED means that a model removes less than a tenth of the baseline's
@@ -111,19 +113,12 @@ def skill_by(cells, keys, minimum=SMALL):
 
 
 def main_cells(cells, config, scenario=None):
+    """Cells of the main experiment at the main fold seed, optionally for one scenario."""
     block = cells[cells.experiment.eq("main") & cells.seed.eq(config.seed)]
     return block if scenario is None else block[block.scenario.eq(scenario)]
 
 
 # ----------------------------------------------------------------- overview
-
-
-def branch_leads(cells, config):
-    """The model with the highest mean skill in the reference scenario within each branch."""
-    table = skill_by(main_cells(cells, config, config.representative), ["target", "method"])
-    table = table[table.target.isin(SIGNAL_TARGETS) & table.target.ne(CATEGORY_TARGET) & table.method.isin(BRANCH_OF)]
-    means = table.groupby("method").skill.mean()
-    return {branch: means.reindex(methods).idxmax() for branch, methods in BRANCHES.items() if means.reindex(methods).notna().any()}
 
 
 def overall_table(cells, config):
@@ -196,6 +191,7 @@ MECHANISM_LABELS = {"age": "older assets hidden more", "value": "higher values h
 
 
 def mechanism_label(scenario):
+    """Readable name of an added scenario, as used in the condition map."""
     mechanism = scenario.rsplit("-", 1)[1]
     if mechanism == "sparse":
         return f"completion {_levels(scenario)[0]:g}"
@@ -548,6 +544,7 @@ def _link(target, predictor):
 
 
 def link_class(target, predictor):
+    """How a predictor relates to a target in the generator's definition (direct, co-defining, indirect, stand-in or none)."""
     label = _link(target, predictor)
     copy = NEAR_COPY.get(predictor)
     if label == NO_LINK and copy and copy != target and _link(target, copy) != NO_LINK:
@@ -669,7 +666,7 @@ def wrong_value_table(cells, measured, config):
     return table[(table.n >= SMALL) & ~table.method.isin(BASELINE_OF.values())]
 
 
-def branch_table(failure_maps):
+def group_table(failure_maps):
     """Mean skill over the columns with a relationship, for every model and condition.
 
     ``failure_maps`` maps each model to its failure map.
@@ -679,7 +676,7 @@ def branch_table(failure_maps):
         rows[method] = table.drop(index=["random_placebo"], errors="ignore").mean()
     order = list(dict.fromkeys(c for table in failure_maps.values() for c in table.columns))
     result = pd.DataFrame(rows).T.reindex(columns=order)
-    result.insert(0, "branch", [BRANCH_OF.get(m, "") for m in result.index])
+    result.insert(0, "group", [GROUP_OF.get(m, "") for m in result.index])
     return result
 
 

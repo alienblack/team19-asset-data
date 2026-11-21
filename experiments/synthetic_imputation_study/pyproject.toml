@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synthetic-imputation-study"
-version = "5.0"
-description = "Imputation study on a synthetic asset dataset, version 5.0"
+version = "1.0.0"
+description = "Imputation of missing values in a synthetic asset dataset: eleven models, fifteen scenarios, out-of-fold evaluation"
+readme = "README.md"
 requires-python = ">=3.12"
 
 [tool.pytest.ini_options]

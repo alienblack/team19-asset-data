@@ -3,7 +3,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]  # the version folder
+ROOT = Path(__file__).resolve().parents[3]  # the project folder
 sys.path.insert(0, str(ROOT / "src"))
 sys.stdout.reconfigure(encoding="utf-8")
 from synthetic_imputation.data import discover
